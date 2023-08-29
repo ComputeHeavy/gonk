@@ -1,15 +1,3 @@
-'''
-Events
-	Object created
-	Object deleted
-	Object versioned
-	Annotation created
-	Annotation deleted
-	Annotation versioned
-	Change approved
-	Change rejected
-'''
-
 import enum
 import uuid
 import datetime
@@ -22,10 +10,6 @@ class ActionT(enum.Enum):
 	CREATE = 1<<0
 	UPDATE = 1<<1
 	DELETE = 1<<2
-
-class DecisionT(enum.Enum):
-	ACCEPT = 1<<0
-	REJECT = 1<<1
 
 class HashTypeT(enum.Enum):
 	SHA256 = 1<<0
@@ -45,17 +29,52 @@ class Object:
 		# self.hash_type = hash_type
 		# self.hash = hash_
 
+	def __copy__(self):
+		# return Object(self.name, self.format, self.size, self.hash_type, 
+		# 	self.hash, self.uuid, self.version)
+		return Object(self.name, self.uuid, self.version)
+
+	def versioned_copy(self):
+		copy = self.__copy__()
+		copy.version += 1
+		return copy
+
+	def identifier(self):
+		return Identifier(self.uuid, self.version)
+
 class Annotation:
-	# def __init__(self, object_uuid: uuid.UUID, schema: str, 
-	# 	hash_type: HashTypeT, hash_: str, uuid_: uuid.UUID = uuid.uuid4(), 
-	# 	version: int = 0):
-	def __init__(self, object_uuid: uuid.UUID, uuid_: uuid.UUID = uuid.uuid4(), 
-		version: int = 0):
+	# def __init__(self, schema: Identifier, hash_type: HashTypeT, hash_: str, 
+	# 	uuid_: uuid.UUID = uuid.uuid4(), version: int = 0):
+	def __init__(self, uuid_: uuid.UUID = uuid.uuid4(), version: int = 0):
 		self.uuid = uuid_
 		self.version = version
 		# self.schema = schema
 		# self.hash_type = hash_type
 		# self.hash = hash_
+
+	def __copy__(self):
+		# return Annotation(self.schema, self.hash_type, 
+		# 	self.hash, self.uuid, self.version)
+		return Annotation(self.uuid, self.version)
+
+	def versioned_copy(self):
+		copy = self.__copy__()
+		copy.version += 1
+		return copy
+
+	def identifier(self):
+		return Identifier(self.uuid, self.version)
+
+class Identifier:
+	def __init__(self, uuid_: uuid.UUID, version: int):
+		self.uuid = uuid_
+		self.version = version
+
+	def __hash__(self):
+		return hash((self.uuid, self.version))
+
+	def __eq__(self, other):
+		return self.uuid == other.uuid and self.version == other.version
 
 ### Events ###
 class Event:
@@ -80,9 +99,9 @@ class ObjectUpdateEvent(ObjectEvent):
 		self.object = object_
 
 class ObjectDeleteEvent(ObjectEvent):
-	def __init__(self, object_uuid: uuid.UUID):
+	def __init__(self, object_identifier: Identifier):
 		super().__init__(ActionT.DELETE)
-		self.object_uuid = object_uuid
+		self.object_identifier = object_identifier
 
 ### Annotation Events ###
 class AnnotationEvent(Event):
@@ -91,9 +110,10 @@ class AnnotationEvent(Event):
 		self.action = action
 
 class AnnotationCreateEvent(AnnotationEvent):
-	def __init__(self, object_uuids: list[uuid.UUID], annotation: Annotation):
+	def __init__(
+		self, object_identifiers: list[Identifier], annotation: Annotation):
 		super().__init__(ActionT.CREATE)
-		self.object_uuids = object_uuids
+		self.object_identifiers = object_identifiers
 		self.annotation = annotation
 
 class AnnotationUpdateEvent(AnnotationEvent):
@@ -102,24 +122,9 @@ class AnnotationUpdateEvent(AnnotationEvent):
 		self.annotation = annotation
 
 class AnnotationDeleteEvent(AnnotationEvent):
-	def __init__(self, annotation_uuid: uuid.UUID):
+	def __init__(self, annotation_identifier: Identifier):
 		super().__init__(ActionT.DELETE)
-		self.annotation_uuid = annotation_uuid
-
-### Review Events ###
-class ReviewEvent(Event):
-	def __init__(self, event_uuid: uuid.UUID, decision: DecisionT):
-		super().__init__()
-		self.event_uuid = event_uuid
-		self.decision = decision
-
-class ReviewAcceptEvent(ReviewEvent):
-	def __init__(self, event_uuid: uuid.UUID):
-		super().__init__(event_uuid, DecisionT.ACCEPT)
-
-class ReviewRejectEvent(ReviewEvent):
-	def __init__(self, event_uuid: uuid.UUID):
-		super().__init__(event_uuid, DecisionT.REJECT)
+		self.annotation_identifier = annotation_identifier
 
 ### Machine ###
 class Machine:
@@ -159,21 +164,20 @@ class Consumer:
 ### State ###
 class State(Validator, Consumer):
 	def __init__(self):
-		self.objects: dict[uuid.UUID, list[StateObject]] = dict()
-		self.annotations = dict()
-		self.deltas: dict[uuid.UUID, Delta] = dict()
-		self.object_annotation_link = Link()
+		self.deleted_objects: set[Identifier] = set()
+		self.deleted_annotations: set[Identifier] = set()
+		self.objects: dict[uuid.UUID, list[Object]] = dict()
+		self.annotations: dict[uuid.UUID, list[Annotation]] = dict()
+		self.link = ObjectAnnotationLink()
 
 	def validate(self, event: Event) -> str:
 		handler: dict[type, callable[[Event], str]] = {
 			ObjectCreateEvent: self._validate_object_create,
 			ObjectUpdateEvent: self._validate_object_update,
-			# ObjectDeleteEvent: None,
-			# AnnotationCreateEvent: None,
-			# AnnotationUpdateEvent: None,
-			# AnnotationDeleteEvent: None,
-			ReviewAcceptEvent: self._validate_review,
-			ReviewRejectEvent: self._validate_review,
+			ObjectDeleteEvent: self._validate_object_delete,
+			AnnotationCreateEvent: self._validate_annotation_create,
+			AnnotationUpdateEvent: self._validate_annotation_update,
+			AnnotationDeleteEvent: self._validate_annotation_delete,
 		}
 
 		if type(event) not in handler:
@@ -200,25 +204,72 @@ class State(Validator, Consumer):
 
 		return None
 
-	def _validate_review(self, event: ReviewAcceptEvent) -> str | None:
-		if event.event_uuid not in self.deltas:
-			return 'Delta not found.'
+	def _validate_object_delete(self, event: ObjectDeleteEvent) -> str | None:
+		identifier = event.object_identifier
+		if identifier.uuid not in self.objects:
+			return 'Object identifier not found.'
 
-		delta = self.deltas[event.event_uuid]
-		store_lookup = {
-			Object: self.objects,
-			Annotation: self.annotations,
-		}
-		if delta.type not in store_lookup:
-			return 'Delta type must be Object or Annotation.'
+		if len(self.objects[identifier.uuid]) <= identifier.version:
+			return 'Version does not exist.'
 
-		store = store_lookup[delta.type]
+		if identifier in self.deleted_objects:
+			return 'Object version already deleted.'
 
-		if delta.target_uuid not in store:
-			return 'Target UUID not found.'
+		return None
 
-		if delta.review is not None:
-			return 'Delta already reviewed.'
+	def _validate_annotation_create(
+		self, event: AnnotationCreateEvent) -> str | None:
+
+		if event.annotation.uuid in self.annotations:
+			return 'UUID already exists in annotation store.'
+
+		if event.annotation.version != 0:
+			return 'Annotation version must be zero in create event.'
+
+		if event.annotation.uuid in self.link.reverse:
+			return 'Annotation identifier already linked to objects.'
+
+		for identifier in event.object_identifiers:
+			if identifier.uuid not in self.objects:
+				return 'Object identifier not found in object store.'
+
+			if len(self.objects[identifier.uuid]) <= identifier.version:
+				return 'Version does not exist.'
+
+			if identifier in self.deleted_objects:
+				return 'Annotating a deleted object.'
+
+		return None
+
+	def _validate_annotation_update(
+		self, event: AnnotationUpdateEvent) -> str | None:
+		if event.annotation.uuid not in self.annotations:
+			return 'UUID not found in annotation store.'
+
+		expected_version = len(self.annotations[event.annotation.uuid])
+		if event.annotation.version != expected_version:
+			return f'Annotation version should be {expected_version}.'
+
+		if event.annotation.uuid not in self.link.reverse:
+			return 'Annotation identifier not linked to any objects.'
+
+		for identifier in self.link.reverse[event.annotation.uuid]:
+			if identifier in self.deleted_objects:
+				return 'Annotating a deleted object.'
+
+		return None
+
+	def _validate_annotation_delete(
+		self, event: AnnotationDeleteEvent) -> str | None:
+		identifier = event.annotation_identifier
+		if identifier.uuid not in self.annotations:
+			return 'Annotation identifier not found.'
+
+		if len(self.annotations[identifier.uuid]) <= identifier.version:
+			return 'Version does not exist.'
+
+		if identifier in self.deleted_annotations:
+			return 'Annotation version already deleted.'
 
 		return None
 
@@ -226,12 +277,10 @@ class State(Validator, Consumer):
 		handler: dict[type, callable[[Event], str]] = {
 			ObjectCreateEvent: self._consume_object_create,
 			ObjectUpdateEvent: self._consume_object_update,
-			# ObjectDeleteEvent: None,
-			# AnnotationCreateEvent: None,
-			# AnnotationUpdateEvent: None,
-			# AnnotationDeleteEvent: None,
-			ReviewAcceptEvent: self._consume_review,
-			ReviewRejectEvent: self._consume_review,
+			ObjectDeleteEvent: self._consume_object_delete,
+			AnnotationCreateEvent: self._consume_annotation_create,
+			AnnotationUpdateEvent: self._consume_annotation_update,
+			AnnotationDeleteEvent: self._consume_annotation_delete,
 		}
 
 		if type(event) not in handler:
@@ -240,61 +289,43 @@ class State(Validator, Consumer):
 		return handler[type(event)](event)
 
 	def _consume_object_create(self, event: ObjectCreateEvent) -> str | None:
-		state_object = StateObject(event.object)
-		delta = Delta(event.uuid, event.action, Object, event.object.uuid)
-		state_object.deltas.append(delta)
+		self.objects[event.object.uuid] = []
+		self.objects[event.object.uuid].append(event.object)
 
-		if event.object.uuid not in self.objects:
-			self.objects[event.object.uuid] = []
+	def _consume_object_update(self, event: ObjectUpdateEvent) -> str | None:
+		self.objects[event.object.uuid].append(event.object)
 
-		self.objects[event.object.uuid].append(state_object)
-		self.deltas[event.uuid] = delta
+	def _consume_object_delete(self, event: ObjectDeleteEvent) -> str | None:
+		self.deleted_objects.add(event.object_identifier)
 
-		return None
+	def _consume_annotation_create(
+		self, event: AnnotationCreateEvent) -> str | None:
+		self.annotations[event.annotation.uuid] = []
+		self.annotations[event.annotation.uuid].append(event.annotation)
+	
+		self.link.reverse[event.annotation.uuid] = []
+		for identifier in event.object_identifiers:
+			if identifier not in self.link.forward:
+				self.link.forward[identifier] = []
+			
+			self.link.forward[identifier].append(
+				event.annotation.uuid)
 
-	def _consume_object_update(self, event: ObjectCreateEvent) -> str | None:
-		state_object = StateObject(event.object)
-		delta = Delta(event.uuid, event.action, Object, event.object.uuid)
-		state_object.deltas.append(delta)
+			self.link.reverse[event.annotation.uuid].append(
+				identifier)	
 
-		if event.object.uuid not in self.objects:
-			self.objects[event.object.uuid] = []
+	def _consume_annotation_update(
+		self, event: AnnotationUpdateEvent) -> str | None:
+		self.annotations[event.annotation.uuid].append(event.annotation)
 
-		self.objects[event.object.uuid].append(state_object)
-		self.deltas[event.uuid] = delta
+	def _consume_annotation_delete(
+		self, event: AnnotationDeleteEvent) -> str | None:
+		self.deleted_annotations.add(event.annotation_identifier)
 
-		return None
-
-	def _consume_review(self, event: ReviewAcceptEvent) -> str | None:
-		delta = self.deltas[event.event_uuid]
-		delta.review = Review(event.decision)
-
-		return None
-
-class Link:
+class ObjectAnnotationLink:
 	def __init__(self):
-		self.forward: dict[uuid.UUID, list[uuid.UUID]] = {}
-		self.reverse: dict[uuid.UUID, list[uuid.UUID]] = {}
-
-class StateObject(Object):
-	def __init__(self, object_: Object):
-		# super().__init__(object_.name, object_.format_, object_.size, 
-		# 	object_.hash_type, object_.hash_, object_.uuid_, object_.version)
-		super().__init__(object_.name, object_.uuid, object_.version)
-		self.deltas: list[Delta] = []
-
-class Delta:
-	def __init__(self, event_uuid: uuid.UUID, action: ActionT, type_: type, 
-		target_uuid: uuid.UUID):
-		self.event_uuid = event_uuid
-		self.action: ActionT = action
-		self.type = type_
-		self.target_uuid = target_uuid
-		self.review: Review | None = None
-
-class Review:
-	def __init__(self, decision: DecisionT):
-		self.decision = decision
+		self.forward: dict[Identifier, list[uuid.UUID]] = {}
+		self.reverse: dict[uuid.UUID, list[Identifier]] = {}
 
 ### Main ###
 def main():
@@ -302,10 +333,22 @@ def main():
 	machine = Machine()
 	machine.register(state)
 
-	o1c = ObjectCreateEvent(Object("obj1"))
-	machine.process_event(o1c)
+	o1v0 = Object("obj1")
+	machine.process_event(ObjectCreateEvent(o1v0))
 
-	machine.process_event(ReviewAcceptEvent(o1c.uuid))
+	o1v1 = o1v0.versioned_copy()
+	machine.process_event(ObjectUpdateEvent(o1v1))
+
+	o1v2 = o1v1.versioned_copy()
+	machine.process_event(ObjectUpdateEvent(o1v2))
+
+	a1v0 = Annotation()
+	machine.process_event(AnnotationCreateEvent([o1v2.identifier()], a1v0))
+
+	a1v1 = a1v0.versioned_copy()
+	machine.process_event(AnnotationUpdateEvent(a1v1))
+
+	machine.process_event(AnnotationDeleteEvent(a1v1.identifier()))
 
 	print(state.__dict__)
 
