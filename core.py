@@ -131,7 +131,7 @@ class AnnotationDeleteEvent(AnnotationEvent):
 
 ### Record Keeper (Events) ###
 class RecordKeeper:
-    def add(event: Event):
+    def add(self, event: Event):
         raise Exception("Unimplemented method.")
 
     def read(self, uuid_: uuid.UUID) -> Event:
@@ -142,19 +142,19 @@ class RecordKeeper:
 
 ### Depot (Objects) ###
 class Depot:
-    def reserve(identifier: str, size: int):
+    def reserve(self, identifier: Identifier, size: int):
         raise Exception("Unimplemented method.")
 
-    def write(identifier: str, offset: int, buf: bytes):
+    def write(self, identifier: Identifier, offset: int, buf: bytes):
         raise Exception("Unimplemented method.")
 
-    def finalize(identifier: str):
+    def finalize(self, identifier: Identifier):
         raise Exception("Unimplemented method.")
 
-    def read(identifier: str, offset: int, size: int):
+    def read(self, identifier: Identifier, offset: int, size: int):
         raise Exception("Unimplemented method.")
 
-    def purge(identifier: str):
+    def purge(self, identifier: Identifier):
         raise Exception("Unimplemented method.")
 
 ### Machine ###
