@@ -326,31 +326,3 @@ class ObjectAnnotationLink:
     def __init__(self):
         self.forward: dict[Identifier, list[uuid.UUID]] = {}
         self.reverse: dict[uuid.UUID, list[Identifier]] = {}
-
-### Main ###
-def main():
-    state = State()
-    machine = Machine()
-    machine.register(state)
-
-    o1v0 = Object("obj1")
-    machine.process_event(ObjectCreateEvent(o1v0))
-
-    o1v1 = o1v0.versioned_copy()
-    machine.process_event(ObjectUpdateEvent(o1v1))
-
-    o1v2 = o1v1.versioned_copy()
-    machine.process_event(ObjectUpdateEvent(o1v2))
-
-    a1v0 = Annotation()
-    machine.process_event(AnnotationCreateEvent([o1v2.identifier()], a1v0))
-
-    a1v1 = a1v0.versioned_copy()
-    machine.process_event(AnnotationUpdateEvent(a1v1))
-
-    machine.process_event(AnnotationDeleteEvent(a1v1.identifier()))
-
-    print(state.__dict__)
-
-if __name__ == '__main__':
-    main()
