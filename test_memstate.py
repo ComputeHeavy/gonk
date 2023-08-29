@@ -1,11 +1,12 @@
 import core
 import memstate
+import memlog
 import unittest
 
 class TestState(unittest.TestCase):
     def test_machine_register(self):
         state = memstate.State()
-        machine = core.Machine()
+        machine = core.Machine(memlog.Log())
         machine.register(state)
 
         self.assertEqual(len(machine.validators), 1)
@@ -15,7 +16,7 @@ class TestState(unittest.TestCase):
 
     def test_object_create(self):
         state = memstate.State()
-        machine = core.Machine()
+        machine = core.Machine(memlog.Log())
         machine.register(state)
 
         o1v0 = core.Object("object-1")
@@ -27,7 +28,7 @@ class TestState(unittest.TestCase):
 
     def test_object_update(self):
         state = memstate.State()
-        machine = core.Machine()
+        machine = core.Machine(memlog.Log())
         machine.register(state)
 
         o1v0 = core.Object("object-1")
@@ -43,7 +44,7 @@ class TestState(unittest.TestCase):
 
     def test_object_delete(self):
         state = memstate.State()
-        machine = core.Machine()
+        machine = core.Machine(memlog.Log())
         machine.register(state)
 
         o1v0 = core.Object("object-1")
@@ -58,7 +59,7 @@ class TestState(unittest.TestCase):
 
     def test_annotation_create(self):
         state = memstate.State()
-        machine = core.Machine()
+        machine = core.Machine(memlog.Log())
         machine.register(state)
 
         o1v0 = core.Object("object-1")
@@ -82,7 +83,7 @@ class TestState(unittest.TestCase):
 
     def test_annotation_update(self):
         state = memstate.State()
-        machine = core.Machine()
+        machine = core.Machine(memlog.Log())
         machine.register(state)
 
         o1v0 = core.Object("object-1")
@@ -102,7 +103,7 @@ class TestState(unittest.TestCase):
 
     def test_annotation_delete(self):
         state = memstate.State()
-        machine = core.Machine()
+        machine = core.Machine(memlog.Log())
         machine.register(state)
 
         o1v0 = core.Object("object-1")

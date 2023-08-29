@@ -126,11 +126,16 @@ class AnnotationDeleteEvent(AnnotationEvent):
         super().__init__(ActionT.DELETE)
         self.annotation_identifier = annotation_identifier
 
+### Event Log ###
+class Log:
+    def add_event(event: Event):
+        raise Exception("Unimplemented method.")
+
 ### Machine ###
 class Machine:
-    def __init__(self):
+    def __init__(self, log: Log):
         self.validators: list[Validator] = []
-        self.event_log: list[Event] = []
+        self.log: Log = log
         self.consumers: list[Consumer] = []
 
     def process_event(self, event):
@@ -139,7 +144,7 @@ class Machine:
             if res is not None:
                 raise Exception(res)
 
-        self.event_log.append(event)
+        self.log.add_event(event)
 
         for c in self.consumers:
             res = c.consume(event)
@@ -163,13 +168,6 @@ class Consumer:
 
 ### State ###
 class State(Validator, Consumer):
-    def __init__(self):
-        self.deleted_objects: set[Identifier] = set()
-        self.deleted_annotations: set[Identifier] = set()
-        self.objects: dict[uuid.UUID, list[Object]] = dict()
-        self.annotations: dict[uuid.UUID, list[Annotation]] = dict()
-        self.link = ObjectAnnotationLink()
-
     def validate(self, event: Event) -> str:
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._validate_object_create,

@@ -9,6 +9,7 @@ class ObjectAnnotationLink:
 
 class State(core.State):
     def __init__(self):
+        super().__init__()
         self.deleted_objects: set[core.Identifier] = set()
         self.deleted_annotations: set[core.Identifier] = set()
         self.objects: dict[uuid.UUID, list[core.Object]] = dict()
