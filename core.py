@@ -74,6 +74,9 @@ class Identifier:
         return hash((self.uuid, self.version))
 
     def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+
         return self.uuid == other.uuid and self.version == other.version
 
 ### Events ###
@@ -126,9 +129,32 @@ class AnnotationDeleteEvent(AnnotationEvent):
         super().__init__(ActionT.DELETE)
         self.annotation_identifier = annotation_identifier
 
-### Event Log ###
-class Log:
+### Record Keeper (Events) ###
+class RecordKeeper:
     def add_event(event: Event):
+        raise Exception("Unimplemented method.")
+
+    def read(self, uuid_: uuid.UUID) -> core.Event:
+        raise Exception("Unimplemented method.")
+
+    def exists(self, uuid_: uuid.UUID) -> bool:
+        raise Exception("Unimplemented method.")
+
+### Depot (Objects) ###
+class Depot:
+    def reserve(identifier: str, size: int):
+        raise Exception("Unimplemented method.")
+
+    def write(identifier: str, offset: int, buf: bytes):
+        raise Exception("Unimplemented method.")
+
+    def finalize(identifier: str):
+        raise Exception("Unimplemented method.")
+
+    def read(identifier: str, offset: int, size: int):
+        raise Exception("Unimplemented method.")
+
+    def purge(identifier: str):
         raise Exception("Unimplemented method.")
 
 ### Machine ###
