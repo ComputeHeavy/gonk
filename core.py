@@ -185,94 +185,6 @@ class State(Validator, Consumer):
 
         return handler[type(event)](event)
 
-    def _validate_object_create(self, event: ObjectCreateEvent) -> str | None:
-        if event.object.uuid in self.objects:
-            return 'UUID already exists in object store.'
-
-        if event.object.version != 0:
-            return 'Object version must be zero in create event.'
-
-        return None
-
-    def _validate_object_update(self, event: ObjectCreateEvent) -> str | None:
-        if event.object.uuid not in self.objects:
-            return 'UUID not found in object store.'
-
-        expected_version = len(self.objects[event.object.uuid])
-        if event.object.version != expected_version:
-            return f'Object version should be {expected_version}.'
-
-        return None
-
-    def _validate_object_delete(self, event: ObjectDeleteEvent) -> str | None:
-        identifier = event.object_identifier
-        if identifier.uuid not in self.objects:
-            return 'Object identifier not found.'
-
-        if len(self.objects[identifier.uuid]) <= identifier.version:
-            return 'Version does not exist.'
-
-        if identifier in self.deleted_objects:
-            return 'Object version already deleted.'
-
-        return None
-
-    def _validate_annotation_create(
-        self, event: AnnotationCreateEvent) -> str | None:
-
-        if event.annotation.uuid in self.annotations:
-            return 'UUID already exists in annotation store.'
-
-        if event.annotation.version != 0:
-            return 'Annotation version must be zero in create event.'
-
-        if event.annotation.uuid in self.link.reverse:
-            return 'Annotation identifier already linked to objects.'
-
-        for identifier in event.object_identifiers:
-            if identifier.uuid not in self.objects:
-                return 'Object identifier not found in object store.'
-
-            if len(self.objects[identifier.uuid]) <= identifier.version:
-                return 'Version does not exist.'
-
-            if identifier in self.deleted_objects:
-                return 'Annotating a deleted object.'
-
-        return None
-
-    def _validate_annotation_update(
-        self, event: AnnotationUpdateEvent) -> str | None:
-        if event.annotation.uuid not in self.annotations:
-            return 'UUID not found in annotation store.'
-
-        expected_version = len(self.annotations[event.annotation.uuid])
-        if event.annotation.version != expected_version:
-            return f'Annotation version should be {expected_version}.'
-
-        if event.annotation.uuid not in self.link.reverse:
-            return 'Annotation identifier not linked to any objects.'
-
-        for identifier in self.link.reverse[event.annotation.uuid]:
-            if identifier in self.deleted_objects:
-                return 'Annotating a deleted object.'
-
-        return None
-
-    def _validate_annotation_delete(
-        self, event: AnnotationDeleteEvent) -> str | None:
-        identifier = event.annotation_identifier
-        if identifier.uuid not in self.annotations:
-            return 'Annotation identifier not found.'
-
-        if len(self.annotations[identifier.uuid]) <= identifier.version:
-            return 'Version does not exist.'
-
-        if identifier in self.deleted_annotations:
-            return 'Annotation version already deleted.'
-
-        return None
-
     def consume(self, event: Event) -> str | None:
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._consume_object_create,
@@ -288,41 +200,45 @@ class State(Validator, Consumer):
 
         return handler[type(event)](event)
 
+    def _validate_object_create(self, event: ObjectCreateEvent) -> str | None:
+        raise Exception("Unimplemented method.")
+
+    def _validate_object_update(self, event: ObjectCreateEvent) -> str | None:
+        raise Exception("Unimplemented method.")
+
+
+    def _validate_object_delete(self, event: ObjectDeleteEvent) -> str | None:
+        raise Exception("Unimplemented method.")
+
+    def _validate_annotation_create(
+        self, event: AnnotationCreateEvent) -> str | None:
+        raise Exception("Unimplemented method.")
+
+    def _validate_annotation_update(
+        self, event: AnnotationUpdateEvent) -> str | None:
+        raise Exception("Unimplemented method.")
+
+    def _validate_annotation_delete(
+        self, event: AnnotationDeleteEvent) -> str | None:
+        raise Exception("Unimplemented method.")
+
     def _consume_object_create(self, event: ObjectCreateEvent) -> str | None:
-        self.objects[event.object.uuid] = []
-        self.objects[event.object.uuid].append(event.object)
+        raise Exception("Unimplemented method.")
 
     def _consume_object_update(self, event: ObjectUpdateEvent) -> str | None:
-        self.objects[event.object.uuid].append(event.object)
+       raise Exception("Unimplemented method.")
 
     def _consume_object_delete(self, event: ObjectDeleteEvent) -> str | None:
-        self.deleted_objects.add(event.object_identifier)
+        raise Exception("Unimplemented method.")
 
     def _consume_annotation_create(
         self, event: AnnotationCreateEvent) -> str | None:
-        self.annotations[event.annotation.uuid] = []
-        self.annotations[event.annotation.uuid].append(event.annotation)
-    
-        self.link.reverse[event.annotation.uuid] = []
-        for identifier in event.object_identifiers:
-            if identifier not in self.link.forward:
-                self.link.forward[identifier] = []
-            
-            self.link.forward[identifier].append(
-                event.annotation.uuid)
-
-            self.link.reverse[event.annotation.uuid].append(
-                identifier) 
+        raise Exception("Unimplemented method.")
 
     def _consume_annotation_update(
         self, event: AnnotationUpdateEvent) -> str | None:
-        self.annotations[event.annotation.uuid].append(event.annotation)
+        raise Exception("Unimplemented method.")
 
     def _consume_annotation_delete(
         self, event: AnnotationDeleteEvent) -> str | None:
-        self.deleted_annotations.add(event.annotation_identifier)
-
-class ObjectAnnotationLink:
-    def __init__(self):
-        self.forward: dict[Identifier, list[uuid.UUID]] = {}
-        self.reverse: dict[uuid.UUID, list[Identifier]] = {}
+        raise Exception("Unimplemented method.")

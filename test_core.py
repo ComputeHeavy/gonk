@@ -1,9 +1,10 @@
 import core
+import memstate
 import unittest
 
 class TestState(unittest.TestCase):
     def test_machine_register(self):
-        state = core.State()
+        state = memstate.State()
         machine = core.Machine()
         machine.register(state)
 
@@ -13,7 +14,7 @@ class TestState(unittest.TestCase):
         self.assertEqual(machine.consumers[0], state)
 
     def test_object_create(self):
-        state = core.State()
+        state = memstate.State()
         machine = core.Machine()
         machine.register(state)
 
@@ -25,7 +26,7 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
 
     def test_object_update(self):
-        state = core.State()
+        state = memstate.State()
         machine = core.Machine()
         machine.register(state)
 
@@ -41,7 +42,7 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.objects[o1v0.uuid][1], o1v1)
 
     def test_object_delete(self):
-        state = core.State()
+        state = memstate.State()
         machine = core.Machine()
         machine.register(state)
 
@@ -56,7 +57,7 @@ class TestState(unittest.TestCase):
         self.assertTrue(o1v0.identifier() in state.deleted_objects)
 
     def test_annotation_create(self):
-        state = core.State()
+        state = memstate.State()
         machine = core.Machine()
         machine.register(state)
 
@@ -80,7 +81,7 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.link.reverse[a1v0.uuid][0], o1v0.identifier())
 
     def test_annotation_update(self):
-        state = core.State()
+        state = memstate.State()
         machine = core.Machine()
         machine.register(state)
 
@@ -100,7 +101,7 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.annotations[a1v0.uuid][1], a1v1)
 
     def test_annotation_delete(self):
-        state = core.State()
+        state = memstate.State()
         machine = core.Machine()
         machine.register(state)
 
