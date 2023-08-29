@@ -131,10 +131,10 @@ class AnnotationDeleteEvent(AnnotationEvent):
 
 ### Record Keeper (Events) ###
 class RecordKeeper:
-    def add_event(event: Event):
+    def add(event: Event):
         raise Exception("Unimplemented method.")
 
-    def read(self, uuid_: uuid.UUID) -> core.Event:
+    def read(self, uuid_: uuid.UUID) -> Event:
         raise Exception("Unimplemented method.")
 
     def exists(self, uuid_: uuid.UUID) -> bool:
@@ -159,9 +159,9 @@ class Depot:
 
 ### Machine ###
 class Machine:
-    def __init__(self, log: Log):
+    def __init__(self, record_keeper: RecordKeeper):
         self.validators: list[Validator] = []
-        self.log: Log = log
+        self.record_keeper: RecordKeeper = record_keeper
         self.consumers: list[Consumer] = []
 
     def process_event(self, event):
@@ -170,7 +170,7 @@ class Machine:
             if res is not None:
                 raise Exception(res)
 
-        self.log.add_event(event)
+        self.record_keeper.add(event)
 
         for c in self.consumers:
             res = c.consume(event)
