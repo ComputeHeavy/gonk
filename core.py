@@ -3,7 +3,10 @@ import uuid
 import datetime
 
 def tsnow():
-    return f'{datetime.datetime.utcnow().isoformat("T")}Z'
+    return f"{datetime.datetime.utcnow().isoformat('T')}Z"
+
+def is_schema(name: str) -> bool:
+    return name.startswith("schema-")
 
 ### Enums ###
 class ActionT(enum.Enum):
@@ -15,56 +18,6 @@ class HashTypeT(enum.Enum):
     SHA256 = 1<<0
 
 ### Data Containers ###
-class Object:
-    # def __init__(
-    # self, name: str, format_: str, size: int, hash_type: HashTypeT, 
-    #   hash_: str, uuid_: uuid.UUID = uuid.uuid4(), version: int = 0):
-    def __init__(self, name: str, uuid_: uuid.UUID = uuid.uuid4(), 
-        version: int = 0):
-        self.uuid = uuid_
-        self.version = version
-        self.name = name
-        # self.format = format_
-        # self.size = size
-        # self.hash_type = hash_type
-        # self.hash = hash_
-
-    def __copy__(self):
-        # return Object(self.name, self.format, self.size, self.hash_type, 
-        #   self.hash, self.uuid, self.version)
-        return Object(self.name, self.uuid, self.version)
-
-    def versioned_copy(self):
-        copy = self.__copy__()
-        copy.version += 1
-        return copy
-
-    def identifier(self):
-        return Identifier(self.uuid, self.version)
-
-class Annotation:
-    # def __init__(self, schema: Identifier, hash_type: HashTypeT, hash_: str, 
-    #   uuid_: uuid.UUID = uuid.uuid4(), version: int = 0):
-    def __init__(self, uuid_: uuid.UUID = uuid.uuid4(), version: int = 0):
-        self.uuid = uuid_
-        self.version = version
-        # self.schema = schema
-        # self.hash_type = hash_type
-        # self.hash = hash_
-
-    def __copy__(self):
-        # return Annotation(self.schema, self.hash_type, 
-        #   self.hash, self.uuid, self.version)
-        return Annotation(self.uuid, self.version)
-
-    def versioned_copy(self):
-        copy = self.__copy__()
-        copy.version += 1
-        return copy
-
-    def identifier(self):
-        return Identifier(self.uuid, self.version)
-
 class Identifier:
     def __init__(self, uuid_: uuid.UUID, version: int):
         self.uuid = uuid_
@@ -78,6 +31,47 @@ class Identifier:
             return False
 
         return self.uuid == other.uuid and self.version == other.version
+
+class Object:
+    def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT, 
+        hash_: str, uuid_: uuid.UUID = None, version: int = 0):
+        if uuid_ is None:
+            uuid_ = uuid.uuid4()
+
+        self.uuid = uuid_
+        self.version = version
+        self.name = name
+        self.format = format_
+        self.size = size
+        self.hash_type = hash_type
+        self.hash = hash_
+
+    def __copy__(self):
+        return Object(self.name, self.format, self.size, self.hash_type, 
+          self.hash, self.uuid, self.version)
+
+    def identifier(self):
+        return Identifier(self.uuid, self.version)
+
+class Annotation:
+    def __init__(self, schema: Identifier, size: int, hash_type: HashTypeT, 
+        hash_: str, uuid_: uuid.UUID = None, version: int = 0):
+        if uuid_ is None:
+            uuid_ = uuid.uuid4()
+
+        self.uuid = uuid_
+        self.version = version
+        self.schema = schema
+        self.size = size
+        self.hash_type = hash_type
+        self.hash = hash_
+
+    def __copy__(self):
+        return Annotation(self.schema, self.size, self.hash_type, self.hash, 
+            self.uuid, self.version)
+
+    def identifier(self):
+        return Identifier(self.uuid, self.version)
 
 ### Events ###
 class Event:
@@ -159,9 +153,10 @@ class Depot:
 
 ### Machine ###
 class Machine:
-    def __init__(self, record_keeper: RecordKeeper):
-        self.validators: list[Validator] = []
+    def __init__(self, record_keeper: RecordKeeper, depot: Depot):
         self.record_keeper: RecordKeeper = record_keeper
+        self.depot: Depot = depot
+        self.validators: list[Validator] = []
         self.consumers: list[Consumer] = []
 
     def process_event(self, event):
@@ -205,7 +200,7 @@ class State(Validator, Consumer):
         }
 
         if type(event) not in handler:
-            return 'Unhandled event type in validate.'
+            return "Unhandled event type in validate."
 
         return handler[type(event)](event)
 
@@ -220,7 +215,7 @@ class State(Validator, Consumer):
         }
 
         if type(event) not in handler:
-            return 'Unhandled event type in consume.'
+            return "Unhandled event type in consume."
 
         return handler[type(event)](event)
 
@@ -266,3 +261,161 @@ class State(Validator, Consumer):
     def _consume_annotation_delete(
         self, event: AnnotationDeleteEvent) -> str | None:
         raise Exception("Unimplemented method.")
+
+class FieldValidator(Validator):
+    def __init__(self):
+        super().__init__()
+
+    def validate(self, event: Event) -> str | None:
+        handler: dict[type, callable[[Event], str]] = {
+            ObjectCreateEvent: self._validate_object,
+            ObjectUpdateEvent: self._validate_object,
+            AnnotationCreateEvent: self._validate_annotation,
+            AnnotationUpdateEvent: self._validate_annotation,
+        }
+
+        if type(event) not in handler:
+            return None
+
+        return handler[type(event)](event)
+
+    def _validate_object(self, event: Event) -> str | None:
+        object_ = event.object
+        if not isinstance(object_.uuid, uuid.UUID):
+            return "UUID is not of type uuid.UUID."
+
+        if object_.version < 0:
+            return "Version must be a non-negative integer."
+
+        if len(object_.name) == 0:
+            return "Object name cannot be empty."
+
+        if len(object_.format) == 0:
+            return "Object format cannot be empty."
+
+        if object_.size < 0:
+            return "Object size must be a non-negative integer."
+
+        if object_.hash_type != HashTypeT.SHA256:
+            return "Hash type must be SHA256."
+
+        if len(object_.hash) != 64:
+            return "Hash should be a hex encoded SHA256."
+
+    def _validate_annotation(self, event: Event) -> str | None:
+        annotation = event.annotation
+        if not isinstance(annotation.uuid, uuid.UUID):
+            return "UUID is not of type uuid.UUID."
+
+        if annotation.version < 0:
+            return "Version must be a positive integer."
+
+        if annotation.size < 0:
+            return "Annotation size must be a non-negative integer."
+
+        if not isinstance(annotation.schema, Identifier):
+            return "Schema must be an identifier."
+
+        if annotation.hash_type != HashTypeT.SHA256:
+            return "Hash type must be SHA256."
+
+        if len(annotation.hash) != 64:
+            return "Hash should be a hex encoded SHA256."
+
+class SchemaValidator(Validator, Consumer):
+    def __init__(self, depot: Depot):
+        super().__init__()
+        self.depot: Depot = depot
+        self.schemas: set[Identifier] = set()
+
+    def validate(self, event: Event) -> str | None:
+        handler: dict[type, callable[[Event], str]] = {
+            ObjectCreateEvent: self._validate_object_create,
+            ObjectUpdateEvent: self._validate_object_update,
+            AnnotationCreateEvent: self._validate_annotation_create,
+            AnnotationUpdateEvent: self._validate_annotation_update,
+        }
+
+        if type(event) not in handler:
+            return None
+
+        return handler[type(event)](event)
+
+    def _validate_object(self, object_) -> str | None:
+        if not is_schema(object_.name):
+            return
+
+        if object_.format != "application/schema+json":
+            return
+
+        bs = self.depot.read(object_.identifier(), 0, object_.size)
+        schema = json.loads(bs.decode())
+        try:
+            jsonschema.protocols.Validator.check_schema(schema)
+        except jsonschema.exceptions.SchemaError:
+            return "Invalid JSON schema."
+
+    def _validate_annotation(self, annotation) -> str | None:
+        if annotation.schema not in self.schemas:
+            return 
+
+        schema_bs = bytes()
+        off = 0
+        chunk = 1024*5
+        while True:
+            buf = self.depot.read(annotation.schema, off, chunk)
+            schema_bs += buf
+            off += len(buf)
+            if len(buf) < chunk:
+                break
+
+        schema = json.loads(schema_bs.decode())
+
+        annotation_bs = self.depot.read(
+            annotation.identifier(), 0, annotation.size)
+        instance = json.loads(annotation_bs.decode())
+
+        try:
+            jsonschema.validate(instance, schema)
+        except jsonschema.exceptions.ValidationError:
+            return "Annotation does not conform to schema."
+
+    def _validate_object_create(self, event: ObjectCreateEvent) -> str | None:
+        return self._validate_object(event.object)
+
+    def _validate_object_update(self, event: ObjectCreateEvent) -> str | None:
+        return self._validate_object(event.object)
+
+    def _validate_annotation_create(
+        self, event: AnnotationCreateEvent) -> str | None:
+        return self._validate_annotation(event.annotation)
+
+    def _validate_annotation_update(
+        self, event: AnnotationUpdateEvent) -> str | None:
+        return self._validate_annotation(event.annotation)
+
+    def consume(self, event: Event) -> str | None:
+        handler: dict[type, callable[[Event], str]] = {
+            ObjectCreateEvent: self._consume_object_create,
+            ObjectUpdateEvent: self._consume_object_update,
+        }
+
+        if type(event) not in handler:
+            return "Unhandled event type in consume."
+
+        return handler[type(event)](event)
+
+    def _consume_object(self, object_: Object) -> str | None:
+        if not is_schema(object_.name):
+            return
+
+        if object_.format != "application/schema+json":
+            return
+
+        self.schemas.add(object_.identifier())
+
+    def _consume_object_create(self, event: ObjectCreateEvent) -> str | None:
+        return self._consume_object(event.object)
+
+    def _consume_object_update(self, event: ObjectUpdateEvent) -> str | None:
+        return self._consume_object(event.object)

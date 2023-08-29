@@ -1,7 +1,6 @@
 import core
 import uuid
 
-### State ###
 class ObjectAnnotationLink:
     def __init__(self):
         self.forward: dict[Identifier, list[uuid.UUID]] = {}
@@ -13,11 +12,16 @@ class State(core.State):
         self.deleted_objects: set[core.Identifier] = set()
         self.deleted_annotations: set[core.Identifier] = set()
         self.objects: dict[uuid.UUID, list[core.Object]] = dict()
+        self.schemas: dict[str, uuid.UUID] = dict()
         self.annotations: dict[uuid.UUID, list[core.Annotation]] = dict()
         self.link = ObjectAnnotationLink()
 
     def _validate_object_create(
     	self, event: core.ObjectCreateEvent) -> str | None:
+        if core.is_schema(event.object.name):
+            if event.object.name in self.schemas:
+                return 'Schema name already in use.'
+
         if event.object.uuid in self.objects:
             return 'UUID already exists in object store.'
 
@@ -28,6 +32,13 @@ class State(core.State):
 
     def _validate_object_update(
     	self, event: core.ObjectCreateEvent) -> str | None:
+        if core.is_schema(event.object.name):
+            if event.object.name not in self.schemas:
+                return 'Schema name does not exist.'
+
+            if self.schemas[event.object.name] != event.object.uuid:
+                return 'Unexpected UUID for schema name.'
+
         if event.object.uuid not in self.objects:
             return 'UUID not found in object store.'
 
@@ -39,6 +50,9 @@ class State(core.State):
 
     def _validate_object_delete(
     	self, event: core.ObjectDeleteEvent) -> str | None:
+        if event.object_identifier.uuid in self.schemas.values():
+            return 'Schemas can not be deleted.'
+
         identifier = event.object_identifier
         if identifier.uuid not in self.objects:
             return 'Object identifier not found.'
@@ -71,7 +85,10 @@ class State(core.State):
                 return 'Version does not exist.'
 
             if identifier in self.deleted_objects:
-                return 'Annotating a deleted object.'
+                return 'Deleted objects cannot be annotated.'
+
+            if identifier.uuid in self.schemas.values():
+                return 'Schemas can not be annotated.'
 
         return None
 
@@ -111,6 +128,9 @@ class State(core.State):
     	self, event: core.ObjectCreateEvent) -> str | None:
         self.objects[event.object.uuid] = []
         self.objects[event.object.uuid].append(event.object)
+
+        if core.is_schema(event.object.name):
+            self.schemas[event.object.name] = event.object.uuid
 
     def _consume_object_update(
     	self, event: core.ObjectUpdateEvent) -> str | None:
