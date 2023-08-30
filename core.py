@@ -1,6 +1,8 @@
 import enum
 import uuid
 import datetime
+import json
+import jsonschema
 
 def tsnow():
     return f"{datetime.datetime.utcnow().isoformat('T')}Z"
@@ -401,7 +403,7 @@ class SchemaValidator(Validator, Consumer):
         }
 
         if type(event) not in handler:
-            return "Unhandled event type in consume."
+            return
 
         return handler[type(event)](event)
 

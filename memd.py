@@ -40,7 +40,7 @@ class Depot(core.Depot):
         if identifier in self.writable:
             raise Exception('Identifier still being written.')
 
-        return self.storage[identifier][off:off+size]
+        return self.storage[identifier][offset:offset+size]
 
     def purge(self, identifier: core.Identifier):
         if identifier in self.writable:
