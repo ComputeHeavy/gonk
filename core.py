@@ -10,6 +10,12 @@ def tsnow():
 def is_schema(name: str) -> bool:
     return name.startswith("schema-")
 
+class ValidationError(Exception):
+    pass
+
+class StorageError(Exception):
+    pass
+
 ### Enums ###
 class ActionT(enum.Enum):
     CREATE = 1<<0
@@ -128,30 +134,30 @@ class AnnotationDeleteEvent(AnnotationEvent):
 ### Record Keeper (Events) ###
 class RecordKeeper:
     def add(self, event: Event):
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
     def read(self, uuid_: uuid.UUID) -> Event:
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
     def exists(self, uuid_: uuid.UUID) -> bool:
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
 ### Depot (Objects) ###
 class Depot:
     def reserve(self, identifier: Identifier, size: int):
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
     def write(self, identifier: Identifier, offset: int, buf: bytes):
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
     def finalize(self, identifier: Identifier):
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
     def read(self, identifier: Identifier, offset: int, size: int):
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
     def purge(self, identifier: Identifier):
-        raise Exception("Unimplemented method.")
+        raise NotImplementedError("unimplemented method")
 
 ### Machine ###
 class Machine:
@@ -163,16 +169,12 @@ class Machine:
 
     def process_event(self, event):
         for v in self.validators:
-            res = v.validate(event)
-            if res is not None:
-                raise Exception(res)
+            v.validate(event)
 
         self.record_keeper.add(event)
 
         for c in self.consumers:
-            res = c.consume(event)
-            if res is not None:
-                raise Exception(res)
+            c.consume(event)
 
     def register(self, c):
         if isinstance(c, Validator):
@@ -183,15 +185,15 @@ class Machine:
 
 class Validator:
     def validate(self, event):
-        raise Exception("Unimplemented validate method.")
+        raise NotImplementedError("unimplemented validate method")
 
 class Consumer:
     def consume(self, event):
-        raise Exception("Unimplemented consume method.")
+        raise NotImplementedError("unimplemented consume method")
 
 ### State ###
 class State(Validator, Consumer):
-    def validate(self, event: Event) -> str:
+    def validate(self, event: Event):
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._validate_object_create,
             ObjectUpdateEvent: self._validate_object_update,
@@ -202,11 +204,11 @@ class State(Validator, Consumer):
         }
 
         if type(event) not in handler:
-            return "Unhandled event type in validate."
+            raise NotImplementedError("unhandled event type in validate")
 
-        return handler[type(event)](event)
+        handler[type(event)](event)
 
-    def consume(self, event: Event) -> str | None:
+    def consume(self, event: Event):
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._consume_object_create,
             ObjectUpdateEvent: self._consume_object_update,
@@ -217,58 +219,58 @@ class State(Validator, Consumer):
         }
 
         if type(event) not in handler:
-            return "Unhandled event type in consume."
+            raise NotImplementedError("unhandled event type in consume")
 
-        return handler[type(event)](event)
+        handler[type(event)](event)
 
-    def _validate_object_create(self, event: ObjectCreateEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+    def _validate_object_create(self, event: ObjectCreateEvent):
+        raise NotImplementedError("unimplemented method")
 
-    def _validate_object_update(self, event: ObjectCreateEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+    def _validate_object_update(self, event: ObjectCreateEvent):
+        raise NotImplementedError("unimplemented method")
 
 
-    def _validate_object_delete(self, event: ObjectDeleteEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+    def _validate_object_delete(self, event: ObjectDeleteEvent):
+        raise NotImplementedError("unimplemented method")
 
     def _validate_annotation_create(
-        self, event: AnnotationCreateEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+        self, event: AnnotationCreateEvent):
+        raise NotImplementedError("unimplemented method")
 
     def _validate_annotation_update(
-        self, event: AnnotationUpdateEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+        self, event: AnnotationUpdateEvent):
+        raise NotImplementedError("unimplemented method")
 
     def _validate_annotation_delete(
-        self, event: AnnotationDeleteEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+        self, event: AnnotationDeleteEvent):
+        raise NotImplementedError("unimplemented method")
 
-    def _consume_object_create(self, event: ObjectCreateEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+    def _consume_object_create(self, event: ObjectCreateEvent):
+        raise NotImplementedError("unimplemented method")
 
-    def _consume_object_update(self, event: ObjectUpdateEvent) -> str | None:
-       raise Exception("Unimplemented method.")
+    def _consume_object_update(self, event: ObjectUpdateEvent):
+       raise NotImplementedError("unimplemented method")
 
-    def _consume_object_delete(self, event: ObjectDeleteEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+    def _consume_object_delete(self, event: ObjectDeleteEvent):
+        raise NotImplementedError("unimplemented method")
 
     def _consume_annotation_create(
-        self, event: AnnotationCreateEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+        self, event: AnnotationCreateEvent):
+        raise NotImplementedError("unimplemented method")
 
     def _consume_annotation_update(
-        self, event: AnnotationUpdateEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+        self, event: AnnotationUpdateEvent):
+        raise NotImplementedError("unimplemented method")
 
     def _consume_annotation_delete(
-        self, event: AnnotationDeleteEvent) -> str | None:
-        raise Exception("Unimplemented method.")
+        self, event: AnnotationDeleteEvent):
+        raise NotImplementedError("unimplemented method")
 
 class FieldValidator(Validator):
     def __init__(self):
         super().__init__()
 
-    def validate(self, event: Event) -> str | None:
+    def validate(self, event: Event):
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._validate_object,
             ObjectUpdateEvent: self._validate_object,
@@ -277,52 +279,52 @@ class FieldValidator(Validator):
         }
 
         if type(event) not in handler:
-            return None
+            return
 
-        return handler[type(event)](event)
+        handler[type(event)](event)
 
-    def _validate_object(self, event: Event) -> str | None:
+    def _validate_object(self, event: Event):
         object_ = event.object
         if not isinstance(object_.uuid, uuid.UUID):
-            return "UUID is not of type uuid.UUID."
+            raise ValidationError("UUID is not of type uuid.UUID")
 
         if object_.version < 0:
-            return "Version must be a non-negative integer."
+            raise ValidationError("version must be a non-negative integer")
 
         if len(object_.name) == 0:
-            return "Object name cannot be empty."
+            raise ValidationError("object name cannot be empty")
 
         if len(object_.format) == 0:
-            return "Object format cannot be empty."
+            raise ValidationError("object format cannot be empty")
 
         if object_.size < 0:
-            return "Object size must be a non-negative integer."
+            raise ValidationError("size must be a non-negative integer")
 
         if object_.hash_type != HashTypeT.SHA256:
-            return "Hash type must be SHA256."
+            raise ValidationError("hash type must be SHA256")
 
         if len(object_.hash) != 64:
-            return "Hash should be a hex encoded SHA256."
+            raise ValidationError("hash should be a hex encoded SHA256")
 
-    def _validate_annotation(self, event: Event) -> str | None:
+    def _validate_annotation(self, event: Event):
         annotation = event.annotation
         if not isinstance(annotation.uuid, uuid.UUID):
-            return "UUID is not of type uuid.UUID."
+            raise ValidationError("UUID is not of type uuid.UUID")
 
         if annotation.version < 0:
-            return "Version must be a positive integer."
+            raise ValidationError("version must be a positive integer")
 
         if annotation.size < 0:
-            return "Annotation size must be a non-negative integer."
+            raise ValidationError("size must be a non-negative integer")
 
         if not isinstance(annotation.schema, Identifier):
-            return "Schema must be an identifier."
+            raise ValidationError("schema must be an identifier")
 
         if annotation.hash_type != HashTypeT.SHA256:
-            return "Hash type must be SHA256."
+            raise ValidationError("hash type must be SHA256")
 
         if len(annotation.hash) != 64:
-            return "Hash should be a hex encoded SHA256."
+            raise ValidationError("hash should be a hex encoded SHA256")
 
 class SchemaValidator(Validator, Consumer):
     def __init__(self, depot: Depot):
@@ -330,7 +332,7 @@ class SchemaValidator(Validator, Consumer):
         self.depot: Depot = depot
         self.schemas: set[Identifier] = set()
 
-    def validate(self, event: Event) -> str | None:
+    def validate(self, event: Event):
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._validate_object_create,
             ObjectUpdateEvent: self._validate_object_update,
@@ -339,11 +341,11 @@ class SchemaValidator(Validator, Consumer):
         }
 
         if type(event) not in handler:
-            return None
+            return
 
-        return handler[type(event)](event)
+        handler[type(event)](event)
 
-    def _validate_object(self, object_) -> str | None:
+    def _validate_object(self, object_):
         if not is_schema(object_.name):
             return
 
@@ -354,10 +356,10 @@ class SchemaValidator(Validator, Consumer):
         schema = json.loads(bs.decode())
         try:
             jsonschema.protocols.Validator.check_schema(schema)
-        except jsonschema.exceptions.SchemaError:
-            return "Invalid JSON schema."
+        except jsonschema.exceptions.SchemaError as error:
+            raise ValidationError("invalid JSON schema") from error
 
-    def _validate_annotation(self, annotation) -> str | None:
+    def _validate_annotation(self, annotation):
         if annotation.schema not in self.schemas:
             return 
 
@@ -379,24 +381,24 @@ class SchemaValidator(Validator, Consumer):
 
         try:
             jsonschema.validate(instance, schema)
-        except jsonschema.exceptions.ValidationError:
-            return "Annotation does not conform to schema."
+        except jsonschema.exceptions.ValidationError as error:
+            raise ValidationError("annotation does not match schema") from error
 
-    def _validate_object_create(self, event: ObjectCreateEvent) -> str | None:
-        return self._validate_object(event.object)
+    def _validate_object_create(self, event: ObjectCreateEvent):
+        self._validate_object(event.object)
 
-    def _validate_object_update(self, event: ObjectCreateEvent) -> str | None:
-        return self._validate_object(event.object)
+    def _validate_object_update(self, event: ObjectCreateEvent):
+        self._validate_object(event.object)
 
     def _validate_annotation_create(
-        self, event: AnnotationCreateEvent) -> str | None:
-        return self._validate_annotation(event.annotation)
+        self, event: AnnotationCreateEvent):
+        self._validate_annotation(event.annotation)
 
     def _validate_annotation_update(
-        self, event: AnnotationUpdateEvent) -> str | None:
-        return self._validate_annotation(event.annotation)
+        self, event: AnnotationUpdateEvent):
+        self._validate_annotation(event.annotation)
 
-    def consume(self, event: Event) -> str | None:
+    def consume(self, event: Event):
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._consume_object_create,
             ObjectUpdateEvent: self._consume_object_update,
@@ -405,9 +407,9 @@ class SchemaValidator(Validator, Consumer):
         if type(event) not in handler:
             return
 
-        return handler[type(event)](event)
+        handler[type(event)](event)
 
-    def _consume_object(self, object_: Object) -> str | None:
+    def _consume_object(self, object_: Object):
         if not is_schema(object_.name):
             return
 
@@ -416,8 +418,8 @@ class SchemaValidator(Validator, Consumer):
 
         self.schemas.add(object_.identifier())
 
-    def _consume_object_create(self, event: ObjectCreateEvent) -> str | None:
-        return self._consume_object(event.object)
+    def _consume_object_create(self, event: ObjectCreateEvent):
+        self._consume_object(event.object)
 
-    def _consume_object_update(self, event: ObjectUpdateEvent) -> str | None:
-        return self._consume_object(event.object)
+    def _consume_object_update(self, event: ObjectUpdateEvent):
+        self._consume_object(event.object)
