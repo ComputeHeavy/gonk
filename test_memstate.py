@@ -54,18 +54,29 @@ class TestState(unittest.TestCase):
         return anno
 
     def test_machine_register(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
         state = memstate.State()
-        machine = core.Machine(memrk.RecordKeeper(), memd.Depot())
         machine.register(state)
 
         self.assertEqual(len(machine.validators), 1)
         self.assertEqual(machine.validators[0], state)
-        self.assertEqual(len(machine.consumers), 1)
-        self.assertEqual(machine.consumers[0], state)
+        self.assertEqual(len(machine.consumers), 2)
+        self.assertEqual(machine.consumers[0], record_keeper)
+        self.assertEqual(machine.consumers[1], state)
 
     def test_object_create(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
         state = memstate.State()
-        machine = core.Machine(memrk.RecordKeeper(), memd.Depot())
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -76,8 +87,13 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
 
     def test_object_update(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
         state = memstate.State()
-        machine = core.Machine(memrk.RecordKeeper(), memd.Depot())
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -92,8 +108,13 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.objects[o1v0.uuid][1], o1v1)
 
     def test_object_delete(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
         state = memstate.State()
-        machine = core.Machine(memrk.RecordKeeper(), memd.Depot())
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -107,8 +128,13 @@ class TestState(unittest.TestCase):
         self.assertTrue(o1v0.identifier() in state.deleted_objects)
 
     def test_annotation_create(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
         state = memstate.State()
-        machine = core.Machine(memrk.RecordKeeper(), memd.Depot())
         machine.register(state)
 
         s1v0 = self.standard_schema()
@@ -134,8 +160,13 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.link.reverse[a1v0.uuid][0], o1v0.identifier())
 
     def test_annotation_update(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
         state = memstate.State()
-        machine = core.Machine(memrk.RecordKeeper(), memd.Depot())
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -157,8 +188,13 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.annotations[a1v0.uuid][1], a1v1)
 
     def test_annotation_delete(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
         state = memstate.State()
-        machine = core.Machine(memrk.RecordKeeper(), memd.Depot())
         machine.register(state)
 
         o1v0 = self.standard_object()

@@ -131,8 +131,39 @@ class AnnotationDeleteEvent(AnnotationEvent):
         super().__init__(ActionT.DELETE)
         self.annotation_identifier = annotation_identifier
 
+### Machine ###
+class Machine:
+    def __init__(self):
+        self.validators: list[Validator] = []
+        self.consumers: list[Consumer] = []
+
+    def process_event(self, event):
+        for v in self.validators:
+            v.validate(event)
+
+        for c in self.consumers:
+            c.consume(event)
+
+    def register(self, c):
+        if isinstance(c, Validator):
+            self.validators.append(c)
+
+        if isinstance(c, Consumer):
+            self.consumers.append(c)
+
+class Validator:
+    def validate(self, event):
+        raise NotImplementedError("unimplemented validate method")
+
+class Consumer:
+    def consume(self, event):
+        raise NotImplementedError("unimplemented consume method")
+
 ### Record Keeper (Events) ###
-class RecordKeeper:
+class RecordKeeper(Consumer):
+    def consume(self, event: Event):
+        self.add(event)
+
     def add(self, event: Event):
         raise NotImplementedError("unimplemented method")
 
@@ -158,38 +189,6 @@ class Depot:
 
     def purge(self, identifier: Identifier):
         raise NotImplementedError("unimplemented method")
-
-### Machine ###
-class Machine:
-    def __init__(self, record_keeper: RecordKeeper, depot: Depot):
-        self.record_keeper: RecordKeeper = record_keeper
-        self.depot: Depot = depot
-        self.validators: list[Validator] = []
-        self.consumers: list[Consumer] = []
-
-    def process_event(self, event):
-        for v in self.validators:
-            v.validate(event)
-
-        self.record_keeper.add(event)
-
-        for c in self.consumers:
-            c.consume(event)
-
-    def register(self, c):
-        if isinstance(c, Validator):
-            self.validators.append(c)
-
-        if isinstance(c, Consumer):
-            self.consumers.append(c)
-
-class Validator:
-    def validate(self, event):
-        raise NotImplementedError("unimplemented validate method")
-
-class Consumer:
-    def consume(self, event):
-        raise NotImplementedError("unimplemented consume method")
 
 ### State ###
 class State(Validator, Consumer):

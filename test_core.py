@@ -50,17 +50,23 @@ schema_buf = b'''{
 class TestSchemaValidation(unittest.TestCase):
     def test_validator_register(self):
         depot = memd.Depot()
-        machine = core.Machine(memrk.RecordKeeper(), depot)
+        machine = core.Machine()
+        
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
 
         schema_validator = core.SchemaValidator(depot)
         machine.register(schema_validator)
 
         self.assertEqual(len(machine.validators), 1)
-        self.assertEqual(len(machine.consumers), 1)
+        self.assertEqual(len(machine.consumers), 2)
 
     def test_schema_object_validate(self):
         depot = memd.Depot()
-        machine = core.Machine(memrk.RecordKeeper(), depot)
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
 
         state = memstate.State()
         machine.register(state)
@@ -80,7 +86,10 @@ class TestSchemaValidation(unittest.TestCase):
 
     def test_schema_annotation_validate(self):
         depot = memd.Depot()
-        machine = core.Machine(memrk.RecordKeeper(), depot)
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
 
         state = memstate.State()
         machine.register(state)
