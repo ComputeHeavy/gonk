@@ -4,6 +4,7 @@ import datetime
 import json
 import jsonschema
 import nacl
+from nacl import signing
 
 def tsnow():
     return f"{datetime.datetime.utcnow().isoformat('T')}Z"
@@ -23,7 +24,7 @@ class ActionT(enum.Enum):
     UPDATE = 1<<1
     DELETE = 1<<2
 
-class ReviewT(enum.Enum):
+class DecisionT(enum.Enum):
     ACCEPT = 1<<0
     REJECT = 1<<1
 

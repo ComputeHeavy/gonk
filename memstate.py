@@ -1,6 +1,7 @@
 import core
 import uuid
 import nacl
+import enum
 
 '''
 Object Create
@@ -81,7 +82,7 @@ class IdentifierUUIDLink:
         self.forward: dict[Identifier, list[uuid.UUID]] = {}
         self.reverse: dict[uuid.UUID, list[Identifier]] = {}
 
-    def add(self, identifier: Identifer, uuid_: uuid.UUID):
+    def add(self, identifier: core.Identifier, uuid_: uuid.UUID):
         if identifier not in self.forward:
             self.forward[identifier] = []
 
@@ -98,7 +99,7 @@ class TagT(enum.Enum):
     DELETE_ACCEPTED = 1<<3
 
 class State(core.State):
-    def __init__(self, record_keeper: RecordKeeper):
+    def __init__(self, record_keeper: core.RecordKeeper):
         super().__init__()
         self.record_keeper = record_keeper
 
@@ -223,9 +224,6 @@ class State(core.State):
         if len(self.annotations[identifier.uuid]) <= identifier.version:
             raise core.ValidationError("version does not exist")
 
-        if identifier in self.deleted_annotations:
-            raise core.ValidationError("annotation version already deleted")
-
         if TagT.CREATE_REJECTED in self.entity_status[identifier]:
             raise core.ValidationError("cannot delete a rejected annotation")
 
@@ -245,24 +243,24 @@ class State(core.State):
                 raise core.ValidationError(
                     "deleted objects cannot be annotated")
 
-    def _validate_review_accept(self, event: ReviewAcceptEvent):
+    def _validate_review_accept(self, event: core.ReviewAcceptEvent):
         if event.event_uuid not in self.pending_events:
             raise core.ValidationError("target event not pending")
 
         if event.signer not in self.owners:
             raise core.ValidationError("review event from non-owner")
 
-    def _validate_review_reject(self, event: ReviewRejectEvent):
+    def _validate_review_reject(self, event: core.ReviewRejectEvent):
         if event.event_uuid not in self.pending_events:
             raise core.ValidationError("target event not pending")
 
         if event.signer not in self.owners:
             raise core.ValidationError("review event from non-owner")
 
-    def _validate_owner_add(self, event: OwnerAddEvent):
+    def _validate_owner_add(self, event: core.OwnerAddEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _validate_owner_remove(self, event: OwnerRemoveEvent):
+    def _validate_owner_remove(self, event: core.OwnerRemoveEvent):
         raise NotImplementedError("unimplemented method")
 
     def _consume_object_create(self, event: core.ObjectCreateEvent):
@@ -286,8 +284,8 @@ class State(core.State):
 
     def _consume_object_delete(self, event: core.ObjectDeleteEvent):
         self.pending_events.add(event.uuid)
-        self.entity_status[event.object.identifier()].add(TagT.DELETE_PENDING)
-        self.entity_event_link.add(event.object.identifier(), event.uuid)
+        self.entity_status[event.object_identifier].add(TagT.DELETE_PENDING)
+        self.entity_event_link.add(event.object_identifier, event.uuid)
 
     def _consume_annotation_create(self, event: core.AnnotationCreateEvent):
         self.annotations[event.annotation.uuid] = []
@@ -310,11 +308,11 @@ class State(core.State):
 
     def _consume_annotation_delete(self, event: core.AnnotationDeleteEvent):
         self.pending_events.add(event.uuid)
-        self.entity_status[event.annotation.identifier()].add(
+        self.entity_status[event.annotation_identifier].add(
             TagT.DELETE_PENDING)
-        self.entity_event_link.add(event.annotation.identifier(), event.uuid)
+        self.entity_event_link.add(event.annotation_identifier, event.uuid)
 
-    def _consume_review_accept(self, event: ReviewAcceptEvent):
+    def _consume_review_accept(self, event: core.ReviewAcceptEvent):
         self.pending_events.remove(event.event_uuid)
 
         target = self.record_keeper.read(event.event_uuid)
@@ -342,7 +340,7 @@ class State(core.State):
 
         self.entity_event_link.add(entity_identifier, event.uuid)
 
-    def _consume_review_reject(self, event: ReviewRejectEvent):
+    def _consume_review_reject(self, event: core.ReviewRejectEvent):
         self.pending_events.remove(event.event_uuid)
 
         target = self.record_keeper.read(event.event_uuid)
@@ -368,8 +366,8 @@ class State(core.State):
         else:
             raise ValueError("target event has unexpected action")
 
-    def _consume_owner_add(self, event: OwnerAddEvent):
+    def _consume_owner_add(self, event: core.OwnerAddEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _consume_owner_remove(self, event: OwnerRemoveEvent):
+    def _consume_owner_remove(self, event: core.OwnerRemoveEvent):
         raise NotImplementedError("unimplemented method")

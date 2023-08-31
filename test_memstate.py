@@ -60,7 +60,7 @@ class TestState(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         self.assertEqual(len(machine.validators), 1)
@@ -76,7 +76,7 @@ class TestState(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -93,7 +93,7 @@ class TestState(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -114,7 +114,7 @@ class TestState(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -125,7 +125,8 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.objects), 1)
         self.assertEqual(len(state.objects[o1v0.uuid]), 1)
         self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
-        self.assertTrue(o1v0.identifier() in state.deleted_objects)
+        self.assertTrue(memstate.TagT.DELETE_PENDING in state.entity_status[
+            o1v0.identifier()])
 
     def test_annotation_create(self):
         depot = memd.Depot()
@@ -134,7 +135,7 @@ class TestState(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         s1v0 = self.standard_schema()
@@ -151,13 +152,17 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.annotations[a1v0.uuid]), 1)
         self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
 
-        self.assertEqual(len(state.link.forward), 1)
-        self.assertEqual(len(state.link.forward[o1v0.identifier()]), 1)
-        self.assertEqual(state.link.forward[o1v0.identifier()][0], a1v0.uuid)
+        self.assertEqual(len(state.object_annotation_link.forward), 1)
+        self.assertEqual(
+            len(state.object_annotation_link.forward[o1v0.identifier()]), 1)
+        self.assertEqual(state.object_annotation_link.forward[
+            o1v0.identifier()][0], a1v0.uuid)
 
-        self.assertEqual(len(state.link.reverse), 1)
-        self.assertEqual(len(state.link.reverse[a1v0.uuid]), 1)
-        self.assertEqual(state.link.reverse[a1v0.uuid][0], o1v0.identifier())
+        self.assertEqual(len(state.object_annotation_link.reverse), 1)
+        self.assertEqual(
+            len(state.object_annotation_link.reverse[a1v0.uuid]), 1)
+        self.assertEqual(state.object_annotation_link.reverse[a1v0.uuid][0], 
+            o1v0.identifier())
 
     def test_annotation_update(self):
         depot = memd.Depot()
@@ -166,7 +171,7 @@ class TestState(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -194,7 +199,7 @@ class TestState(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         o1v0 = self.standard_object()
@@ -212,7 +217,8 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.annotations), 1)
         self.assertEqual(len(state.annotations[a1v0.uuid]), 1)
         self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
-        self.assertTrue(a1v0.identifier() in state.deleted_annotations)
+        self.assertTrue(memstate.TagT.DELETE_PENDING in state.entity_status[
+            a1v0.identifier()])
 
 if __name__ == '__main__':
     unittest.main()
