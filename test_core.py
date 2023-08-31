@@ -68,7 +68,7 @@ class TestSchemaValidation(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)
@@ -91,7 +91,7 @@ class TestSchemaValidation(unittest.TestCase):
         record_keeper = memrk.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State()
+        state = memstate.State(record_keeper)
         machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)
@@ -127,7 +127,8 @@ class TestSchemaValidation(unittest.TestCase):
         depot.write(a1v0.identifier(), 0, annotation_buf)
         depot.finalize(a1v0.identifier())
 
-        machine.process_event(core.AnnotationCreateEvent([o1v0], a1v0))
+        machine.process_event(
+            core.AnnotationCreateEvent([o1v0.identifier()], a1v0))
 
 
 if __name__ == '__main__':
