@@ -3,6 +3,7 @@ import uuid
 import datetime
 import json
 import jsonschema
+import nacl
 
 def tsnow():
     return f"{datetime.datetime.utcnow().isoformat('T')}Z"
@@ -21,6 +22,14 @@ class ActionT(enum.Enum):
     CREATE = 1<<0
     UPDATE = 1<<1
     DELETE = 1<<2
+
+class ReviewT(enum.Enum):
+    ACCEPT = 1<<0
+    REJECT = 1<<1
+
+class OwnerActionT(enum.Enum):
+    ADD = 1<<0
+    REMOVE = 1<<1
 
 class HashTypeT(enum.Enum):
     SHA256 = 1<<0
@@ -61,6 +70,9 @@ class Object:
     def identifier(self):
         return Identifier(self.uuid, self.version)
 
+    def signature_bytes(self) -> bytes:
+        raise NotImplementedError("unimplemented method")
+
 class Annotation:
     def __init__(self, schema: Identifier, size: int, hash_type: HashTypeT, 
         hash_: str, uuid_: uuid.UUID = None, version: int = 0):
@@ -81,11 +93,19 @@ class Annotation:
     def identifier(self):
         return Identifier(self.uuid, self.version)
 
+    def signature_bytes(self) -> bytes:
+        raise NotImplementedError("unimplemented method")
+
 ### Events ###
 class Event:
     def __init__(self):
         self.timestamp = tsnow()
         self.uuid = uuid.uuid4()
+        self.signature = b""
+        self.signer: nacl.signing.VerifyKey = None
+
+    def signature_bytes(self) -> bytes:
+        raise NotImplementedError("unimplemented method")
 
 ### Object Events ###
 class ObjectEvent(Event):
@@ -115,8 +135,8 @@ class AnnotationEvent(Event):
         self.action = action
 
 class AnnotationCreateEvent(AnnotationEvent):
-    def __init__(
-        self, object_identifiers: list[Identifier], annotation: Annotation):
+    def __init__(self, object_identifiers: list[Identifier], 
+        annotation: Annotation):
         super().__init__(ActionT.CREATE)
         self.object_identifiers = object_identifiers
         self.annotation = annotation
@@ -130,6 +150,40 @@ class AnnotationDeleteEvent(AnnotationEvent):
     def __init__(self, annotation_identifier: Identifier):
         super().__init__(ActionT.DELETE)
         self.annotation_identifier = annotation_identifier
+
+### Review Events ###
+
+class ReviewEvent(Event):
+    def __init__(self, decision: DecisionT):
+        super().__init__()
+        self.decision = decision
+
+class ReviewAcceptEvent(ReviewEvent):
+    def __init__(self, event_uuid: uuid.UUID):
+        super().__init__(DecisionT.ACCEPT)
+        self.event_uuid = event_uuid
+
+class ReviewRejectEvent(ReviewEvent):
+    def __init__(self, event_uuid: uuid.UUID):
+        super().__init__(DecisionT.REJECT)
+        self.event_uuid = event_uuid
+
+### Ownership Events ###
+
+class OwnerEvent:
+    def __init__(self, public_key: nacl.signing.VerifyKey, 
+        action: OwnerActionT):
+        super().__init__()
+        self.public_key = public_key
+        self.action = action
+
+class OwnerAddEvent(Event):
+    def __init__(self, public_key: nacl.signing.VerifyKey):
+        super().__init__(public_key, OwnerActionT.ADD)
+        
+class OwnerRemoveEvent(Event):
+    def __init__(self, public_key: nacl.signing.VerifyKey):
+        super().__init__(public_key, OwnerActionT.REMOVE)
 
 ### Machine ###
 class Machine:
@@ -153,11 +207,11 @@ class Machine:
 
 class Validator:
     def validate(self, event):
-        raise NotImplementedError("unimplemented validate method")
+        raise NotImplementedError("unimplemented method")
 
 class Consumer:
     def consume(self, event):
-        raise NotImplementedError("unimplemented consume method")
+        raise NotImplementedError("unimplemented method")
 
 ### Record Keeper (Events) ###
 class RecordKeeper(Consumer):
@@ -228,20 +282,28 @@ class State(Validator, Consumer):
     def _validate_object_update(self, event: ObjectCreateEvent):
         raise NotImplementedError("unimplemented method")
 
-
     def _validate_object_delete(self, event: ObjectDeleteEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _validate_annotation_create(
-        self, event: AnnotationCreateEvent):
+    def _validate_annotation_create(self, event: AnnotationCreateEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _validate_annotation_update(
-        self, event: AnnotationUpdateEvent):
+    def _validate_annotation_update(self, event: AnnotationUpdateEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _validate_annotation_delete(
-        self, event: AnnotationDeleteEvent):
+    def _validate_annotation_delete(self, event: AnnotationDeleteEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _validate_review_accept(self, event: ReviewAcceptEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _validate_review_reject(self, event: ReviewRejectEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _validate_owner_add(self, event: OwnerAddEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _validate_owner_remove(self, event: OwnerRemoveEvent):
         raise NotImplementedError("unimplemented method")
 
     def _consume_object_create(self, event: ObjectCreateEvent):
@@ -253,16 +315,25 @@ class State(Validator, Consumer):
     def _consume_object_delete(self, event: ObjectDeleteEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _consume_annotation_create(
-        self, event: AnnotationCreateEvent):
+    def _consume_annotation_create(self, event: AnnotationCreateEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _consume_annotation_update(
-        self, event: AnnotationUpdateEvent):
+    def _consume_annotation_update(self, event: AnnotationUpdateEvent):
         raise NotImplementedError("unimplemented method")
 
-    def _consume_annotation_delete(
-        self, event: AnnotationDeleteEvent):
+    def _consume_annotation_delete(self, event: AnnotationDeleteEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _consume_review_accept(self, event: ReviewAcceptEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _consume_review_reject(self, event: ReviewRejectEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _consume_owner_add(self, event: OwnerAddEvent):
+        raise NotImplementedError("unimplemented method")
+
+    def _consume_owner_remove(self, event: OwnerRemoveEvent):
         raise NotImplementedError("unimplemented method")
 
 class FieldValidator(Validator):
