@@ -1,12 +1,13 @@
 import enum
 import uuid
 import datetime
+import struct
 import json
 import jsonschema
 import nacl
 from nacl import signing
 
-def tsnow():
+def tsnow() -> str:
     return f"{datetime.datetime.utcnow().isoformat('T')}Z"
 
 def is_schema(name: str) -> bool:
@@ -50,6 +51,12 @@ class Identifier:
 
         return self.uuid == other.uuid and self.version == other.version
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            self.uuid.bytes,
+            struct.pack("<Q", self.version),
+        ])
+
 class Object:
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT, 
         hash_: str, uuid_: uuid.UUID = None, version: int = 0):
@@ -72,7 +79,15 @@ class Object:
         return Identifier(self.uuid, self.version)
 
     def signature_bytes(self) -> bytes:
-        raise NotImplementedError("unimplemented method")
+        return b"".join([
+            self.uuid.bytes,
+            struct.pack("<Q", self.version),
+            self.name.encode(),
+            self.format.encode(),
+            struct.pack("<Q", self.size),
+            struct.pack("<B", self.hash_type.value),
+            bytes.fromhex(self.hash),
+        ])
 
 class Annotation:
     def __init__(self, schema: Identifier, size: int, hash_type: HashTypeT, 
@@ -95,7 +110,14 @@ class Annotation:
         return Identifier(self.uuid, self.version)
 
     def signature_bytes(self) -> bytes:
-        raise NotImplementedError("unimplemented method")
+        return b"".join([
+            self.uuid.bytes,
+            struct.pack("<Q", self.version),
+            self.schema.signature_bytes(),
+            struct.pack("<Q", self.size),
+            struct.pack("<B", self.hash_type.value),
+            bytes.fromhex(self.hash),
+        ])
 
 ### Events ###
 class Event:
@@ -108,32 +130,68 @@ class Event:
     def signature_bytes(self) -> bytes:
         raise NotImplementedError("unimplemented method")
 
+    def _signature_bytes(self) -> bytes:
+        return b"".join([
+            self.timestamp.encode(),
+            self.uuid.bytes,
+        ])
+
 ### Object Events ###
 class ObjectEvent(Event):
     def __init__(self, action: ActionT):
         super().__init__()
         self.action = action
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super()._signature_bytes(),
+            struct.pack("<B", self.action.value),
+        ])
+
 class ObjectCreateEvent(ObjectEvent):
     def __init__(self, object_: Object):
         super().__init__(ActionT.CREATE)
         self.object = object_
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.object.signature_bytes(),
+        ])
 
 class ObjectUpdateEvent(ObjectEvent):
     def __init__(self, object_: Object):
         super().__init__(ActionT.UPDATE)
         self.object = object_
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.object.signature_bytes(),
+        ])
+
 class ObjectDeleteEvent(ObjectEvent):
     def __init__(self, object_identifier: Identifier):
         super().__init__(ActionT.DELETE)
         self.object_identifier = object_identifier
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.object_identifier.signature_bytes(),
+        ])
 
 ### Annotation Events ###
 class AnnotationEvent(Event):
     def __init__(self, action: ActionT):
         super().__init__()
         self.action = action
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super()._signature_bytes(),
+            struct.pack("<B", self.action.value),
+        ])
 
 class AnnotationCreateEvent(AnnotationEvent):
     def __init__(self, object_identifiers: list[Identifier], 
@@ -142,15 +200,34 @@ class AnnotationCreateEvent(AnnotationEvent):
         self.object_identifiers = object_identifiers
         self.annotation = annotation
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            *[ea.signature_bytes() for ea in self.object_identifiers],
+            self.annotation.signature_bytes(),
+        ])
+
 class AnnotationUpdateEvent(AnnotationEvent):
     def __init__(self, annotation: Annotation):
         super().__init__(ActionT.UPDATE)
         self.annotation = annotation
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.annotation.signature_bytes(),
+        ])
+
 class AnnotationDeleteEvent(AnnotationEvent):
     def __init__(self, annotation_identifier: Identifier):
         super().__init__(ActionT.DELETE)
         self.annotation_identifier = annotation_identifier
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.annotation_identifier.signature_bytes(),
+        ])
 
 ### Review Events ###
 
@@ -159,15 +236,33 @@ class ReviewEvent(Event):
         super().__init__()
         self.decision = decision
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super()._signature_bytes(),
+            struct.pack("<B", self.decision.value),
+        ])
+
 class ReviewAcceptEvent(ReviewEvent):
     def __init__(self, event_uuid: uuid.UUID):
         super().__init__(DecisionT.ACCEPT)
         self.event_uuid = event_uuid
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.event_uuid.bytes,
+        ])
+
 class ReviewRejectEvent(ReviewEvent):
     def __init__(self, event_uuid: uuid.UUID):
         super().__init__(DecisionT.REJECT)
         self.event_uuid = event_uuid
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.event_uuid.bytes,
+        ])
 
 ### Ownership Events ###
 
@@ -177,6 +272,13 @@ class OwnerEvent:
         super().__init__()
         self.public_key = public_key
         self.action = action
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super()._signature_bytes(),
+            bytes(self.public_key),
+            struct.pack("<B", self.action.value),
+        ])
 
 class OwnerAddEvent(Event):
     def __init__(self, public_key: nacl.signing.VerifyKey):
@@ -255,6 +357,8 @@ class State(Validator, Consumer):
             AnnotationCreateEvent: self._validate_annotation_create,
             AnnotationUpdateEvent: self._validate_annotation_update,
             AnnotationDeleteEvent: self._validate_annotation_delete,
+            ReviewAcceptEvent: self._validate_review_accept,
+            ReviewRejectEvent: self._validate_review_reject,
         }
 
         if type(event) not in handler:
@@ -270,6 +374,8 @@ class State(Validator, Consumer):
             AnnotationCreateEvent: self._consume_annotation_create,
             AnnotationUpdateEvent: self._consume_annotation_update,
             AnnotationDeleteEvent: self._consume_annotation_delete,
+            ReviewAcceptEvent: self._consume_review_accept,
+            ReviewRejectEvent: self._consume_review_reject,
         }
 
         if type(event) not in handler:

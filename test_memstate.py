@@ -85,6 +85,8 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.objects), 1)
         self.assertEqual(len(state.objects[o1v0.uuid]), 1)
         self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
+        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+            o1v0.identifier()])
 
     def test_object_update(self):
         depot = memd.Depot()
@@ -106,6 +108,8 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.objects[o1v0.uuid]), 2)
         self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
         self.assertEqual(state.objects[o1v0.uuid][1], o1v1)
+        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+            o1v0.identifier()])
 
     def test_object_delete(self):
         depot = memd.Depot()
@@ -151,6 +155,9 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.annotations), 1)
         self.assertEqual(len(state.annotations[a1v0.uuid]), 1)
         self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
+        
+        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+            a1v0.identifier()])
 
         self.assertEqual(len(state.object_annotation_link.forward), 1)
         self.assertEqual(
@@ -192,6 +199,9 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
         self.assertEqual(state.annotations[a1v0.uuid][1], a1v1)
 
+        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+            a1v1.identifier()])
+
     def test_annotation_delete(self):
         depot = memd.Depot()
         machine = core.Machine()
@@ -219,6 +229,24 @@ class TestState(unittest.TestCase):
         self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
         self.assertTrue(memstate.TagT.DELETE_PENDING in state.entity_status[
             a1v0.identifier()])
+
+    def test_object_accepts(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
+        state = memstate.State(record_keeper)
+        machine.register(state)
+
+        o1v0 = self.standard_object()
+        oce = core.ObjectCreateEvent(o1v0)
+        machine.process_event(oce)
+        machine.process_event(core.ReviewAcceptEvent(oce.uuid))
+
+        self.assertEqual(len(state.entity_status[o1v0.identifier()]), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
