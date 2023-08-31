@@ -6,6 +6,7 @@ import nacl
 Object Create
     Pending
         Update OK
+        Deletion OK
         Annotation OK
     Accepted
         Update OK
@@ -13,10 +14,12 @@ Object Create
         Annotation OK
     Rejected
         Update OK
+        ac, au, ad, od
     
 Object Update
     Pending 
         Update OK
+        Deletion OK
         Annotation OK
     Accepted
         Update OK
@@ -24,13 +27,16 @@ Object Update
         Annotation OK
     Rejected
         Update OK
+        ac, au, ad, od
 
 Object Delete
     Pending
         Update OK
         Annotation OK
+        od
     Accepted
         Update OK
+        ac, au, ad, od
     Rejected
         Update OK
         Deletion OK
@@ -38,6 +44,7 @@ Object Delete
 
 Annotation Create
     Pending
+        Deletion OK
         Update OK
     Accepted
         Update OK
@@ -47,6 +54,7 @@ Annotation Create
 
 Annotation Update
     Pending
+        Deletion OK
         Update OK
     Accepted
         Update OK
@@ -99,7 +107,7 @@ class State(core.State):
         self.entity_status: dict[core.Identifier, set[TagT]] = dict()
         self.entity_event_link: IdentifierUUIDLink = IdentifierUUIDLink()
 
-        self.owners: set[nacl.signing.VerifyKey] = set()
+        self.owners: list[nacl.signing.VerifyKey] = list()
 
     def _validate_object_create(self, event: core.ObjectCreateEvent):
         if core.is_schema(event.object.name):
@@ -140,11 +148,16 @@ class State(core.State):
         if len(self.objects[identifier.uuid]) <= identifier.version:
             raise core.ValidationError("version does not exist")
 
-        if identifier in self.deleted_objects:
+        if TagT.CREATE_REJECTED in self.entity_status[identifier]:
+            raise core.ValidationError("cannot delete a rejected object")
+
+        if TagT.DELETE_PENDING in self.entity_status[identifier]:
+            raise core.ValidationError("object version pending deletion")
+
+        if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
             raise core.ValidationError("object version already deleted")
 
     def _validate_annotation_create(self, event: core.AnnotationCreateEvent):
-
         if event.annotation.uuid in self.annotations:
             raise core.ValidationError(
                 "UUID already exists in annotation store")
@@ -165,7 +178,11 @@ class State(core.State):
             if len(self.objects[identifier.uuid]) <= identifier.version:
                 raise core.ValidationError("version does not exist")
 
-            if identifier in self.deleted_objects:
+            if TagT.CREATE_REJECTED in self.entity_status[identifier]:
+                raise core.ValidationError(
+                    "rejected objects cannot be annotated")
+
+            if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
                 raise core.ValidationError(
                     "deleted objects cannot be annotated")
 
@@ -186,8 +203,13 @@ class State(core.State):
 
         for identifier in self.object_annotation_link.reverse[
             event.annotation.uuid]:
-            if identifier in self.deleted_objects:
-                raise core.ValidationError("annotating a deleted object")
+            if TagT.CREATE_REJECTED in self.entity_status[identifier]:
+                raise core.ValidationError(
+                    "rejected objects cannot be annotated")
+
+            if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
+                raise core.ValidationError(
+                    "deleted objects cannot be annotated")
 
     def _validate_annotation_delete(self, event: core.AnnotationDeleteEvent):
         identifier = event.annotation_identifier
@@ -200,11 +222,29 @@ class State(core.State):
         if identifier in self.deleted_annotations:
             raise core.ValidationError("annotation version already deleted")
 
+        objects = self.object_annotation_link.reverse[identifier.uuid]
+        for object_identifier in objects:
+            if TagT.CREATE_REJECTED in self.entity_status[object_identifier]:
+                raise core.ValidationError(
+                    "rejected objects cannot be annotated")
+
+            if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
+                raise core.ValidationError(
+                    "deleted objects cannot be annotated")
+
     def _validate_review_accept(self, event: ReviewAcceptEvent):
-        raise NotImplementedError("unimplemented method")
+        if event.event_uuid not in self.pending_events:
+            raise core.ValidationError("target event not pending")
+
+        if event.signer not in self.owners:
+            raise core.ValidationError("review event from non-owner")
 
     def _validate_review_reject(self, event: ReviewRejectEvent):
-        raise NotImplementedError("unimplemented method")
+        if event.event_uuid not in self.pending_events:
+            raise core.ValidationError("target event not pending")
+
+        if event.signer not in self.owners:
+            raise core.ValidationError("review event from non-owner")
 
     def _validate_owner_add(self, event: OwnerAddEvent):
         raise NotImplementedError("unimplemented method")
