@@ -51,6 +51,7 @@ Annotation Create
         Deletion OK
     Rejected
         Update OK
+        ad
 
 Annotation Update
     Pending
@@ -61,12 +62,15 @@ Annotation Update
         Deletion OK
     Rejected
         Update OK
+        ad
 
 Annotation Delete
     Pending
         Update OK
+        ad
     Accepted
         Update OK
+        ad
     Rejected
         Update OK
         Deletion OK
@@ -222,13 +226,22 @@ class State(core.State):
         if identifier in self.deleted_annotations:
             raise core.ValidationError("annotation version already deleted")
 
+        if TagT.CREATE_REJECTED in self.entity_status[identifier]:
+            raise core.ValidationError("cannot delete a rejected annotation")
+
+        if TagT.DELETE_PENDING in self.entity_status[identifier]:
+            raise core.ValidationError("annotation already pending deletion")
+
+        if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
+            raise core.ValidationError("annotation already deleted")
+
         objects = self.object_annotation_link.reverse[identifier.uuid]
         for object_identifier in objects:
             if TagT.CREATE_REJECTED in self.entity_status[object_identifier]:
                 raise core.ValidationError(
                     "rejected objects cannot be annotated")
 
-            if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
+            if TagT.DELETE_ACCEPTED in self.entity_status[object_identifier]:
                 raise core.ValidationError(
                     "deleted objects cannot be annotated")
 
