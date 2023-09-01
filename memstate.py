@@ -385,7 +385,7 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[identifier].remove(DELETE_PENDING)
+            self.entity_status[identifier].remove(TagT.DELETE_PENDING)
         else:
             raise ValueError("target event has unexpected action")
 
@@ -393,4 +393,4 @@ class State(core.State):
         self.owners.append(event.public_key)
 
     def _consume_owner_remove(self, event: core.OwnerRemoveEvent):
-        self.owners.append(event.public_key)
+        self.owners.remove(event.public_key)
