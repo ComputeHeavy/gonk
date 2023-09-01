@@ -72,5 +72,30 @@ class TestSigs(unittest.TestCase):
         with self.assertRaises(core.ValidationError):
             machine.process_event(oce)
 
+    def test_replay(self):
+        depot = memd.Depot()
+        machine = core.Machine()
+
+        machine.register(sigs.SignatureValidator())
+
+        record_keeper = memrk.RecordKeeper()
+        machine.register(record_keeper)
+
+        machine.register(sigs.ReplayValidator(record_keeper))
+
+        state = memstate.State(record_keeper)
+        machine.register(state)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        vk1 = sk1.verify_key
+        wae1 = core.OwnerAddEvent(bytes(vk1))
+        wae1 = signer.sign(wae1)
+        machine.process_event(wae1)
+
+        with self.assertRaises(core.ValidationError):
+            machine.process_event(wae1)
+
 if __name__ == '__main__':
     unittest.main()
