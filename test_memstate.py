@@ -85,7 +85,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -119,7 +119,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -158,7 +158,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -197,7 +197,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -253,7 +253,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -302,7 +302,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -349,7 +349,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer1 = sigs.Signer(sk1)
         
-        vk1 = sk1.verify_key
+        vk1 = signer1.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
 
         wae1 = signer1.sign(wae1)
@@ -384,16 +384,16 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer1 = sigs.Signer(sk1)
         
-        vk1 = sk1.verify_key
+        vk1 = signer1.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
 
         wae1 = signer1.sign(wae1)
         machine.process_event(wae1)
 
         sk2 = nacl.signing.SigningKey.generate()
-        vk2 = sk2.verify_key
-        oae2 = core.OwnerAddEvent(vk2)
         signer2 = sigs.Signer(sk2)
+        vk2 = signer2.verify_bytes
+        oae2 = core.OwnerAddEvent(vk2)
 
         oae2 = signer1.sign(oae2)
         machine.process_event(oae2)
@@ -424,7 +424,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -454,7 +454,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -488,7 +488,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -521,7 +521,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -560,7 +560,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
@@ -602,7 +602,7 @@ class TestState(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        vk1 = sk1.verify_key
+        vk1 = signer.verify_bytes
         wae1 = core.OwnerAddEvent(vk1)
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
