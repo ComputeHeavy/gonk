@@ -258,10 +258,33 @@ class State(core.State):
             raise core.ValidationError("review event from non-owner")
 
     def _validate_owner_add(self, event: core.OwnerAddEvent):
-        raise NotImplementedError("unimplemented method")
+        if event.public_key in self.owners:
+            raise core.ValidationError("owner already present")
+
+        if len(self.owners) > 0:
+            if event.signer not in self.owners:
+                raise core.ValidationError("only owners can add owners")
+        else:
+            if event.public_key != event.signer:
+                raise core.ValidationError(
+                    "first owner add event must be self signed")
 
     def _validate_owner_remove(self, event: core.OwnerRemoveEvent):
-        raise NotImplementedError("unimplemented method")
+        if event.public_key not in self.owners:
+            raise core.ValidationError("owner not present")
+
+        if len(self.owners) == 1:
+            raise core.ValidationError(
+                "removing owner would leave the dataset ownerless")
+
+        if event.signer not in self.owners:
+            raise core.ValidationError("only owners can remove owners")
+
+        target_rank = self.owners.index(event.public_key)
+        actor_rank = self.owners.index(event.signer)
+
+        if actor_rank > target_rank:
+            raise core.ValidationError("cannot remove a higher ranking owner")
 
     def _consume_object_create(self, event: core.ObjectCreateEvent):
         self.objects[event.object.uuid] = []
@@ -324,7 +347,7 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[entity_identifier].remove(CREATE_PENDING)
+            self.entity_status[entity_identifier].remove(TagT.CREATE_PENDING)
         elif target.action == core.ActionT.DELETE:
             if isinstance(target, core.ObjectEvent):
                 entity_identifier = target.object_identifier
@@ -333,8 +356,8 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[entity_identifier].remove(DELETE_PENDING)
-            self.entity_status[entity_identifier].add(DELETE_ACCEPTED)
+            self.entity_status[entity_identifier].remove(TagT.DELETE_PENDING)
+            self.entity_status[entity_identifier].add(TagT.DELETE_ACCEPTED)
         else:
             raise ValueError("target event has unexpected action")
 
@@ -352,8 +375,8 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[entity.identifier()].remove(CREATE_PENDING)
-            self.entity_status[entity.identifier()].add(CREATE_REJECTED)
+            self.entity_status[entity.identifier()].remove(TagT.CREATE_PENDING)
+            self.entity_status[entity.identifier()].add(TagT.CREATE_REJECTED)
         elif target.action == core.ActionT.DELETE:
             if isinstance(target, core.ObjectEvent):
                 identifier = target.object_identifier
@@ -367,7 +390,7 @@ class State(core.State):
             raise ValueError("target event has unexpected action")
 
     def _consume_owner_add(self, event: core.OwnerAddEvent):
-        raise NotImplementedError("unimplemented method")
+        self.owners.append(event.public_key)
 
     def _consume_owner_remove(self, event: core.OwnerRemoveEvent):
-        raise NotImplementedError("unimplemented method")
+        self.owners.append(event.public_key)

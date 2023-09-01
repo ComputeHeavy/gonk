@@ -266,7 +266,7 @@ class ReviewRejectEvent(ReviewEvent):
 
 ### Ownership Events ###
 
-class OwnerEvent:
+class OwnerEvent(Event):
     def __init__(self, public_key: nacl.signing.VerifyKey, 
         action: OwnerActionT):
         super().__init__()
@@ -280,11 +280,11 @@ class OwnerEvent:
             struct.pack("<B", self.action.value),
         ])
 
-class OwnerAddEvent(Event):
+class OwnerAddEvent(OwnerEvent):
     def __init__(self, public_key: nacl.signing.VerifyKey):
         super().__init__(public_key, OwnerActionT.ADD)
         
-class OwnerRemoveEvent(Event):
+class OwnerRemoveEvent(OwnerEvent):
     def __init__(self, public_key: nacl.signing.VerifyKey):
         super().__init__(public_key, OwnerActionT.REMOVE)
 
@@ -359,6 +359,8 @@ class State(Validator, Consumer):
             AnnotationDeleteEvent: self._validate_annotation_delete,
             ReviewAcceptEvent: self._validate_review_accept,
             ReviewRejectEvent: self._validate_review_reject,
+            OwnerAddEvent: self._validate_owner_add,
+            OwnerRemoveEvent: self._validate_owner_remove,
         }
 
         if type(event) not in handler:
@@ -376,6 +378,8 @@ class State(Validator, Consumer):
             AnnotationDeleteEvent: self._consume_annotation_delete,
             ReviewAcceptEvent: self._consume_review_accept,
             ReviewRejectEvent: self._consume_review_reject,
+            OwnerAddEvent: self._consume_owner_add,
+            OwnerRemoveEvent: self._consume_owner_remove,
         }
 
         if type(event) not in handler:
