@@ -53,8 +53,7 @@ class State(core.State):
 
     def objects(self, identifier: core.Identifier = None, 
         uuid_: uuid.UUID = None, annotation: uuid.UUID = None, 
-        status: set(core.StatusT) = None, page: int = None, 
-        page_size: int = None):
+        page: int = None, page_size: int = None):
         if annotation is not None:
             objects = [object_ for id_ in 
                 self.object_annotation_link.reverse[annotation] 
@@ -67,14 +66,6 @@ class State(core.State):
             if uuid_ is not None:
                 objects = [object_ for object_ in objects 
                     if object_.uuid == uuid_]
-
-            if status is not None:
-                filtered = []
-                for object_ in objects:
-                    object_status = self.entity_status[object_.identifier()]
-                    if len(object_status.intersection(status)) == len(status):
-                        filtered.append(object_)
-                objects = filtered
         elif identifier is not None or uuid_ is not None:
             if uuid_ is None:
                 uuid_ = identifier.uuid
@@ -84,24 +75,9 @@ class State(core.State):
                 objects = [object_ for object_ in objects 
                     if object_.version == identifier.version 
                         and object_.uuid == identifier.uuid]
-
-            if status is not None:
-                filtered = []
-                for object_ in objects:
-                    object_status = self.entity_status[object_.identifier()]
-                    if len(object_status.intersection(status)) == len(status):
-                        filtered.append(object_)
-                objects = filtered 
-                
-        elif status is not None:
-            objects = []
-            for identifier, object_ in self.object_lookup.items():
-                object_status = self.entity_status[identifier]
-                if len(object_status.intersection(status)) == len(status):
-                    objects.append(object_)
         else:
             raise ValueError(
-                "requires one of [identifier, uuid_, annotation, status]")
+                "requires one of [identifier, uuid_, annotation]")
 
         if page is not None and page_size is not None:
             start = page*page_size
@@ -164,6 +140,41 @@ class State(core.State):
             return uuid_ in self.annotation_lookup
 
         raise ValueError("requires an argument")
+
+    def annotations(self, identifier: core.Identifier = None, 
+        uuid_: uuid.UUID = None, object_: core.Identifier = None,
+        page: int = None, page_size: int = None):
+        if object_ is not None:
+            annotations = [annotation for uu in 
+                self.object_annotation_link.forward[object_] 
+                for annotation in self.annotation_lookup[uu]]
+
+            if identifier is not None:
+                annotations = [annotation for annotation in annotations 
+                    if annotation.identifer() == identifier]
+
+            if uuid_ is not None:
+                annotations = [annotation for annotation in annotations 
+                    if annotation.uuid == uuid_]
+        elif identifier is not None or uuid_ is not None:
+            if uuid_ is None:
+                uuid_ = identifier.uuid
+
+            annotations = self.annotation_lookup[uuid_]
+            if identifier is not None:
+                annotations = [annotation for annotation in annotations 
+                    if annotation.version == identifier.version 
+                        and annotation.uuid == identifier.uuid]
+        else:
+            raise ValueError(
+                "requires one of [identifier, uuid_, object_]")
+
+        if page is not None and page_size is not None:
+            start = page*page_size
+            end = start + page_size
+            objects = objects[start:end]
+
+        return objects
 
     def annotations_by_object(self, object: core.Object):
         raise NotImplementedError("unimplemented method")

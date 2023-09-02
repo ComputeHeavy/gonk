@@ -372,8 +372,7 @@ class State:
         raise NotImplementedError("unimplemented method")
 
     def objects(self, identifier: Identifier = None, uuid_: uuid.UUID = None, 
-        annotation: Identifier = None, status: set(StatusT) = None, 
-        page: int = None):
+        annotation: Identifier = None, page: int = None, page_size: int = None):
         raise NotImplementedError("unimplemented method")
 
     def object_status(self, identifier: Identifier = None):
@@ -388,6 +387,11 @@ class State:
 
     def annotation_exists(self, identifier: Identifier = None, 
         uuid_: uuid.UUID = None):
+        raise NotImplementedError("unimplemented method")
+
+    def annotations(self, identifier: Identifier = None, 
+        uuid_: uuid.UUID = None, object_: Identifier = None, 
+        page: int = None, page_size: int = None):
         raise NotImplementedError("unimplemented method")
 
     def annotation_status(self, identifier: Identifier):
