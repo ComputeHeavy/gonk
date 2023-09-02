@@ -355,9 +355,48 @@ class Depot:
 
 ### State ###
 class State:
-    pass
+    def object_exists(self):
+        raise NotImplementedError("unimplemented method")
+
+    def objects(self):
+        raise NotImplementedError("unimplemented method")
+
+    def object_status(self):
+        raise NotImplementedError("unimplemented method")
+
+    def object_versions(self):
+        raise NotImplementedError("unimplemented method")
+
+    def schema_exists(self):
+        raise NotImplementedError("unimplemented method")
+
+    def annotation_exists(self):
+        raise NotImplementedError("unimplemented method")
+
+    def annotations(self):
+        raise NotImplementedError("unimplemented method")
+
+    def annotation_status(self):
+        raise NotImplementedError("unimplemented method")
+
+    def annotation_versions(self):
+        raise NotImplementedError("unimplemented method")
+
+    def owner_exists(self):
+        raise NotImplementedError("unimplemented method")
+
+    def owners(self):
+        raise NotImplementedError("unimplemented method")
+
+    def event_pending(self):
+        raise NotImplementedError("unimplemented method")
+
 
 class StateValidator(Validator):
+    def __init__(self, state: State):
+        super().__init__()
+        self.state = state
+
     def validate(self, event: Event):
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._validate_object_create,
@@ -461,6 +500,7 @@ class StateValidator(Validator):
         if event.annotation.version != len(versions):
             return f"Annotation version should be {len(versions)}."
 
+        # TODO: function naming
         objects = self.state.objects(annotation=event.annotation.uuid)
         for identifier in objects:
             status = self.state.object_status(identifier=identifier)
@@ -501,25 +541,25 @@ class StateValidator(Validator):
                     "deleted objects cannot be annotated")
 
     def _validate_review_accept(self, event: core.ReviewAcceptEvent):
-        if event.event_uuid not in self.pending_events:
+        if self.state.event_pending(uuid=event.event_uuid):
             raise core.ValidationError("target event not pending")
 
-        if event.signer not in self.owners:
+        if self.state.owner_exists(public_key=event.signer):
             raise core.ValidationError("review event from non-owner")
 
     def _validate_review_reject(self, event: core.ReviewRejectEvent):
-        if event.event_uuid not in self.pending_events:
+        if self.state.event_pending(uuid=event.event_uuid):
             raise core.ValidationError("target event not pending")
 
-        if event.signer not in self.owners:
+        if self.state.owner_exists(public_key=event.signer):
             raise core.ValidationError("review event from non-owner")
 
     def _validate_owner_add(self, event: core.OwnerAddEvent):
-        if event.public_key in self.owners:
+        if self.state.owner_exists(public_key=event.public_key):
             raise core.ValidationError("owner already present")
 
         if len(self.owners) > 0:
-            if event.signer not in self.owners:
+            if not self.state.owner_exists(public_key=event.signer):
                 raise core.ValidationError("only owners can add owners")
         else:
             if event.public_key != event.signer:
@@ -527,23 +567,27 @@ class StateValidator(Validator):
                     "first owner add event must be self signed")
 
     def _validate_owner_remove(self, event: core.OwnerRemoveEvent):
-        if event.public_key not in self.owners:
+        if not self.state.owner_exists(public_key=event.public_key):
             raise core.ValidationError("owner not present")
 
-        if len(self.owners) == 1:
+        if not self.state.owner_exists(public_key=event.signer):
+            raise core.ValidationError("only owners can remove owners")
+
+        owners = self.state.owners()
+        if len(owners) == 1:
             raise core.ValidationError(
                 "removing owner would leave the dataset ownerless")
 
-        if event.signer not in self.owners:
-            raise core.ValidationError("only owners can remove owners")
-
-        target_rank = self.owners.index(event.public_key)
-        actor_rank = self.owners.index(event.signer)
+        target_rank = owners.index(event.public_key)
+        actor_rank = owners.index(event.signer)
 
         if actor_rank > target_rank:
             raise core.ValidationError("cannot remove a higher ranking owner")
 
 def StateConsumer(Consumer):
+    def __init__(self, state: State):
+        super().__init__()
+        
     def consume(self, event: Event):
         handler: dict[type, callable[[Event], str]] = {
             ObjectCreateEvent: self._consume_object_create,
