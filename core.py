@@ -5,6 +5,7 @@ import struct
 import json
 import jsonschema
 import nacl
+import typing
 from nacl import signing
 
 def tsnow() -> str:
@@ -71,7 +72,7 @@ class Identifier:
 
 class Object:
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT, 
-        hash_: str, uuid_: uuid.UUID = None, version: int = 0):
+        hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
             uuid_ = uuid.uuid4()
 
@@ -103,7 +104,7 @@ class Object:
 
 class Annotation:
     def __init__(self, schema: Identifier, size: int, hash_type: HashTypeT, 
-        hash_: str, uuid_: uuid.UUID = None, version: int = 0):
+        hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
             uuid_ = uuid.uuid4()
 
@@ -367,40 +368,46 @@ class Page:
         self.items = items
 
 class State:
-    def object_exists(self, identifier: Identifier = None, 
-        uuid_: uuid.UUID = None):
+    def object_exists(self, identifier: typing.Optional[Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None):
         raise NotImplementedError("unimplemented method")
 
-    def objects(self, identifier: Identifier = None, uuid_: uuid.UUID = None, 
-        annotation: Identifier = None, page: int = None, page_size: int = None):
+    def objects(self, identifier: typing.Optional[Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        annotation: typing.Optional[uuid.UUID] = None, 
+        page: typing.Optional[int] = None, 
+        page_size: typing.Optional[int] = None):
         raise NotImplementedError("unimplemented method")
 
-    def object_status(self, identifier: Identifier = None):
+    def object_status(self, identifier: typing.Optional[Identifier] = None):
         raise NotImplementedError("unimplemented method")
 
-    def object_versions(self, uuid_: uuid.UUID = None):
+    def object_versions(self, uuid_: typing.Optional[uuid.UUID] = None):
         raise NotImplementedError("unimplemented method")
 
-    def schema_exists(self, identifier: Identifier = None, 
-        uuid_: uuid.UUID = None, name: str = None):
+    def schema_exists(self, identifier: typing.Optional[Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        name: typing.Optional[str] = None):
         raise NotImplementedError("unimplemented method")
 
-    def annotation_exists(self, identifier: Identifier = None, 
-        uuid_: uuid.UUID = None):
+    def annotation_exists(self, identifier: typing.Optional[Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None):
         raise NotImplementedError("unimplemented method")
 
-    def annotations(self, identifier: Identifier = None, 
-        uuid_: uuid.UUID = None, object_: Identifier = None, 
-        page: int = None, page_size: int = None):
+    def annotations(self, identifier: typing.Optional[Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        object_: typing.Optional[Identifier] = None, 
+        page: typing.Optional[int] = None, 
+        page_size: typing.Optional[int] = None):
         raise NotImplementedError("unimplemented method")
 
     def annotation_status(self, identifier: Identifier):
         raise NotImplementedError("unimplemented method")
 
-    def annotation_versions(self, uuid_: uuid.UUID = None):
+    def annotation_versions(self, uuid_: typing.Optional[uuid.UUID] = None):
         raise NotImplementedError("unimplemented method")
 
-    def owner_exists(self, public_key: bytes = None):
+    def owner_exists(self, public_key: typing.Optional[bytes] = None):
         raise NotImplementedError("unimplemented method")
 
     def owners(self):
@@ -415,7 +422,8 @@ class StateValidator(Validator):
         self.state = state
 
     def validate(self, event: Event):
-        handler: dict[type, callable[[Event], str]] = {
+        handler: dict[typing.Type[Event], 
+            typing.Callable[[typing.Any], None]] = {
             ObjectCreateEvent: self._validate_object_create,
             ObjectUpdateEvent: self._validate_object_update,
             ObjectDeleteEvent: self._validate_object_delete,
@@ -458,7 +466,7 @@ class StateValidator(Validator):
             raise ValidationError("unexpected UUID for schema name")
 
         if is_schema(versions[-1].name):
-            if versions[-1].name != object.name:
+            if versions[-1].name != event.object.name:
                 raise ValidationError("schema names may not change")
 
         if event.object.version != len(versions):
@@ -604,10 +612,11 @@ class StateValidator(Validator):
 class StateConsumer(Consumer):
     def __init__(self, state: State):
         super().__init__()
-        self.state = state
+        self.state: State = state
 
     def consume(self, event: Event):
-        handler: dict[type, callable[[Event], str]] = {
+        handler: dict[typing.Type[Event], 
+            typing.Callable[[typing.Any], None]] = {
             ObjectCreateEvent: self._consume_object_create,
             ObjectUpdateEvent: self._consume_object_update,
             ObjectDeleteEvent: self._consume_object_delete,
@@ -660,7 +669,8 @@ class FieldValidator(Validator):
         super().__init__()
 
     def validate(self, event: Event):
-        handler: dict[type, callable[[Event], str]] = {
+        handler: dict[typing.Type[Event], 
+            typing.Callable[[typing.Any], None]] = {
             ObjectCreateEvent: self._validate_object,
             ObjectUpdateEvent: self._validate_object,
             AnnotationCreateEvent: self._validate_annotation,
@@ -672,7 +682,7 @@ class FieldValidator(Validator):
 
         handler[type(event)](event)
 
-    def _validate_object(self, event: Event):
+    def _validate_object(self, event: ObjectCreateEvent|ObjectUpdateEvent):
         object_ = event.object
         if not isinstance(object_.uuid, uuid.UUID):
             raise ValidationError("UUID is not of type uuid.UUID")
@@ -695,7 +705,8 @@ class FieldValidator(Validator):
         if len(object_.hash) != 64:
             raise ValidationError("hash should be a hex encoded SHA256")
 
-    def _validate_annotation(self, event: Event):
+    def _validate_annotation(self, 
+        event: AnnotationCreateEvent|AnnotationUpdateEvent):
         annotation = event.annotation
         if not isinstance(annotation.uuid, uuid.UUID):
             raise ValidationError("UUID is not of type uuid.UUID")
@@ -722,7 +733,7 @@ class SchemaValidator(Validator, Consumer):
         self.schemas: set[Identifier] = set()
 
     def validate(self, event: Event):
-        handler: dict[type, callable[[Event], str]] = {
+        handler: dict[typing.Type[Event], typing.Callable[[typing.Any], None]] = {
             ObjectCreateEvent: self._validate_object_create,
             ObjectUpdateEvent: self._validate_object_update,
             AnnotationCreateEvent: self._validate_annotation_create,
@@ -788,7 +799,8 @@ class SchemaValidator(Validator, Consumer):
         self._validate_annotation(event.annotation)
 
     def consume(self, event: Event):
-        handler: dict[type, callable[[Event], str]] = {
+        handler: dict[typing.Type[Event], 
+            typing.Callable[[typing.Any], None]] = {
             ObjectCreateEvent: self._consume_object_create,
             ObjectUpdateEvent: self._consume_object_update,
         }

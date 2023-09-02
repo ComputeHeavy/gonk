@@ -18,7 +18,7 @@ class SignatureValidator(core.Validator):
     def __init__(self):
         super().__init__()
 
-    def validate(self, event):
+    def validate(self, event: core.Event):
         verify_key = nacl.signing.VerifyKey(event.signer)
         try:
             verify_key.verify(event.signature_bytes(), event.signature)
@@ -31,6 +31,6 @@ class ReplayValidator(core.Validator):
         super().__init__()
         self.record_keeper = record_keeper
 
-    def validate(self, event):
+    def validate(self, event: core.Event):
         if self.record_keeper.exists(event.uuid):
             raise core.ValidationError("event UUID exists")

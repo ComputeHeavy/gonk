@@ -2,11 +2,12 @@ import core
 import uuid
 import nacl
 import enum
+import typing
 
 class IdentifierUUIDLink:
     def __init__(self):
-        self.forward: dict[Identifier, list[uuid.UUID]] = {}
-        self.reverse: dict[uuid.UUID, list[Identifier]] = {}
+        self.forward: dict[core.Identifier, list[uuid.UUID]] = {}
+        self.reverse: dict[uuid.UUID, list[core.Identifier]] = {}
 
     def add(self, identifier: core.Identifier, uuid_: uuid.UUID):
         if identifier not in self.forward:
@@ -34,8 +35,8 @@ class State(core.State):
 
         self.owner_list: list[nacl.signing.VerifyKey] = list()
 
-    def object_exists(self, identifier: core.Identifier = None, 
-        uuid_: uuid.UUID = None):
+    def object_exists(self, identifier: typing.Optional[core.Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None):
         if identifier is not None:
             if identifier.uuid not in self.object_lookup:
                 return False
@@ -51,9 +52,11 @@ class State(core.State):
 
         raise ValueError("requires an argument")
 
-    def objects(self, identifier: core.Identifier = None, 
-        uuid_: uuid.UUID = None, annotation: uuid.UUID = None, 
-        page: int = None, page_size: int = None):
+    def objects(self, identifier: typing.Optional[core.Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        annotation: typing.Optional[uuid.UUID] = None, 
+        page: typing.Optional[int] = None, 
+        page_size: typing.Optional[int] = None):
         if annotation is not None:
             objects = [object_ for id_ in 
                 self.object_annotation_link.reverse[annotation] 
@@ -61,13 +64,14 @@ class State(core.State):
 
             if identifier is not None:
                 objects = [object_ for object_ in objects 
-                    if object_.identifer() == identifier]
+                    if object_.identifier() == identifier]
 
             if uuid_ is not None:
                 objects = [object_ for object_ in objects 
                     if object_.uuid == uuid_]
         elif identifier is not None or uuid_ is not None:
             if uuid_ is None:
+                identifier = typing.cast(core.Identifier, identifier)
                 uuid_ = identifier.uuid
 
             objects = self.object_lookup[uuid_]
@@ -86,7 +90,8 @@ class State(core.State):
 
         return objects
 
-    def object_status(self, identifier: core.Identifier = None):
+    def object_status(self, 
+        identifier: typing.Optional[core.Identifier] = None):
         if identifier is None:
             raise ValueError("requires an argument")
 
@@ -95,7 +100,7 @@ class State(core.State):
 
         return self.entity_status[identifier]
 
-    def object_versions(self, uuid_: uuid.UUID = None):
+    def object_versions(self, uuid_: typing.Optional[uuid.UUID] = None):
         if uuid_ is None:
             raise ValueError("requires an argument")
 
@@ -104,8 +109,9 @@ class State(core.State):
 
         return self.object_lookup[uuid_]
 
-    def schema_exists(self, identifier: core.Identifier = None, 
-        uuid_: uuid.UUID = None, name: str = None):
+    def schema_exists(self, identifier: typing.Optional[core.Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        name: typing.Optional[str] = None):
         if name is not None:
             return name in self.schemas
 
@@ -124,8 +130,9 @@ class State(core.State):
 
         raise ValueError("requires an argument")
 
-    def annotation_exists(self, identifier: core.Identifier = None, 
-        uuid_: uuid.UUID = None):
+    def annotation_exists(self, 
+        identifier: typing.Optional[core.Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None):
         if identifier is not None:
             if identifier.uuid not in self.annotation_lookup:
                 return False
@@ -141,9 +148,11 @@ class State(core.State):
 
         raise ValueError("requires an argument")
 
-    def annotations(self, identifier: core.Identifier = None, 
-        uuid_: uuid.UUID = None, object_: core.Identifier = None,
-        page: int = None, page_size: int = None):
+    def annotations(self, identifier: typing.Optional[core.Identifier] = None, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        object_: typing.Optional[core.Identifier] = None,
+        page: typing.Optional[int] = None, 
+        page_size: typing.Optional[int] = None):
         if object_ is not None:
             annotations = [annotation for uu in 
                 self.object_annotation_link.forward[object_] 
@@ -151,13 +160,14 @@ class State(core.State):
 
             if identifier is not None:
                 annotations = [annotation for annotation in annotations 
-                    if annotation.identifer() == identifier]
+                    if annotation.identifier() == identifier]
 
             if uuid_ is not None:
                 annotations = [annotation for annotation in annotations 
                     if annotation.uuid == uuid_]
         elif identifier is not None or uuid_ is not None:
             if uuid_ is None:
+                identifier = typing.cast(core.Identifier, identifier)
                 uuid_ = identifier.uuid
 
             annotations = self.annotation_lookup[uuid_]
@@ -172,9 +182,9 @@ class State(core.State):
         if page is not None and page_size is not None:
             start = page*page_size
             end = start + page_size
-            objects = objects[start:end]
+            annotations = annotations[start:end]
 
-        return objects
+        return annotations
 
     def annotations_by_object(self, object: core.Object):
         raise NotImplementedError("unimplemented method")
@@ -188,7 +198,7 @@ class State(core.State):
 
         return self.entity_status[identifier]
 
-    def annotation_versions(self, uuid_: uuid.UUID = None):
+    def annotation_versions(self, uuid_: typing.Optional[uuid.UUID] = None):
         if uuid_ is None:
             raise ValueError("requires an argument")
 
@@ -197,7 +207,7 @@ class State(core.State):
 
         return self.annotation_lookup[uuid_]
 
-    def owner_exists(self, public_key: bytes = None):
+    def owner_exists(self, public_key: typing.Optional[bytes] = None):
         if public_key is None:
             raise ValueError("requires an argument")
 
@@ -212,6 +222,7 @@ class State(core.State):
 class StateConsumer(core.StateConsumer):
     def __init__(self, state: State):
         super().__init__(state)
+        self.state: State 
         
     def _consume_object_create(self, event: core.ObjectCreateEvent):
         self.state.object_lookup[event.object.uuid] = []
@@ -273,7 +284,12 @@ class StateConsumer(core.StateConsumer):
         self.state.pending_events.remove(event.event_uuid)
 
         target = self.state.record_keeper.read(event.event_uuid)
+        target = typing.cast(core.ObjectEvent|core.AnnotationEvent, target)
+
         if target.action in [core.ActionT.CREATE, core.ActionT.UPDATE]:
+            target = typing.cast(
+                core.ObjectCreateEvent|core.ObjectUpdateEvent, target)
+
             if isinstance(target, core.ObjectEvent):
                 entity_identifier = target.object.identifier()
             elif isinstance(target, core.AnnotationEvent):
@@ -284,6 +300,8 @@ class StateConsumer(core.StateConsumer):
             self.state.entity_status[entity_identifier].remove(
                 core.StatusT.CREATE_PENDING)
         elif target.action == core.ActionT.DELETE:
+            target = typing.cast(core.ObjectDeleteEvent, target)
+
             if isinstance(target, core.ObjectEvent):
                 entity_identifier = target.object_identifier
             elif isinstance(target, core.AnnotationEvent):
@@ -304,7 +322,12 @@ class StateConsumer(core.StateConsumer):
         self.state.pending_events.remove(event.event_uuid)
 
         target = self.state.record_keeper.read(event.event_uuid)
+        target = typing.cast(core.ObjectEvent|core.AnnotationEvent, target)
+
         if target.action in [core.ActionT.CREATE, core.ActionT.UPDATE]:
+            target = typing.cast(
+                core.ObjectCreateEvent|core.ObjectUpdateEvent, target)
+
             if isinstance(target, core.ObjectEvent):
                 entity = target.object
             elif isinstance(target, core.AnnotationEvent):
@@ -317,6 +340,8 @@ class StateConsumer(core.StateConsumer):
             self.state.entity_status[entity.identifier()].add(
                 core.StatusT.CREATE_REJECTED)
         elif target.action == core.ActionT.DELETE:
+            target = typing.cast(core.ObjectDeleteEvent, target)
+
             if isinstance(target, core.ObjectEvent):
                 identifier = target.object_identifier
             elif isinstance(target, core.AnnotationEvent):

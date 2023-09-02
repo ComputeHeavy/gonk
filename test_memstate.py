@@ -10,16 +10,12 @@ from nacl import signing
 
 class TestState(unittest.TestCase):
     def standard_object(self):
-        fields = {
-            "name": "object.txt",
-            "format": "text/plain",
-            "size": len("object contents"),
-            "hash_type": core.HashTypeT.SHA256,
-            "hash": hashlib.sha256(b"object contents").hexdigest(),
-        }
-
-        return core.Object(fields["name"], fields["format"], fields["size"], 
-            fields["hash_type"], fields["hash"])
+        return core.Object(
+            "object.txt", 
+            "text/plain", 
+            len("object contents"), 
+            core.HashTypeT.SHA256, 
+            hashlib.sha256(b"object contents").hexdigest())
 
     def versioned_object(self, object_: core.Object):
         obj = object_.__copy__()
@@ -29,26 +25,19 @@ class TestState(unittest.TestCase):
         return obj
 
     def standard_schema(self):
-        fields = {
-            "name": "schema-sample",
-            "format": "application/schema+json",
-            "size": len("schema contents"),
-            "hash_type": core.HashTypeT.SHA256,
-            "hash": hashlib.sha256(b"schema contents").hexdigest(),
-        }
-
-        return core.Object(fields["name"], fields["format"], fields["size"], 
-            fields["hash_type"], fields["hash"])
+        return core.Object(
+            "schema-sample", 
+            "application/schema+json", 
+            len("schema contents"), 
+            core.HashTypeT.SHA256, 
+            hashlib.sha256(b"schema contents").hexdigest())
 
     def standard_annotation(self, schema: core.Identifier):
-        fields = {
-            "size": len("annotation contents"),
-            "hash_type": core.HashTypeT.SHA256,
-            "hash": hashlib.sha256(b"annotation contents").hexdigest(),
-        }
-
-        return core.Annotation(schema, fields["size"], fields["hash_type"], 
-            fields["hash"])
+        return core.Annotation(
+            schema, 
+            len("annotation contents"), 
+            core.HashTypeT.SHA256, 
+            hashlib.sha256(b"annotation contents").hexdigest())
 
     def versioned_annotation(self, annotation: core.Annotation):
         anno = annotation.__copy__()

@@ -10,16 +10,12 @@ from nacl import signing
 
 class TestSigs(unittest.TestCase):
     def standard_object(self):
-        fields = {
-            "name": "object.txt",
-            "format": "text/plain",
-            "size": len("object contents"),
-            "hash_type": core.HashTypeT.SHA256,
-            "hash": hashlib.sha256(b"object contents").hexdigest(),
-        }
-
-        return core.Object(fields["name"], fields["format"], fields["size"], 
-            fields["hash_type"], fields["hash"])
+        return core.Object(
+            "object.txt", 
+            "text/plain", 
+            len("object contents"), 
+            core.HashTypeT.SHA256, 
+            hashlib.sha256(b"object contents").hexdigest())
 
     def test_signature_validation(self):
         depot = memd.Depot()

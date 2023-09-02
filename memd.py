@@ -4,7 +4,7 @@ class Depot(core.Depot):
     def __init__(self):
         super().__init__()
         self.storage: dict[core.Identifier, bytes] = {}
-        self.writable: set[core.Identifer] = set()
+        self.writable: set[core.Identifier] = set()
 
     def reserve(self, identifier: core.Identifier, size: int):
         if identifier in self.storage:
