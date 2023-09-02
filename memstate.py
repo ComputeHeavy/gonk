@@ -51,15 +51,64 @@ class State(core.State):
 
         raise ValueError("requires an argument")
 
-    def objects_by_annotation(self, annotation: uuid.UUID = None):
-        if annotation is None:
-            raise ValueError("requires an argument")
+    def objects(self, identifier: core.Identifier = None, 
+        uuid_: uuid.UUID = None, annotation: uuid.UUID = None, 
+        status: set(core.StatusT) = None, page: int = None, 
+        page_size: int = None):
+        if annotation is not None:
+            objects = [object_ for id_ in 
+                self.object_annotation_link.reverse[annotation] 
+                for object_ in self.object_lookup[id_.uuid]]
 
-        if annotation not in self.object_annotation_link.reverse:
-            return list()
+            if identifier is not None:
+                objects = [object_ for object_ in objects 
+                    if object_.identifer() == identifier]
 
-        ids = self.object_annotation_link.reverse[annotation]
-        return [self.object_lookup[id_.uuid][id_.version] for id_ in ids]
+            if uuid_ is not None:
+                objects = [object_ for object_ in objects 
+                    if object_.uuid == uuid_]
+
+            if status is not None:
+                filtered = []
+                for object_ in objects:
+                    object_status = self.entity_status[object_.identifier()]
+                    if len(object_status.intersection(status)) == len(status):
+                        filtered.append(object_)
+                objects = filtered
+        elif identifier is not None or uuid_ is not None:
+            if uuid_ is None:
+                uuid_ = identifier.uuid
+
+            objects = self.object_lookup[uuid_]
+            if identifier is not None:
+                objects = [object_ for object_ in objects 
+                    if object_.version == identifier.version 
+                        and object_.uuid == identifier.uuid]
+
+            if status is not None:
+                filtered = []
+                for object_ in objects:
+                    object_status = self.entity_status[object_.identifier()]
+                    if len(object_status.intersection(status)) == len(status):
+                        filtered.append(object_)
+                objects = filtered 
+                
+        elif status is not None:
+            objects = []
+            for identifier, object_ in self.object_lookup.items():
+                object_status = self.entity_status[identifier]
+                if len(object_status.intersection(status)) == len(status):
+                    objects.append(object_)
+        else:
+            raise ValueError(
+                "requires one of [identifier, uuid_, annotation, status]")
+
+        if page is not None and page_size is not None:
+            start = page*page_size
+            end = start + page_size
+            objects = objects[start:end]
+
+        return objects
 
     def object_status(self, identifier: core.Identifier = None):
         if identifier is None:

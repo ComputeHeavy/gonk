@@ -360,29 +360,37 @@ class Depot:
         raise NotImplementedError("unimplemented method")
 
 ### State ###
+class Page:
+    def __init__(self, items: list, page: int, page_size: int):
+        self.page = page
+        self.page_size = page_size
+        self.items = items
+
 class State:
-    def object_exists(self, identifier: core.Identifier = None, 
+    def object_exists(self, identifier: Identifier = None, 
         uuid_: uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
 
-    def objects_by_annotation(self, annotation: uuid.UUID = None):
+    def objects(self, identifier: Identifier = None, uuid_: uuid.UUID = None, 
+        annotation: Identifier = None, status: set(StatusT) = None, 
+        page: int = None):
         raise NotImplementedError("unimplemented method")
 
-    def object_status(self, identifier: core.Identifier = None):
+    def object_status(self, identifier: Identifier = None):
         raise NotImplementedError("unimplemented method")
 
     def object_versions(self, uuid_: uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
 
-    def schema_exists(self, identifier: core.Identifier = None, 
+    def schema_exists(self, identifier: Identifier = None, 
         uuid_: uuid.UUID = None, name: str = None):
         raise NotImplementedError("unimplemented method")
 
-    def annotation_exists(self, identifier: core.Identifier = None, 
+    def annotation_exists(self, identifier: Identifier = None, 
         uuid_: uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
 
-    def annotation_status(self, identifier: core.Identifier):
+    def annotation_status(self, identifier: Identifier):
         raise NotImplementedError("unimplemented method")
 
     def annotation_versions(self, uuid_: uuid.UUID = None):
@@ -506,8 +514,7 @@ class StateValidator(Validator):
             return f"Annotation version should be {len(versions)}."
 
         # TODO: function naming
-        objects = self.state.objects_by_annotation(
-            annotation=event.annotation.uuid)
+        objects = self.state.objects(annotation=event.annotation.uuid)
         for object_ in objects:
             status = self.state.object_status(identifier=object_.identifier())
             if StatusT.CREATE_REJECTED in status:
@@ -533,7 +540,7 @@ class StateValidator(Validator):
         if StatusT.DELETE_ACCEPTED in status:
             raise ValidationError("annotation already deleted")
 
-        objects = self.state.objects_by_annotation(annotation=identifier.uuid)
+        objects = self.state.objects(annotation=identifier.uuid)
         for object_ in objects:
             object_status = self.state.object_status(
                 identifier=object_.identifier())
