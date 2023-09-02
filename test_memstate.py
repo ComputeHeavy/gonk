@@ -64,13 +64,16 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         self.assertEqual(len(machine.validators), 1)
-        self.assertEqual(machine.validators[0], state)
+        self.assertEqual(machine.validators[0], state_validator)
         self.assertEqual(len(machine.consumers), 2)
         self.assertEqual(machine.consumers[0], record_keeper)
-        self.assertEqual(machine.consumers[1], state)
+        self.assertEqual(machine.consumers[1], state_consumer)
 
     def test_object_create_accept(self):
         depot = memd.Depot()
@@ -80,7 +83,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -94,10 +100,10 @@ class TestState(unittest.TestCase):
         oce = signer.sign(core.ObjectCreateEvent(o1v0))
         machine.process_event(oce)
 
-        self.assertEqual(len(state.objects), 1)
-        self.assertEqual(len(state.objects[o1v0.uuid]), 1)
-        self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
-        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+        self.assertEqual(len(state.object_lookup), 1)
+        self.assertEqual(len(state.object_lookup[o1v0.uuid]), 1)
+        self.assertEqual(state.object_lookup[o1v0.uuid][0], o1v0)
+        self.assertTrue(core.StatusT.CREATE_PENDING in state.entity_status[
             o1v0.identifier()])
 
         rae = core.ReviewAcceptEvent(oce.uuid)
@@ -114,7 +120,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -132,11 +141,11 @@ class TestState(unittest.TestCase):
         oue = signer.sign(core.ObjectUpdateEvent(o1v1))
         machine.process_event(oue)
 
-        self.assertEqual(len(state.objects), 1)
-        self.assertEqual(len(state.objects[o1v0.uuid]), 2)
-        self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
-        self.assertEqual(state.objects[o1v0.uuid][1], o1v1)
-        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+        self.assertEqual(len(state.object_lookup), 1)
+        self.assertEqual(len(state.object_lookup[o1v0.uuid]), 2)
+        self.assertEqual(state.object_lookup[o1v0.uuid][0], o1v0)
+        self.assertEqual(state.object_lookup[o1v0.uuid][1], o1v1)
+        self.assertTrue(core.StatusT.CREATE_PENDING in state.entity_status[
             o1v1.identifier()])
 
         rae = core.ReviewAcceptEvent(oue.uuid)
@@ -153,7 +162,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -170,17 +182,17 @@ class TestState(unittest.TestCase):
         ode = signer.sign(core.ObjectDeleteEvent(o1v0.identifier()))
         machine.process_event(ode)
 
-        self.assertEqual(len(state.objects), 1)
-        self.assertEqual(len(state.objects[o1v0.uuid]), 1)
-        self.assertEqual(state.objects[o1v0.uuid][0], o1v0)
-        self.assertTrue(memstate.TagT.DELETE_PENDING in state.entity_status[
+        self.assertEqual(len(state.object_lookup), 1)
+        self.assertEqual(len(state.object_lookup[o1v0.uuid]), 1)
+        self.assertEqual(state.object_lookup[o1v0.uuid][0], o1v0)
+        self.assertTrue(core.StatusT.DELETE_PENDING in state.entity_status[
             o1v0.identifier()])
 
         rae = core.ReviewAcceptEvent(ode.uuid)
         rae = signer.sign(rae)
         machine.process_event(rae)
 
-        self.assertTrue(memstate.TagT.DELETE_ACCEPTED in state.entity_status[
+        self.assertTrue(core.StatusT.DELETE_ACCEPTED in state.entity_status[
             o1v0.identifier()])
         self.assertEqual(len(state.entity_status[o1v0.identifier()]), 2)
 
@@ -192,7 +204,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -215,11 +230,11 @@ class TestState(unittest.TestCase):
             core.AnnotationCreateEvent([o1v0.identifier()], a1v0))
         machine.process_event(ace)
 
-        self.assertEqual(len(state.annotations), 1)
-        self.assertEqual(len(state.annotations[a1v0.uuid]), 1)
-        self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
+        self.assertEqual(len(state.annotation_lookup), 1)
+        self.assertEqual(len(state.annotation_lookup[a1v0.uuid]), 1)
+        self.assertEqual(state.annotation_lookup[a1v0.uuid][0], a1v0)
         
-        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_PENDING in state.entity_status[
             a1v0.identifier()])
 
         self.assertEqual(len(state.object_annotation_link.forward), 1)
@@ -248,7 +263,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -274,12 +292,12 @@ class TestState(unittest.TestCase):
         aue = signer.sign(core.AnnotationUpdateEvent(a1v1))        
         machine.process_event(aue)
 
-        self.assertEqual(len(state.annotations), 1)
-        self.assertEqual(len(state.annotations[a1v0.uuid]), 2)
-        self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
-        self.assertEqual(state.annotations[a1v0.uuid][1], a1v1)
+        self.assertEqual(len(state.annotation_lookup), 1)
+        self.assertEqual(len(state.annotation_lookup[a1v0.uuid]), 2)
+        self.assertEqual(state.annotation_lookup[a1v0.uuid][0], a1v0)
+        self.assertEqual(state.annotation_lookup[a1v0.uuid][1], a1v1)
 
-        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_PENDING in state.entity_status[
             a1v1.identifier()])
 
         rae = core.ReviewAcceptEvent(aue.uuid)
@@ -297,7 +315,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -322,17 +343,17 @@ class TestState(unittest.TestCase):
         ade = signer.sign(core.AnnotationDeleteEvent(a1v0.identifier()))    
         machine.process_event(ade)
 
-        self.assertEqual(len(state.annotations), 1)
-        self.assertEqual(len(state.annotations[a1v0.uuid]), 1)
-        self.assertEqual(state.annotations[a1v0.uuid][0], a1v0)
-        self.assertTrue(memstate.TagT.DELETE_PENDING in state.entity_status[
+        self.assertEqual(len(state.annotation_lookup), 1)
+        self.assertEqual(len(state.annotation_lookup[a1v0.uuid]), 1)
+        self.assertEqual(state.annotation_lookup[a1v0.uuid][0], a1v0)
+        self.assertTrue(core.StatusT.DELETE_PENDING in state.entity_status[
             a1v0.identifier()])
 
         rae = core.ReviewAcceptEvent(ade.uuid)
         rae = signer.sign(rae)
         machine.process_event(rae)
 
-        self.assertTrue(memstate.TagT.DELETE_ACCEPTED in state.entity_status[
+        self.assertTrue(core.StatusT.DELETE_ACCEPTED in state.entity_status[
             a1v0.identifier()])
         self.assertEqual(len(state.entity_status[a1v0.identifier()]), 2)
 
@@ -344,7 +365,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer1 = sigs.Signer(sk1)
@@ -355,7 +379,7 @@ class TestState(unittest.TestCase):
         wae1 = signer1.sign(wae1)
         machine.process_event(wae1)
 
-        self.assertEqual(len(state.owners), 1)
+        self.assertEqual(len(state.owner_list), 1)
 
         sk2 = nacl.signing.SigningKey.generate()
         vk2 = sk2.verify_key
@@ -369,7 +393,7 @@ class TestState(unittest.TestCase):
         oae2 = signer1.sign(oae2)
         machine.process_event(oae2)
 
-        self.assertEqual(len(state.owners), 2)
+        self.assertEqual(len(state.owner_list), 2)
 
     def test_owner_remove(self):
         depot = memd.Depot()
@@ -379,7 +403,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer1 = sigs.Signer(sk1)
@@ -405,7 +432,7 @@ class TestState(unittest.TestCase):
         ore1 = signer2.sign(core.OwnerRemoveEvent(vk2))
         machine.process_event(ore1)
 
-        self.assertEqual(len(state.owners), 1)
+        self.assertEqual(len(state.owner_list), 1)
 
         with self.assertRaises(core.ValidationError):
             ore2 = signer1.sign(core.OwnerRemoveEvent(vk1))
@@ -419,7 +446,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -438,7 +468,7 @@ class TestState(unittest.TestCase):
         machine.process_event(rre)
 
         self.assertEqual(len(state.entity_status[o1v0.identifier()]), 1)
-        self.assertTrue(memstate.TagT.CREATE_REJECTED in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_REJECTED in state.entity_status[
             o1v0.identifier()])
 
     def test_object_update_reject(self):
@@ -449,7 +479,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -472,7 +505,7 @@ class TestState(unittest.TestCase):
         machine.process_event(rre)
 
         self.assertEqual(len(state.entity_status[o1v1.identifier()]), 1)
-        self.assertTrue(memstate.TagT.CREATE_REJECTED in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_REJECTED in state.entity_status[
             o1v1.identifier()])
 
     def test_object_delete_reject(self):
@@ -483,7 +516,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -504,7 +540,7 @@ class TestState(unittest.TestCase):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_PENDING in state.entity_status[
             o1v0.identifier()])
         self.assertEqual(len(state.entity_status[o1v0.identifier()]), 1)
 
@@ -516,7 +552,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -544,7 +583,7 @@ class TestState(unittest.TestCase):
         machine.process_event(rre)
 
         self.assertEqual(len(state.entity_status[a1v0.identifier()]), 1)
-        self.assertTrue(memstate.TagT.CREATE_REJECTED in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_REJECTED in state.entity_status[
             a1v0.identifier()])
 
     def test_annotation_update_reject(self):
@@ -555,7 +594,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -586,7 +628,7 @@ class TestState(unittest.TestCase):
         machine.process_event(rre)
 
         self.assertEqual(len(state.entity_status[a1v1.identifier()]), 1)
-        self.assertTrue(memstate.TagT.CREATE_REJECTED in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_REJECTED in state.entity_status[
             a1v1.identifier()])
 
     def test_annotation_delete_reject(self):
@@ -597,7 +639,10 @@ class TestState(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -626,7 +671,7 @@ class TestState(unittest.TestCase):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        self.assertTrue(memstate.TagT.CREATE_PENDING in state.entity_status[
+        self.assertTrue(core.StatusT.CREATE_PENDING in state.entity_status[
             a1v0.identifier()])
         self.assertEqual(len(state.entity_status[a1v0.identifier()]), 1)
 

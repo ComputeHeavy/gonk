@@ -98,241 +98,191 @@ class State(core.State):
         self.record_keeper = record_keeper
 
         self.schemas: dict[str, uuid.UUID] = dict()
-        self.objects: dict[uuid.UUID, list[core.Object]] = dict()
-        self.annotations: dict[uuid.UUID, list[core.Annotation]] = dict()
+        self.object_lookup: dict[uuid.UUID, list[core.Object]] = dict()
+        self.annotation_lookup: dict[uuid.UUID, list[core.Annotation]] = dict()
         self.object_annotation_link: IdentifierUUIDLink = IdentifierUUIDLink()
 
         self.pending_events: set[uuid.UUID] = set()
-        self.entity_status: dict[core.Identifier, set[TagT]] = dict()
+        self.entity_status: dict[core.Identifier, set[core.StatusT]] = dict()
         self.entity_event_link: IdentifierUUIDLink = IdentifierUUIDLink()
 
-        self.owners: list[nacl.signing.VerifyKey] = list()
+        self.owner_list: list[nacl.signing.VerifyKey] = list()
 
-    # def _validate_object_create(self, event: core.ObjectCreateEvent):
-    #     if core.is_schema(event.object.name):
-    #         if event.object.name in self.schemas:
-    #             raise core.ValidationError("schema name already in use")
+    def object_exists(self, identifier: core.Identifier = None, 
+        uuid_: uuid.UUID = None):
+        if identifier is not None:
+            if identifier.uuid not in self.object_lookup:
+                return False
 
-    #     if event.object.uuid in self.objects:
-    #         raise core.ValidationError("UUID already exists in object store")
+            if identifier.version > -1 and identifier.version < len(
+                self.object_lookup[identifier.uuid]):
+                return True
 
-    #     if event.object.version != 0:
-    #         raise core.ValidationError(
-    #             "object version must be zero in create event")
+            return False
 
-    # def _validate_object_update(self, event: core.ObjectCreateEvent):
-    #     if core.is_schema(event.object.name):
-    #         if event.object.name not in self.schemas:
-    #             raise core.ValidationError("schema name does not exist")
+        if uuid_ is not None:
+            return uuid_ in self.object_lookup
 
-    #         if self.schemas[event.object.name] != event.object.uuid:
-    #             raise core.ValidationError("unexpected UUID for schema name")
+        raise ValueError("requires an argument")
 
-    #     if event.object.uuid not in self.objects:
-    #         raise core.ValidationError("UUID not found in object store")
+    def objects(self, identifier: core.Identifier = None, 
+        uuid_: uuid.UUID = None, annotation: core.Annotation = None, 
+        status: set(core.StatusT) = None, page: int = None):
+        raise NotImplementedError("unimplemented method")
 
-    #     expected_version = len(self.objects[event.object.uuid])
-    #     if event.object.version != expected_version:
-    #         raise core.ValidationError(
-    #             f"object version should be {expected_version}.")
+    def object_status(self, identifier: core.Identifier = None):
+        if identifier is None:
+            raise ValueError("requires an argument")
 
-    # def _validate_object_delete(self, event: core.ObjectDeleteEvent):
-    #     if event.object_identifier.uuid in self.schemas.values():
-    #         raise core.ValidationError("schemas can not be deleted")
+        if identifier not in self.entity_status:
+            raise ValueError("object not found")
 
-    #     identifier = event.object_identifier
-    #     if identifier.uuid not in self.objects:
-    #         raise core.ValidationError("object identifier not found")
+        return self.entity_status[identifier]
 
-    #     if len(self.objects[identifier.uuid]) <= identifier.version:
-    #         raise core.ValidationError("version does not exist")
+    def object_versions(self, uuid_: uuid.UUID = None):
+        if uuid_ is None:
+            raise ValueError("requires an argument")
 
-    #     if TagT.CREATE_REJECTED in self.entity_status[identifier]:
-    #         raise core.ValidationError("cannot delete a rejected object")
+        if uuid_ not in self.object_lookup:
+            raise ValueError("object not found")
 
-    #     if TagT.DELETE_PENDING in self.entity_status[identifier]:
-    #         raise core.ValidationError("object version pending deletion")
+        return self.object_lookup[uuid_]
 
-    #     if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
-    #         raise core.ValidationError("object version already deleted")
+    def schema_exists(self, identifier: core.Identifier = None, 
+        uuid_: uuid.UUID = None, name: str = None):
+        if name is not None:
+            return name in self.schemas
 
-    # def _validate_annotation_create(self, event: core.AnnotationCreateEvent):
-    #     if event.annotation.uuid in self.annotations:
-    #         raise core.ValidationError(
-    #             "UUID already exists in annotation store")
+        if uuid_ is not None:
+            return uuid_ in self.schemas.values()
 
-    #     if event.annotation.version != 0:
-    #         raise core.ValidationError(
-    #             "annotation version must be zero in create event")
+        if identifier is not None:
+            if identifier.uuid not in self.schemas.values():
+                return False
 
-    #     if event.annotation.uuid in self.object_annotation_link.reverse:
-    #         raise core.ValidationError(
-    #             "annotation identifier already linked to objects")
+            if identifier.version > -1 and identifier.version < len(
+                self.object_lookup[identifier.uuid]):
+                return True
 
-    #     for identifier in event.object_identifiers:
-    #         if identifier.uuid not in self.objects:
-    #             raise core.ValidationError(
-    #                 "object identifier not found in object store")
+            return False
 
-    #         if len(self.objects[identifier.uuid]) <= identifier.version:
-    #             raise core.ValidationError("version does not exist")
+        raise ValueError("requires an argument")
 
-    #         if TagT.CREATE_REJECTED in self.entity_status[identifier]:
-    #             raise core.ValidationError(
-    #                 "rejected objects cannot be annotated")
+    def annotation_exists(self, identifier: core.Identifier = None, 
+        uuid_: uuid.UUID = None):
+        if identifier is not None:
+            if identifier.uuid not in self.annotation_lookup:
+                return False
 
-    #         if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
-    #             raise core.ValidationError(
-    #                 "deleted objects cannot be annotated")
+            if identifier.version > -1 and identifier.version < len(
+                self.annotation_lookup[identifier.uuid]):
+                return True
 
-    #         if identifier.uuid in self.schemas.values():
-    #             raise core.ValidationError("schemas can not be annotated")
+            return False
 
-    # def _validate_annotation_update(self, event: core.AnnotationUpdateEvent):
-    #     if event.annotation.uuid not in self.annotations:
-    #         raise core.ValidationError("UUID not found in annotation store")
+        if uuid_ is not None:
+            return uuid_ in self.annotation_lookup
 
-    #     expected_version = len(self.annotations[event.annotation.uuid])
-    #     if event.annotation.version != expected_version:
-    #         return f"Annotation version should be {expected_version}."
+        raise ValueError("requires an argument")
 
-    #     if event.annotation.uuid not in self.object_annotation_link.reverse:
-    #         raise core.ValidationError(
-    #             "annotation identifier not linked to any objects")
+    def annotations(self, identifier: core.Identifier, uuid_: uuid.UUID, 
+        object: core.Object, status: set(core.StatusT), page: int):
+        raise NotImplementedError("unimplemented method")
 
-    #     for identifier in self.object_annotation_link.reverse[
-    #         event.annotation.uuid]:
-    #         if TagT.CREATE_REJECTED in self.entity_status[identifier]:
-    #             raise core.ValidationError(
-    #                 "rejected objects cannot be annotated")
+    def annotation_status(self, identifier: core.Identifier):
+        if identifier is None:
+            raise ValueError("requires an argument")
 
-    #         if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
-    #             raise core.ValidationError(
-    #                 "deleted objects cannot be annotated")
+        if identifier not in self.entity_status:
+            raise ValueError("annotation not found")
 
-    # def _validate_annotation_delete(self, event: core.AnnotationDeleteEvent):
-    #     identifier = event.annotation_identifier
-    #     if identifier.uuid not in self.annotations:
-    #         raise core.ValidationError("annotation identifier not found")
+        return self.entity_status[identifier]
 
-    #     if len(self.annotations[identifier.uuid]) <= identifier.version:
-    #         raise core.ValidationError("version does not exist")
+    def annotation_versions(self, uuid_: uuid.UUID = None):
+        if uuid_ is None:
+            raise ValueError("requires an argument")
 
-    #     if TagT.CREATE_REJECTED in self.entity_status[identifier]:
-    #         raise core.ValidationError("cannot delete a rejected annotation")
+        if uuid_ not in self.annotation_lookup:
+            raise ValueError("object not found")
 
-    #     if TagT.DELETE_PENDING in self.entity_status[identifier]:
-    #         raise core.ValidationError("annotation already pending deletion")
+        return self.annotation_lookup[uuid_]
 
-    #     if TagT.DELETE_ACCEPTED in self.entity_status[identifier]:
-    #         raise core.ValidationError("annotation already deleted")
+    def owner_exists(self, public_key: bytes = None):
+        if public_key is None:
+            raise ValueError("requires an argument")
 
-    #     objects = self.object_annotation_link.reverse[identifier.uuid]
-    #     for object_identifier in objects:
-    #         if TagT.CREATE_REJECTED in self.entity_status[object_identifier]:
-    #             raise core.ValidationError(
-    #                 "rejected objects cannot be annotated")
+        return public_key in self.owner_list
 
-    #         if TagT.DELETE_ACCEPTED in self.entity_status[object_identifier]:
-    #             raise core.ValidationError(
-    #                 "deleted objects cannot be annotated")
+    def owners(self):
+        return self.owner_list
 
-    # def _validate_review_accept(self, event: core.ReviewAcceptEvent):
-    #     if event.event_uuid not in self.pending_events:
-    #         raise core.ValidationError("target event not pending")
+    def event_pending(self, uuid_: uuid.UUID):
+        return uuid_ in self.pending_events
 
-    #     if event.signer not in self.owners:
-    #         raise core.ValidationError("review event from non-owner")
-
-    # def _validate_review_reject(self, event: core.ReviewRejectEvent):
-    #     if event.event_uuid not in self.pending_events:
-    #         raise core.ValidationError("target event not pending")
-
-    #     if event.signer not in self.owners:
-    #         raise core.ValidationError("review event from non-owner")
-
-    # def _validate_owner_add(self, event: core.OwnerAddEvent):
-    #     if event.public_key in self.owners:
-    #         raise core.ValidationError("owner already present")
-
-    #     if len(self.owners) > 0:
-    #         if event.signer not in self.owners:
-    #             raise core.ValidationError("only owners can add owners")
-    #     else:
-    #         if event.public_key != event.signer:
-    #             raise core.ValidationError(
-    #                 "first owner add event must be self signed")
-
-    # def _validate_owner_remove(self, event: core.OwnerRemoveEvent):
-    #     if event.public_key not in self.owners:
-    #         raise core.ValidationError("owner not present")
-
-    #     if len(self.owners) == 1:
-    #         raise core.ValidationError(
-    #             "removing owner would leave the dataset ownerless")
-
-    #     if event.signer not in self.owners:
-    #         raise core.ValidationError("only owners can remove owners")
-
-    #     target_rank = self.owners.index(event.public_key)
-    #     actor_rank = self.owners.index(event.signer)
-
-    #     if actor_rank > target_rank:
-    #         raise core.ValidationError("cannot remove a higher ranking owner")
-
+class StateConsumer(core.StateConsumer):
+    def __init__(self, state: State):
+        super().__init__(state)
+        
     def _consume_object_create(self, event: core.ObjectCreateEvent):
-        self.objects[event.object.uuid] = []
-        self.objects[event.object.uuid].append(event.object)
+        self.state.object_lookup[event.object.uuid] = []
+        self.state.object_lookup[event.object.uuid].append(event.object)
 
         if core.is_schema(event.object.name):
-            self.schemas[event.object.name] = event.object.uuid
+            self.state.schemas[event.object.name] = event.object.uuid
 
-        self.pending_events.add(event.uuid)
-        self.entity_status[event.object.identifier()] = set(
-            [TagT.CREATE_PENDING])
-        self.entity_event_link.add(event.object.identifier(), event.uuid)
+        self.state.pending_events.add(event.uuid)
+        self.state.entity_status[event.object.identifier()] = set(
+            [core.StatusT.CREATE_PENDING])
+        self.state.entity_event_link.add(event.object.identifier(), event.uuid)
 
     def _consume_object_update(self, event: core.ObjectUpdateEvent):
-        self.objects[event.object.uuid].append(event.object)
-        self.pending_events.add(event.uuid)
-        self.entity_status[event.object.identifier()] = set(
-            [TagT.CREATE_PENDING])
-        self.entity_event_link.add(event.object.identifier(), event.uuid)
+        self.state.object_lookup[event.object.uuid].append(event.object)
+        self.state.pending_events.add(event.uuid)
+        self.state.entity_status[event.object.identifier()] = set(
+            [core.StatusT.CREATE_PENDING])
+        self.state.entity_event_link.add(event.object.identifier(), event.uuid)
 
     def _consume_object_delete(self, event: core.ObjectDeleteEvent):
-        self.pending_events.add(event.uuid)
-        self.entity_status[event.object_identifier].add(TagT.DELETE_PENDING)
-        self.entity_event_link.add(event.object_identifier, event.uuid)
+        self.state.pending_events.add(event.uuid)
+        self.state.entity_status[event.object_identifier].add(
+            core.StatusT.DELETE_PENDING)
+        self.state.entity_event_link.add(event.object_identifier, event.uuid)
 
     def _consume_annotation_create(self, event: core.AnnotationCreateEvent):
-        self.annotations[event.annotation.uuid] = []
-        self.annotations[event.annotation.uuid].append(event.annotation)
+        self.state.annotation_lookup[event.annotation.uuid] = []
+        self.state.annotation_lookup[
+            event.annotation.uuid].append(event.annotation)
     
         for identifier in event.object_identifiers:
-            self.object_annotation_link.add(identifier, event.annotation.uuid)
+            self.state.object_annotation_link.add(
+                identifier, event.annotation.uuid)
 
-        self.pending_events.add(event.uuid)
-        self.entity_status[event.annotation.identifier()] = set(
-            [TagT.CREATE_PENDING])
-        self.entity_event_link.add(event.annotation.identifier(), event.uuid)
+        self.state.pending_events.add(event.uuid)
+        self.state.entity_status[event.annotation.identifier()] = set(
+            [core.StatusT.CREATE_PENDING])
+        self.state.entity_event_link.add(
+            event.annotation.identifier(), event.uuid)
 
     def _consume_annotation_update(self, event: core.AnnotationUpdateEvent):
-        self.annotations[event.annotation.uuid].append(event.annotation)
-        self.pending_events.add(event.uuid)
-        self.entity_status[event.annotation.identifier()] = set(
-            [TagT.CREATE_PENDING])
-        self.entity_event_link.add(event.annotation.identifier(), event.uuid)
+        self.state.annotation_lookup[
+            event.annotation.uuid].append(event.annotation)
+        self.state.pending_events.add(event.uuid)
+        self.state.entity_status[event.annotation.identifier()] = set(
+            [core.StatusT.CREATE_PENDING])
+        self.state.entity_event_link.add(
+            event.annotation.identifier(), event.uuid)
 
     def _consume_annotation_delete(self, event: core.AnnotationDeleteEvent):
-        self.pending_events.add(event.uuid)
-        self.entity_status[event.annotation_identifier].add(
-            TagT.DELETE_PENDING)
-        self.entity_event_link.add(event.annotation_identifier, event.uuid)
+        self.state.pending_events.add(event.uuid)
+        self.state.entity_status[event.annotation_identifier].add(
+            core.StatusT.DELETE_PENDING)
+        self.state.entity_event_link.add(
+            event.annotation_identifier, event.uuid)
 
     def _consume_review_accept(self, event: core.ReviewAcceptEvent):
-        self.pending_events.remove(event.event_uuid)
+        self.state.pending_events.remove(event.event_uuid)
 
-        target = self.record_keeper.read(event.event_uuid)
+        target = self.state.record_keeper.read(event.event_uuid)
         if target.action in [core.ActionT.CREATE, core.ActionT.UPDATE]:
             if isinstance(target, core.ObjectEvent):
                 entity_identifier = target.object.identifier()
@@ -341,7 +291,8 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[entity_identifier].remove(TagT.CREATE_PENDING)
+            self.state.entity_status[entity_identifier].remove(
+                core.StatusT.CREATE_PENDING)
         elif target.action == core.ActionT.DELETE:
             if isinstance(target, core.ObjectEvent):
                 entity_identifier = target.object_identifier
@@ -350,17 +301,19 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[entity_identifier].remove(TagT.DELETE_PENDING)
-            self.entity_status[entity_identifier].add(TagT.DELETE_ACCEPTED)
+            self.state.entity_status[entity_identifier].remove(
+                core.StatusT.DELETE_PENDING)
+            self.state.entity_status[entity_identifier].add(
+                core.StatusT.DELETE_ACCEPTED)
         else:
             raise ValueError("target event has unexpected action")
 
-        self.entity_event_link.add(entity_identifier, event.uuid)
+        self.state.entity_event_link.add(entity_identifier, event.uuid)
 
     def _consume_review_reject(self, event: core.ReviewRejectEvent):
-        self.pending_events.remove(event.event_uuid)
+        self.state.pending_events.remove(event.event_uuid)
 
-        target = self.record_keeper.read(event.event_uuid)
+        target = self.state.record_keeper.read(event.event_uuid)
         if target.action in [core.ActionT.CREATE, core.ActionT.UPDATE]:
             if isinstance(target, core.ObjectEvent):
                 entity = target.object
@@ -369,8 +322,10 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[entity.identifier()].remove(TagT.CREATE_PENDING)
-            self.entity_status[entity.identifier()].add(TagT.CREATE_REJECTED)
+            self.state.entity_status[entity.identifier()].remove(
+                core.StatusT.CREATE_PENDING)
+            self.state.entity_status[entity.identifier()].add(
+                core.StatusT.CREATE_REJECTED)
         elif target.action == core.ActionT.DELETE:
             if isinstance(target, core.ObjectEvent):
                 identifier = target.object_identifier
@@ -379,12 +334,13 @@ class State(core.State):
             else:
                 raise TypeError("target event has unexpected type")
 
-            self.entity_status[identifier].remove(TagT.DELETE_PENDING)
+            self.state.entity_status[identifier].remove(
+                core.StatusT.DELETE_PENDING)
         else:
             raise ValueError("target event has unexpected action")
 
     def _consume_owner_add(self, event: core.OwnerAddEvent):
-        self.owners.append(event.public_key)
+        self.state.owner_list.append(event.public_key)
 
     def _consume_owner_remove(self, event: core.OwnerRemoveEvent):
-        self.owners.remove(event.public_key)
+        self.state.owner_list.remove(event.public_key)
