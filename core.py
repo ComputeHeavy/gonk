@@ -361,35 +361,28 @@ class Depot:
 
 ### State ###
 class State:
-    def object_exists(self, identifier: Identifier = None, 
+    def object_exists(self, identifier: core.Identifier = None, 
         uuid_: uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
 
-    def objects(self, identifier: Identifier = None, uuid_: uuid.UUID = None, 
-        annotation: Annotation = None, status: set(StatusT) = None, 
-        page: int = None):
+    def objects_by_annotation(self, annotation: uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
 
-    def object_status(self, identifier: Identifier = None):
+    def object_status(self, identifier: core.Identifier = None):
         raise NotImplementedError("unimplemented method")
 
     def object_versions(self, uuid_: uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
 
-    def schema_exists(self, identifier: Identifier = None,
+    def schema_exists(self, identifier: core.Identifier = None, 
         uuid_: uuid.UUID = None, name: str = None):
         raise NotImplementedError("unimplemented method")
 
-    def annotation_exists(self, identifier: Identifier = None, 
+    def annotation_exists(self, identifier: core.Identifier = None, 
         uuid_: uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
 
-    def annotations(self, identifier: Identifier = None, 
-        uuid_: uuid.UUID = None, object: Object = None, 
-        status: set(StatusT) = None, page: int = None):
-        raise NotImplementedError("unimplemented method")
-
-    def annotation_status(self, identifier: Identifier = None):
+    def annotation_status(self, identifier: core.Identifier):
         raise NotImplementedError("unimplemented method")
 
     def annotation_versions(self, uuid_: uuid.UUID = None):
@@ -401,7 +394,7 @@ class State:
     def owners(self):
         raise NotImplementedError("unimplemented method")
 
-    def event_pending(self, uuid_: uuid.UUID = None):
+    def event_pending(self, uuid_: uuid.UUID):
         raise NotImplementedError("unimplemented method")
 
 class StateValidator(Validator):

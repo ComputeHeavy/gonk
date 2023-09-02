@@ -69,7 +69,10 @@ class TestSchemaValidation(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         schema_validator = core.SchemaValidator(depot)
         machine.register(schema_validator)
@@ -92,7 +95,10 @@ class TestSchemaValidation(unittest.TestCase):
         machine.register(record_keeper)
 
         state = memstate.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = memstate.StateConsumer(state)
+        machine.register(state_consumer)
 
         schema_validator = core.SchemaValidator(depot)
         machine.register(schema_validator)
