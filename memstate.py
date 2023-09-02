@@ -33,7 +33,7 @@ class State(core.State):
         self.entity_status: dict[core.Identifier, set[core.StatusT]] = dict()
         self.entity_event_link: IdentifierUUIDLink = IdentifierUUIDLink()
 
-        self.owner_list: list[nacl.signing.VerifyKey] = list()
+        self.owner_list: list[bytes] = list()
 
     def object_exists(self, identifier: typing.Optional[core.Identifier] = None, 
         uuid_: typing.Optional[uuid.UUID] = None):

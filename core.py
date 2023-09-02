@@ -135,10 +135,10 @@ class Annotation:
 ### Events ###
 class Event:
     def __init__(self):
-        self.timestamp = tsnow()
-        self.uuid = uuid.uuid4()
-        self.signature = b""
-        self.signer: nacl.signing.VerifyKey = None
+        self.timestamp: str = tsnow()
+        self.uuid: uuid.UUID = uuid.uuid4()
+        self.signature: bytes = b""
+        self.signer: typing.Optional[bytes] = None
 
     def signature_bytes(self) -> bytes:
         raise NotImplementedError("unimplemented method")
@@ -280,8 +280,7 @@ class ReviewRejectEvent(ReviewEvent):
 ### Ownership Events ###
 
 class OwnerEvent(Event):
-    def __init__(self, public_key: nacl.signing.VerifyKey, 
-        action: OwnerActionT):
+    def __init__(self, public_key: bytes, action: OwnerActionT):
         super().__init__()
         self.public_key = public_key
         self.action = action
@@ -294,11 +293,11 @@ class OwnerEvent(Event):
         ])
 
 class OwnerAddEvent(OwnerEvent):
-    def __init__(self, public_key: nacl.signing.VerifyKey):
+    def __init__(self, public_key: bytes):
         super().__init__(public_key, OwnerActionT.ADD)
         
 class OwnerRemoveEvent(OwnerEvent):
-    def __init__(self, public_key: nacl.signing.VerifyKey):
+    def __init__(self, public_key: bytes):
         super().__init__(public_key, OwnerActionT.REMOVE)
 
 ### Machine ###
@@ -422,8 +421,8 @@ class StateValidator(Validator):
         self.state = state
 
     def validate(self, event: Event):
-        handler: dict[typing.Type[Event], 
-            typing.Callable[[typing.Any], None]] = {
+        handler: dict[type[Event], 
+            typing.Callable[[typing.Any], typing.Any]] = {
             ObjectCreateEvent: self._validate_object_create,
             ObjectUpdateEvent: self._validate_object_update,
             ObjectDeleteEvent: self._validate_object_delete,
@@ -733,7 +732,8 @@ class SchemaValidator(Validator, Consumer):
         self.schemas: set[Identifier] = set()
 
     def validate(self, event: Event):
-        handler: dict[typing.Type[Event], typing.Callable[[typing.Any], None]] = {
+        handler: dict[typing.Type[Event], 
+            typing.Callable[[typing.Any], None]] = {
             ObjectCreateEvent: self._validate_object_create,
             ObjectUpdateEvent: self._validate_object_update,
             AnnotationCreateEvent: self._validate_annotation_create,

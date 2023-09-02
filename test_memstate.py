@@ -371,9 +371,8 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.owner_list), 1)
 
         sk2 = nacl.signing.SigningKey.generate()
-        vk2 = sk2.verify_key
-        oae2 = core.OwnerAddEvent(vk2)
         signer2 = sigs.Signer(sk2)
+        oae2 = core.OwnerAddEvent(signer2.verify_bytes)
 
         with self.assertRaises(core.ValidationError):
             oae2 = signer2.sign(oae2)
