@@ -51,10 +51,15 @@ class State(core.State):
 
         raise ValueError("requires an argument")
 
-    def objects(self, identifier: core.Identifier = None, 
-        uuid_: uuid.UUID = None, annotation: core.Annotation = None, 
-        status: set(core.StatusT) = None, page: int = None):
-        raise NotImplementedError("unimplemented method")
+    def objects_by_annotation(self, annotation: uuid.UUID = None):
+        if annotation is None:
+            raise ValueError("requires an argument")
+
+        if annotation not in self.object_annotation_link.reverse:
+            return list()
+
+        ids = self.object_annotation_link.reverse[annotation]
+        return [self.object_lookup[id_.uuid][id_.version] for id_ in ids]
 
     def object_status(self, identifier: core.Identifier = None):
         if identifier is None:
@@ -111,8 +116,7 @@ class State(core.State):
 
         raise ValueError("requires an argument")
 
-    def annotations(self, identifier: core.Identifier, uuid_: uuid.UUID, 
-        object: core.Object, status: set(core.StatusT), page: int):
+    def annotations_by_object(self, object: core.Object):
         raise NotImplementedError("unimplemented method")
 
     def annotation_status(self, identifier: core.Identifier):

@@ -57,11 +57,17 @@ class Identifier:
 
         return self.uuid == other.uuid and self.version == other.version
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def signature_bytes(self) -> bytes:
         return b"".join([
             self.uuid.bytes,
             struct.pack("<Q", self.version),
         ])
+
+    def __repr__(self):
+        return f"Identifier({self.uuid}, {self.version})"
 
 class Object:
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT, 
@@ -507,9 +513,10 @@ class StateValidator(Validator):
             return f"Annotation version should be {len(versions)}."
 
         # TODO: function naming
-        objects = self.state.objects(annotation=event.annotation.uuid)
-        for identifier in objects:
-            status = self.state.object_status(identifier=identifier)
+        objects = self.state.objects_by_annotation(
+            annotation=event.annotation.uuid)
+        for object_ in objects:
+            status = self.state.object_status(identifier=object_.identifier())
             if StatusT.CREATE_REJECTED in status:
                 raise ValidationError(
                     "rejected objects cannot be annotated")
@@ -533,10 +540,10 @@ class StateValidator(Validator):
         if StatusT.DELETE_ACCEPTED in status:
             raise ValidationError("annotation already deleted")
 
-        objects = self.state.objects(annotation=identifier.uuid)
-        for object_identifier in objects:
+        objects = self.state.objects_by_annotation(annotation=identifier.uuid)
+        for object_ in objects:
             object_status = self.state.object_status(
-                identifier=object_identifier)
+                identifier=object_.identifier())
 
             if StatusT.CREATE_REJECTED in object_status:
                 raise ValidationError(
