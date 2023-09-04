@@ -114,6 +114,20 @@ class Object:
         self.hash_type = hash_type
         self.hash = hash_
 
+    def identifier(self):
+        return Identifier(self.uuid, self.version)
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            self.uuid.bytes,
+            struct.pack("<Q", self.version),
+            self.name.encode(),
+            self.format.encode(),
+            struct.pack("<Q", self.size),
+            struct.pack("<B", self.hash_type.value),
+            bytes.fromhex(self.hash),
+        ])
+
     def __copy__(self):
         return Object(self.name, self.format, self.size, self.hash_type, 
           self.hash, self.uuid, self.version)
@@ -129,20 +143,6 @@ class Object:
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-    def identifier(self):
-        return Identifier(self.uuid, self.version)
-
-    def signature_bytes(self) -> bytes:
-        return b"".join([
-            self.uuid.bytes,
-            struct.pack("<Q", self.version),
-            self.name.encode(),
-            self.format.encode(),
-            struct.pack("<Q", self.size),
-            struct.pack("<B", self.hash_type.value),
-            bytes.fromhex(self.hash),
-        ])
 
     def dump(self):
         return {
@@ -228,18 +228,6 @@ class Annotation:
         return Annotation(self.schema, self.size, self.hash_type, self.hash, 
             self.uuid, self.version)
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.uuid == other.uuid and \
-            self.version == other.version and \
-            self.schema == other.schema and \
-            self.size == other.size and \
-            self.hash_type == other.hash_type and \
-            self.hash == other.hash
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
     def identifier(self):
         return Identifier(self.uuid, self.version)
 
@@ -253,11 +241,23 @@ class Annotation:
             bytes.fromhex(self.hash),
         ])
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.uuid == other.uuid and \
+            self.version == other.version and \
+            self.schema == other.schema and \
+            self.size == other.size and \
+            self.hash_type == other.hash_type and \
+            self.hash == other.hash
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def dump(self):
         return {
             "uuid": str(self.uuid),
             "version": self.version,
-            "schema": self.schema,
+            "schema": self.schema.dump(),
             "size": self.size,
             "hash_type": self.hash_type.value,
             "hash": self.hash,
@@ -267,7 +267,7 @@ class Annotation:
     def load(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return Annotation(
-            d["schema"], 
+            Identifier.load(d["schema"]), 
             d["size"], 
             HashTypeT(d["hash_type"]), 
             d["hash"], 
@@ -278,6 +278,9 @@ class Annotation:
     def schema(relative=""):
         return {
             "type": "object",
+            "definitions": {
+                "identifier": Identifier.schema("/definitions/identifier"),
+            },
             "properties": {
                 "uuid": {
                     "type": "string",
@@ -288,7 +291,7 @@ class Annotation:
                     "minimum": 0,
                 },
                 "schema": {
-                    "type": "string"
+                    "$ref": f"#{relative}/definitions/identifier",
                 },
                 "size": {
                     "type": "integer",
@@ -332,9 +335,6 @@ class Event:
         self.timestamp: str = timestamp
         self.signature: bytes = signature
         self.signer: typing.Optional[bytes] = signer
-
-    def signature_bytes(self) -> bytes:
-        raise NotImplementedError("unimplemented method")
 
     def _signature_bytes(self) -> bytes:
         return b"".join([
@@ -475,18 +475,18 @@ class ObjectCreateEvent(ObjectEvent):
         super().__init__(ActionT.CREATE, uuid_, timestamp, signature, signer)
         self.object = object_
 
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.object.signature_bytes(),
+        ])
+
     def __eq__(self, other):
         return super().__eq__(other) and \
             self.object == other.object
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-    def signature_bytes(self) -> bytes:
-        return b"".join([
-            super().signature_bytes(),
-            self.object.signature_bytes(),
-        ])
 
     def dump(self):
         return super().dump() | {
@@ -583,11 +583,11 @@ class ObjectUpdateEvent(ObjectEvent):
 
 class ObjectDeleteEvent(ObjectEvent):
     def __init__(self, 
-            object_identifier: Identifier,
-            uuid_: typing.Optional[uuid.UUID] = None, 
-            timestamp: typing.Optional[str] = None,
-            signature: typing.Optional[bytes] = None,
-            signer: typing.Optional[bytes] = None):
+        object_identifier: Identifier,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
         super().__init__(ActionT.DELETE, uuid_, timestamp, signature, signer)
         self.object_identifier = object_identifier
 
@@ -641,8 +641,13 @@ class ObjectDeleteEvent(ObjectEvent):
 
 ### Annotation Events ###
 class AnnotationEvent(Event):
-    def __init__(self, action: ActionT):
-        super().__init__()
+    def __init__(self, 
+        action: ActionT,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(uuid_, timestamp, signature, signer)
         self.action = action
 
     def signature_bytes(self) -> bytes:
@@ -651,10 +656,56 @@ class AnnotationEvent(Event):
             struct.pack("<B", self.action.value),
         ])
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.action == other.action 
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "action": self.action.value,
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return AnnotationEvent(ActionT(d["action"]), 
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "event": Event.schema("/definitions/event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/event" }
+            ],
+            "properties": {
+                "action": {
+                    "type": "integer"
+                },
+            },
+            "required": [
+                "action",
+            ],
+        }
+
 class AnnotationCreateEvent(AnnotationEvent):
-    def __init__(self, object_identifiers: list[Identifier], 
-        annotation: Annotation):
-        super().__init__(ActionT.CREATE)
+    def __init__(self, 
+        object_identifiers: list[Identifier], 
+        annotation: Annotation,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(ActionT.CREATE, uuid_, timestamp, signature, signer)
         self.object_identifiers = object_identifiers
         self.annotation = annotation
 
@@ -664,6 +715,61 @@ class AnnotationCreateEvent(AnnotationEvent):
             *[ea.signature_bytes() for ea in self.object_identifiers],
             self.annotation.signature_bytes(),
         ])
+
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.object_identifiers == other.object_identifiers and \
+            self.annotation == other.annotation
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "annotation": self.annotation.dump(),
+            "object_identifiers": [ea.dump() for ea in self.object_identifiers],
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return AnnotationCreateEvent(
+            [Identifier.load(ea) for ea in d["object_identifiers"]],
+            Annotation.load(d["annotation"]),
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "annotation": Annotation.schema("/definitions/annotation"),
+                "annotation_event": 
+                    ObjectEvent.schema("/definitions/annotation_event"),
+                "identifier": Identifier.schema("/definitions/identifier"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/annotation_event" }
+            ],
+            "properties": {
+                "annotation": {
+                    "$ref": f"#{relative}/definitions/annotation",
+                },
+                "object_identifiers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": f"#{relative}/definitions/identifier",
+                    },
+                },
+            },
+            "required": [
+                "annotation",
+                "object_identifiers",
+            ],
+        }
 
 class AnnotationUpdateEvent(AnnotationEvent):
     def __init__(self, annotation: Annotation):

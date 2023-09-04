@@ -150,6 +150,21 @@ class TestEvents(unittest.TestCase):
             core.HashTypeT.SHA256, 
             hashlib.sha256(b"object contents").hexdigest())
 
+    def standard_schema(self):
+        return core.Object(
+            "schema-sample", 
+            "application/schema+json", 
+            len("schema contents"), 
+            core.HashTypeT.SHA256, 
+            hashlib.sha256(b"schema contents").hexdigest())
+
+    def standard_annotation(self, schema: core.Identifier):
+        return core.Annotation(
+            schema, 
+            len("annotation contents"), 
+            core.HashTypeT.SHA256, 
+            hashlib.sha256(b"annotation contents").hexdigest())
+
     def test_object_create_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -180,6 +195,19 @@ class TestEvents(unittest.TestCase):
 
         ode_out = core.ObjectDeleteEvent.load(ode_in.dump())
         self.assertEqual(ode_in, ode_out)
+
+    def test_annotation_create_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        o1v0 = self.standard_object()
+        s1v0 = self.standard_schema()
+        a1v0 = self.standard_annotation(s1v0.identifier())
+        ace_in = signer.sign(
+            core.AnnotationCreateEvent([o1v0.identifier()], a1v0))
+
+        ace_out = core.AnnotationCreateEvent.load(ace_in.dump())
+        self.assertEqual(ace_in, ace_out)
 
 
 if __name__ == '__main__':
