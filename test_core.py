@@ -209,6 +209,29 @@ class TestEvents(unittest.TestCase):
         ace_out = core.AnnotationCreateEvent.load(ace_in.dump())
         self.assertEqual(ace_in, ace_out)
 
+    def test_annotation_update_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        s1v0 = self.standard_schema()
+        a1v1 = self.standard_annotation(s1v0.identifier())
+        a1v1.version = 1
+        aue_in = signer.sign(core.AnnotationUpdateEvent(a1v1))
+
+        aue_out = core.AnnotationUpdateEvent.load(aue_in.dump())
+        self.assertEqual(aue_in, aue_out)
+
+    def test_annotation_delete_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        s1v0 = self.standard_schema()
+        a1v0 = self.standard_annotation(s1v0.identifier())
+        ade_in = signer.sign(core.AnnotationDeleteEvent(a1v0.identifier()))
+
+        ade_out = core.AnnotationDeleteEvent.load(ade_in.dump())
+        self.assertEqual(ade_in, ade_out)
+
 
 if __name__ == '__main__':
     unittest.main()

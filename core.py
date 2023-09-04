@@ -242,8 +242,7 @@ class Annotation:
         ])
 
     def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.uuid == other.uuid and \
+        return self.uuid == other.uuid and \
             self.version == other.version and \
             self.schema == other.schema and \
             self.size == other.size and \
@@ -772,8 +771,13 @@ class AnnotationCreateEvent(AnnotationEvent):
         }
 
 class AnnotationUpdateEvent(AnnotationEvent):
-    def __init__(self, annotation: Annotation):
-        super().__init__(ActionT.UPDATE)
+    def __init__(self, 
+        annotation: Annotation,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(ActionT.UPDATE, uuid_, timestamp, signature, signer)
         self.annotation = annotation
 
     def signature_bytes(self) -> bytes:
@@ -782,9 +786,58 @@ class AnnotationUpdateEvent(AnnotationEvent):
             self.annotation.signature_bytes(),
         ])
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.annotation == other.annotation
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "annotation": self.annotation.dump(),
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return AnnotationUpdateEvent(
+            Annotation.load(d["annotation"]),
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "annotation": Annotation.schema("/definitions/annotation"),
+                "annotation_event": 
+                    ObjectEvent.schema("/definitions/annotation_event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/annotation_event" }
+            ],
+            "properties": {
+                "annotation": {
+                    "$ref": f"#{relative}/definitions/annotation",
+                },
+            },
+            "required": [
+                "annotation",
+            ],
+        }
+
 class AnnotationDeleteEvent(AnnotationEvent):
-    def __init__(self, annotation_identifier: Identifier):
-        super().__init__(ActionT.DELETE)
+    def __init__(self, 
+        annotation_identifier: Identifier,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(ActionT.DELETE, uuid_, timestamp, signature, signer)
         self.annotation_identifier = annotation_identifier
 
     def signature_bytes(self) -> bytes:
@@ -792,6 +845,50 @@ class AnnotationDeleteEvent(AnnotationEvent):
             super().signature_bytes(),
             self.annotation_identifier.signature_bytes(),
         ])
+
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.annotation_identifier == other.annotation_identifier
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "annotation_identifier": self.annotation_identifier.dump(),
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return AnnotationDeleteEvent(
+            Identifier.load(d["annotation_identifier"]),
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "identifier": Identifier.schema("/definitions/identifier"),
+                "annotation_event": 
+                    AnnotationEvent.schema("/definitions/annotation_event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/annotation_event" }
+            ],
+            "properties": {
+                "annotation_identifier": {
+                    "$ref": f"#{relative}/definitions/identifier",
+                }
+            },
+            "required": [
+                "annotation_identifier",
+            ],
+        }
 
 ### Review Events ###
 
