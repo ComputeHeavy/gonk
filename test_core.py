@@ -1,9 +1,14 @@
-import unittest
 import core
 import memd
+import nacl
+import sigs
 import memrk
-import memstate
 import hashlib
+import memstate
+import unittest
+import jsonschema
+
+from nacl import signing
 
 schema_buf = b'''{
   "$schema": "http://json-schema.org/draft-04/schema#",
@@ -135,6 +140,25 @@ class TestSchemaValidation(unittest.TestCase):
 
         machine.process_event(
             core.AnnotationCreateEvent([o1v0.identifier()], a1v0))
+
+class TestEvents(unittest.TestCase):
+    def standard_object(self):
+        return core.Object(
+            "object.txt", 
+            "text/plain", 
+            len("object contents"), 
+            core.HashTypeT.SHA256, 
+            hashlib.sha256(b"object contents").hexdigest())
+
+    def test_object_create_accept(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        o1v0 = self.standard_object()
+        oce_in = signer.sign(core.ObjectCreateEvent(o1v0))
+
+        oce_out = core.ObjectCreateEvent.load(oce_in.dump())
+        self.assertEqual(oce_in, oce_out)
 
 
 if __name__ == '__main__':
