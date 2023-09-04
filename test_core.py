@@ -1,6 +1,7 @@
 import core
 import memd
 import nacl
+import uuid
 import sigs
 import memrk
 import hashlib
@@ -231,6 +232,26 @@ class TestEvents(unittest.TestCase):
 
         ade_out = core.AnnotationDeleteEvent.load(ade_in.dump())
         self.assertEqual(ade_in, ade_out)
+
+    def test_review_accept_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        event_uuid = uuid.uuid4()
+        rae_in = signer.sign(core.ReviewAcceptEvent(event_uuid))
+
+        rae_out = core.ReviewAcceptEvent.load(rae_in.dump())
+        self.assertEqual(rae_in, rae_out)
+
+    def test_review_reject_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        event_uuid = uuid.uuid4()
+        rae_in = signer.sign(core.ReviewRejectEvent(event_uuid))
+
+        rae_out = core.ReviewRejectEvent.load(rae_in.dump())
+        self.assertEqual(rae_in, rae_out)
 
 
 if __name__ == '__main__':

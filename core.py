@@ -891,10 +891,14 @@ class AnnotationDeleteEvent(AnnotationEvent):
         }
 
 ### Review Events ###
-
 class ReviewEvent(Event):
-    def __init__(self, decision: DecisionT):
-        super().__init__()
+    def __init__(self, 
+        decision: DecisionT,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(uuid_, timestamp, signature, signer)
         self.decision = decision
 
     def signature_bytes(self) -> bytes:
@@ -903,9 +907,56 @@ class ReviewEvent(Event):
             struct.pack("<B", self.decision.value),
         ])
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.decision == other.decision 
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "decision": self.decision.value,
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return ReviewEvent(
+            DecisionT(d["decision"]), 
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "event": Event.schema("/definitions/event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/event" }
+            ],
+            "properties": {
+                "decision": {
+                    "type": "integer"
+                },
+            },
+            "required": [
+                "decision",
+            ],
+        }
+
 class ReviewAcceptEvent(ReviewEvent):
-    def __init__(self, event_uuid: uuid.UUID):
-        super().__init__(DecisionT.ACCEPT)
+    def __init__(self, 
+        event_uuid: uuid.UUID,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(DecisionT.ACCEPT, uuid_, timestamp, signature, signer)
         self.event_uuid = event_uuid
 
     def signature_bytes(self) -> bytes:
@@ -913,10 +964,58 @@ class ReviewAcceptEvent(ReviewEvent):
             super().signature_bytes(),
             self.event_uuid.bytes,
         ])
+
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.event_uuid == other.event_uuid 
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "event_uuid": str(self.event_uuid),
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return ReviewAcceptEvent(
+            uuid.UUID(d["event_uuid"]), 
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "review_event": ReviewEvent.schema("/definitions/review_event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/review_event" }
+            ],
+            "properties": {
+                "event_uuid": {
+                    "type": "string",
+                    "format": "uuid",
+                },
+            },
+            "required": [
+                "event_uuid",
+            ],
+        }
 
 class ReviewRejectEvent(ReviewEvent):
-    def __init__(self, event_uuid: uuid.UUID):
-        super().__init__(DecisionT.REJECT)
+    def __init__(self, 
+        event_uuid: uuid.UUID,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(DecisionT.REJECT, uuid_, timestamp, signature, signer)
         self.event_uuid = event_uuid
 
     def signature_bytes(self) -> bytes:
@@ -924,6 +1023,49 @@ class ReviewRejectEvent(ReviewEvent):
             super().signature_bytes(),
             self.event_uuid.bytes,
         ])
+
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.event_uuid == other.event_uuid 
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "event_uuid": str(self.event_uuid),
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return ReviewRejectEvent(
+            uuid.UUID(d["event_uuid"]), 
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "review_event": ReviewEvent.schema("/definitions/review_event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/review_event" }
+            ],
+            "properties": {
+                "event_uuid": {
+                    "type": "string",
+                    "format": "uuid",
+                },
+            },
+            "required": [
+                "event_uuid",
+            ],
+        }
 
 ### Ownership Events ###
 
