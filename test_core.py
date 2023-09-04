@@ -150,7 +150,7 @@ class TestEvents(unittest.TestCase):
             core.HashTypeT.SHA256, 
             hashlib.sha256(b"object contents").hexdigest())
 
-    def test_object_create_accept(self):
+    def test_object_create_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
@@ -159,6 +159,27 @@ class TestEvents(unittest.TestCase):
 
         oce_out = core.ObjectCreateEvent.load(oce_in.dump())
         self.assertEqual(oce_in, oce_out)
+
+    def test_object_update_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        o1v1 = self.standard_object()
+        o1v1.version = 1
+        oue_in = signer.sign(core.ObjectUpdateEvent(o1v1))
+
+        oue_out = core.ObjectUpdateEvent.load(oue_in.dump())
+        self.assertEqual(oue_in, oue_out)
+
+    def test_object_delete_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        o1v0 = self.standard_object()
+        ode_in = signer.sign(core.ObjectDeleteEvent(o1v0.identifier()))
+
+        ode_out = core.ObjectDeleteEvent.load(ode_in.dump())
+        self.assertEqual(ode_in, ode_out)
 
 
 if __name__ == '__main__':

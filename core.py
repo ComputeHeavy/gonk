@@ -69,6 +69,37 @@ class Identifier:
     def __repr__(self):
         return f"Identifier({self.uuid}, {self.version})"
 
+    def dump(self):
+        return {
+            "uuid": str(self.uuid),
+            "version": self.version,
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return Identifier(uuid.UUID(d["uuid"]), d["version"])
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "properties": {
+                "uuid": {
+                    "type": "string",
+                    "format": "uuid",
+                },
+                "version": {
+                    "type": "integer",
+                    "minimum": 0,
+                },
+            },
+            "required": [
+                "uuid",
+                "version",
+            ],
+        }
+
 class Object:
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT, 
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
@@ -477,10 +508,10 @@ class ObjectCreateEvent(ObjectEvent):
             "type": "object",
             "definitions": {
                 "object": Object.schema("/definitions/object"),
-                "objectEvent": ObjectEvent.schema("/definitions/objectEvent"),
+                "object_event": ObjectEvent.schema("/definitions/object_event"),
             },
             "allOf": [
-                { "$ref": f"#{relative}/definitions/objectEvent" }
+                { "$ref": f"#{relative}/definitions/object_event" }
             ],
             "properties": {
                 "object": {
@@ -493,8 +524,13 @@ class ObjectCreateEvent(ObjectEvent):
         }
 
 class ObjectUpdateEvent(ObjectEvent):
-    def __init__(self, object_: Object):
-        super().__init__(ActionT.UPDATE)
+    def __init__(self, 
+        object_: Object,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(ActionT.UPDATE, uuid_, timestamp, signature, signer)
         self.object = object_
 
     def signature_bytes(self) -> bytes:
@@ -510,78 +546,49 @@ class ObjectUpdateEvent(ObjectEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def signature_bytes(self) -> bytes:
-        return b"".join([
-            super().signature_bytes(),
-            self.object.signature_bytes(),
-        ])
-
     def dump(self):
-        return {
-            "uuid": str(self.uuid),
-            "timestamp": self.timestamp,
-            "signature": self.signature.hex(),
-            "signer": self.signer.hex(),
-            "action": self.action.value,
+        return super().dump() | {
             "object": self.object.dump(),
         }
 
     @classmethod
     def load(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
-        return ObjectCreateEvent(Object.load(d["object"]),
+        return ObjectUpdateEvent(Object.load(d["object"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
             bytes.fromhex(d["signer"]))
 
     @staticmethod
-    def schema():
+    def schema(relative=""):
         return {
             "type": "object",
             "definitions": {
-                "object": Object.schema(),
+                "object": Object.schema("/definitions/object"),
+                "object_event": ObjectEvent.schema("/definitions/object_event"),
             },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/object_event" }
+            ],
             "properties": {
-                "uuid": {
-                    "type": "string",
-                    "format": "uuid",
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "signature": {
-                    "type": "string",
-                    "minLength": 128,
-                    "maxLength": 128,
-                    "pattern": "^[0-9a-fA-F]{128}$"
-                },
-                "signer": {
-                    "type": "string",
-                    "minLength": 64,
-                    "maxLength": 64,
-                    "pattern": "^[0-9a-fA-F]{64}$"
-                },
-                "action": {
-                    "type": "integer"
-                },
                 "object": {
-                    "$ref": "#/definitions/object",
+                    "$ref": f"#{relative}/definitions/object",
                 }
             },
             "required": [
-                "uuid",
-                "timestamp",
-                "signature",
-                "signer",
-                "action",
                 "object",
             ],
         }
 
 class ObjectDeleteEvent(ObjectEvent):
-    def __init__(self, object_identifier: Identifier):
-        super().__init__(ActionT.DELETE)
+    def __init__(self, 
+            object_identifier: Identifier,
+            uuid_: typing.Optional[uuid.UUID] = None, 
+            timestamp: typing.Optional[str] = None,
+            signature: typing.Optional[bytes] = None,
+            signer: typing.Optional[bytes] = None):
+        super().__init__(ActionT.DELETE, uuid_, timestamp, signature, signer)
         self.object_identifier = object_identifier
 
     def signature_bytes(self) -> bytes:
@@ -589,6 +596,48 @@ class ObjectDeleteEvent(ObjectEvent):
             super().signature_bytes(),
             self.object_identifier.signature_bytes(),
         ])
+
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.object_identifier == other.object_identifier
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "object_identifier": self.object_identifier.dump(),
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return ObjectDeleteEvent(Identifier.load(d["object_identifier"]),
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "identifier": Identifier.schema("/definitions/identifier"),
+                "object_event": ObjectEvent.schema("/definitions/object_event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/object_event" }
+            ],
+            "properties": {
+                "object_identifier": {
+                    "$ref": f"#{relative}/definitions/identifier",
+                }
+            },
+            "required": [
+                "object_identifier",
+            ],
+        }
 
 ### Annotation Events ###
 class AnnotationEvent(Event):
