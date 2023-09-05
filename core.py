@@ -1070,25 +1070,125 @@ class ReviewRejectEvent(ReviewEvent):
 ### Ownership Events ###
 
 class OwnerEvent(Event):
-    def __init__(self, public_key: bytes, action: OwnerActionT):
-        super().__init__()
+    def __init__(self, 
+        public_key: bytes, 
+        action: OwnerActionT,
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(uuid_, timestamp, signature, signer)
         self.public_key = public_key
         self.action = action
 
     def signature_bytes(self) -> bytes:
         return b"".join([
             super()._signature_bytes(),
-            bytes(self.public_key),
+            self.public_key,
             struct.pack("<B", self.action.value),
         ])
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.public_key == other.public_key and \
+            self.action == other.action 
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def dump(self):
+        return super().dump() | {
+            "public_key": self.public_key.hex(),
+            "action": self.action.value,
+        }
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return OwnerEvent(
+            bytes.fromhex(d["public_key"]),
+            ActionT(d["action"]),
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
+    @staticmethod
+    def schema(relative=""):
+        return {
+            "type": "object",
+            "definitions": {
+                "event": Event.schema("/definitions/event"),
+            },
+            "allOf": [
+                { "$ref": f"#{relative}/definitions/event" }
+            ],
+            "properties": {
+                "action": {
+                    "type": "integer"
+                },
+                "public_key": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64,
+                    "pattern": "^[0-9a-fA-F]{64}$"
+                },
+            },
+            "required": [
+                "public_key",
+                "action",
+            ],
+        }
+
 class OwnerAddEvent(OwnerEvent):
-    def __init__(self, public_key: bytes):
-        super().__init__(public_key, OwnerActionT.ADD)
-        
+    def __init__(self, 
+        public_key: bytes, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(
+            public_key, 
+            OwnerActionT.ADD, 
+            uuid_, 
+            timestamp, 
+            signature, 
+            signer)
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return OwnerAddEvent(
+            bytes.fromhex(d["public_key"]),
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
+
 class OwnerRemoveEvent(OwnerEvent):
-    def __init__(self, public_key: bytes):
-        super().__init__(public_key, OwnerActionT.REMOVE)
+    def __init__(self, 
+        public_key: bytes, 
+        uuid_: typing.Optional[uuid.UUID] = None, 
+        timestamp: typing.Optional[str] = None,
+        signature: typing.Optional[bytes] = None,
+        signer: typing.Optional[bytes] = None):
+        super().__init__(
+            public_key, 
+            OwnerActionT.REMOVE, 
+            uuid_, 
+            timestamp, 
+            signature, 
+            signer)
+
+    @classmethod
+    def load(cls, d: dict):
+        jsonschema.validate(instance=d, schema=cls.schema())
+        return OwnerRemoveEvent(
+            bytes.fromhex(d["public_key"]),
+            uuid.UUID(d["uuid"]),
+            d["timestamp"],
+            bytes.fromhex(d["signature"]), 
+            bytes.fromhex(d["signer"]))
 
 ### Machine ###
 class Machine:

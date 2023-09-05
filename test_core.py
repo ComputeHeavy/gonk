@@ -253,6 +253,24 @@ class TestEvents(unittest.TestCase):
         rae_out = core.ReviewRejectEvent.load(rae_in.dump())
         self.assertEqual(rae_in, rae_out)
 
+    def test_owner_add_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        oae_in = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+
+        oae_out = core.OwnerAddEvent.load(oae_in.dump())
+        self.assertEqual(oae_in, oae_out)
+
+    def test_owner_remove_serde(self):
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        ore_in = signer.sign(core.OwnerRemoveEvent(bytes(sk1.verify_key)))
+
+        ore_out = core.OwnerRemoveEvent.load(ore_in.dump())
+        self.assertEqual(ore_in, ore_out)
+
 
 if __name__ == '__main__':
     unittest.main()
