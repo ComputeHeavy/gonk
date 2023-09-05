@@ -10,11 +10,11 @@ from nacl import signing
 
 class TestState(unittest.TestCase):
     def standard_object(self):
-        return events.Object(
+        return core.Object(
             "object.txt", 
             "text/plain", 
             len("object contents"), 
-            events.HashTypeT.SHA256, 
+            core.HashTypeT.SHA256, 
             hashlib.sha256(b"object contents").hexdigest())
 
     def versioned_object(self, object_: core.Object):
