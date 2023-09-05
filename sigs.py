@@ -4,14 +4,12 @@ import typing
 from nacl import signing
 from nacl import exceptions
 
-EventT = typing.TypeVar("EventT", bound=core.Event)
-
 class Signer:
     def __init__(self, signing_key: nacl.signing.SigningKey):
         self.signing_key: nacl.signing.SigningKey = signing_key
         self.verify_bytes: bytes = bytes(self.signing_key.verify_key)
 
-    def sign(self, event: EventT) -> EventT:
+    def sign(self, event: core.EventT) -> core.EventT:
         signed = self.signing_key.sign(event.signature_bytes())
         event.signature = signed.signature
         event.signer = bytes(self.verify_bytes)

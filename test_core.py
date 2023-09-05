@@ -173,7 +173,7 @@ class TestEvents(unittest.TestCase):
         o1v0 = self.standard_object()
         oce_in = signer.sign(core.ObjectCreateEvent(o1v0))
 
-        oce_out = core.ObjectCreateEvent.load(oce_in.dump())
+        oce_out = core.ObjectCreateEvent.deserialize(oce_in.serialize())
         self.assertEqual(oce_in, oce_out)
 
     def test_object_update_serde(self):
@@ -184,7 +184,7 @@ class TestEvents(unittest.TestCase):
         o1v1.version = 1
         oue_in = signer.sign(core.ObjectUpdateEvent(o1v1))
 
-        oue_out = core.ObjectUpdateEvent.load(oue_in.dump())
+        oue_out = core.ObjectUpdateEvent.deserialize(oue_in.serialize())
         self.assertEqual(oue_in, oue_out)
 
     def test_object_delete_serde(self):
@@ -194,7 +194,7 @@ class TestEvents(unittest.TestCase):
         o1v0 = self.standard_object()
         ode_in = signer.sign(core.ObjectDeleteEvent(o1v0.identifier()))
 
-        ode_out = core.ObjectDeleteEvent.load(ode_in.dump())
+        ode_out = core.ObjectDeleteEvent.deserialize(ode_in.serialize())
         self.assertEqual(ode_in, ode_out)
 
     def test_annotation_create_serde(self):
@@ -207,7 +207,7 @@ class TestEvents(unittest.TestCase):
         ace_in = signer.sign(
             core.AnnotationCreateEvent([o1v0.identifier()], a1v0))
 
-        ace_out = core.AnnotationCreateEvent.load(ace_in.dump())
+        ace_out = core.AnnotationCreateEvent.deserialize(ace_in.serialize())
         self.assertEqual(ace_in, ace_out)
 
     def test_annotation_update_serde(self):
@@ -219,7 +219,7 @@ class TestEvents(unittest.TestCase):
         a1v1.version = 1
         aue_in = signer.sign(core.AnnotationUpdateEvent(a1v1))
 
-        aue_out = core.AnnotationUpdateEvent.load(aue_in.dump())
+        aue_out = core.AnnotationUpdateEvent.deserialize(aue_in.serialize())
         self.assertEqual(aue_in, aue_out)
 
     def test_annotation_delete_serde(self):
@@ -230,7 +230,7 @@ class TestEvents(unittest.TestCase):
         a1v0 = self.standard_annotation(s1v0.identifier())
         ade_in = signer.sign(core.AnnotationDeleteEvent(a1v0.identifier()))
 
-        ade_out = core.AnnotationDeleteEvent.load(ade_in.dump())
+        ade_out = core.AnnotationDeleteEvent.deserialize(ade_in.serialize())
         self.assertEqual(ade_in, ade_out)
 
     def test_review_accept_serde(self):
@@ -240,7 +240,7 @@ class TestEvents(unittest.TestCase):
         event_uuid = uuid.uuid4()
         rae_in = signer.sign(core.ReviewAcceptEvent(event_uuid))
 
-        rae_out = core.ReviewAcceptEvent.load(rae_in.dump())
+        rae_out = core.ReviewAcceptEvent.deserialize(rae_in.serialize())
         self.assertEqual(rae_in, rae_out)
 
     def test_review_reject_serde(self):
@@ -250,7 +250,7 @@ class TestEvents(unittest.TestCase):
         event_uuid = uuid.uuid4()
         rae_in = signer.sign(core.ReviewRejectEvent(event_uuid))
 
-        rae_out = core.ReviewRejectEvent.load(rae_in.dump())
+        rae_out = core.ReviewRejectEvent.deserialize(rae_in.serialize())
         self.assertEqual(rae_in, rae_out)
 
     def test_owner_add_serde(self):
@@ -259,7 +259,7 @@ class TestEvents(unittest.TestCase):
 
         oae_in = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
 
-        oae_out = core.OwnerAddEvent.load(oae_in.dump())
+        oae_out = core.OwnerAddEvent.deserialize(oae_in.serialize())
         self.assertEqual(oae_in, oae_out)
 
     def test_owner_remove_serde(self):
@@ -268,7 +268,7 @@ class TestEvents(unittest.TestCase):
 
         ore_in = signer.sign(core.OwnerRemoveEvent(bytes(sk1.verify_key)))
 
-        ore_out = core.OwnerRemoveEvent.load(ore_in.dump())
+        ore_out = core.OwnerRemoveEvent.deserialize(ore_in.serialize())
         self.assertEqual(ore_in, ore_out)
 
 

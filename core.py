@@ -69,14 +69,14 @@ class Identifier:
     def __repr__(self):
         return f"Identifier({self.uuid}, {self.version})"
 
-    def dump(self):
+    def serialize(self):
         return {
             "uuid": str(self.uuid),
             "version": self.version,
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return Identifier(uuid.UUID(d["uuid"]), d["version"])
 
@@ -144,7 +144,7 @@ class Object:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
+    def serialize(self):
         return {
             "uuid": str(self.uuid),
             "version": self.version,
@@ -156,7 +156,7 @@ class Object:
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return Object(
             d["name"], 
@@ -252,21 +252,21 @@ class Annotation:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
+    def serialize(self):
         return {
             "uuid": str(self.uuid),
             "version": self.version,
-            "schema": self.schema_.dump(),
+            "schema": self.schema_.serialize(),
             "size": self.size,
             "hash_type": self.hash_type.value,
             "hash": self.hash,
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return Annotation(
-            Identifier.load(d["schema"]), 
+            Identifier.deserialize(d["schema"]), 
             d["size"], 
             HashTypeT(d["hash_type"]), 
             d["hash"], 
@@ -353,7 +353,7 @@ class Event:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
+    def serialize(self):
         if self.signature is None:
             raise ValueError("signature is not set")
         
@@ -368,7 +368,7 @@ class Event:
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return Event(uuid.UUID(d["uuid"]),
             d["timestamp"],
@@ -409,8 +409,8 @@ class Event:
         }
 
 '''
-json dump
-json load
+json serialize
+json deserialize
 json has a type field to indicate class
 class has from_json and serializable methods
 '''
@@ -439,13 +439,13 @@ class ObjectEvent(Event):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
+    def serialize(self):
+        return super().serialize() | {
             "action": self.action.value,
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return ObjectEvent(ActionT(d["action"]), 
             uuid.UUID(d["uuid"]),
@@ -496,15 +496,15 @@ class ObjectCreateEvent(ObjectEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
-            "object": self.object.dump(),
+    def serialize(self):
+        return super().serialize() | {
+            "object": self.object.serialize(),
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
-        return ObjectCreateEvent(Object.load(d["object"]),
+        return ObjectCreateEvent(Object.deserialize(d["object"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
@@ -554,15 +554,15 @@ class ObjectUpdateEvent(ObjectEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
-            "object": self.object.dump(),
+    def serialize(self):
+        return super().serialize() | {
+            "object": self.object.serialize(),
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
-        return ObjectUpdateEvent(Object.load(d["object"]),
+        return ObjectUpdateEvent(Object.deserialize(d["object"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
@@ -612,15 +612,15 @@ class ObjectDeleteEvent(ObjectEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
-            "object_identifier": self.object_identifier.dump(),
+    def serialize(self):
+        return super().serialize() | {
+            "object_identifier": self.object_identifier.serialize(),
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
-        return ObjectDeleteEvent(Identifier.load(d["object_identifier"]),
+        return ObjectDeleteEvent(Identifier.deserialize(d["object_identifier"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
@@ -671,13 +671,13 @@ class AnnotationEvent(Event):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
+    def serialize(self):
+        return super().serialize() | {
             "action": self.action.value,
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return AnnotationEvent(ActionT(d["action"]), 
             uuid.UUID(d["uuid"]),
@@ -732,18 +732,18 @@ class AnnotationCreateEvent(AnnotationEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
-            "annotation": self.annotation.dump(),
-            "object_identifiers": [ea.dump() for ea in self.object_identifiers],
+    def serialize(self):
+        return super().serialize() | {
+            "annotation": self.annotation.serialize(),
+            "object_identifiers": [ea.serialize() for ea in self.object_identifiers],
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return AnnotationCreateEvent(
-            [Identifier.load(ea) for ea in d["object_identifiers"]],
-            Annotation.load(d["annotation"]),
+            [Identifier.deserialize(ea) for ea in d["object_identifiers"]],
+            Annotation.deserialize(d["annotation"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
@@ -802,16 +802,16 @@ class AnnotationUpdateEvent(AnnotationEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
-            "annotation": self.annotation.dump(),
+    def serialize(self):
+        return super().serialize() | {
+            "annotation": self.annotation.serialize(),
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return AnnotationUpdateEvent(
-            Annotation.load(d["annotation"]),
+            Annotation.deserialize(d["annotation"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
@@ -862,16 +862,16 @@ class AnnotationDeleteEvent(AnnotationEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
-            "annotation_identifier": self.annotation_identifier.dump(),
+    def serialize(self):
+        return super().serialize() | {
+            "annotation_identifier": self.annotation_identifier.serialize(),
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return AnnotationDeleteEvent(
-            Identifier.load(d["annotation_identifier"]),
+            Identifier.deserialize(d["annotation_identifier"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
@@ -923,13 +923,13 @@ class ReviewEvent(Event):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
+    def serialize(self):
+        return super().serialize() | {
             "decision": self.decision.value,
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return ReviewEvent(
             DecisionT(d["decision"]), 
@@ -981,13 +981,13 @@ class ReviewAcceptEvent(ReviewEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
+    def serialize(self):
+        return super().serialize() | {
             "event_uuid": str(self.event_uuid),
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return ReviewAcceptEvent(
             uuid.UUID(d["event_uuid"]), 
@@ -1040,13 +1040,13 @@ class ReviewRejectEvent(ReviewEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
+    def serialize(self):
+        return super().serialize() | {
             "event_uuid": str(self.event_uuid),
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return ReviewRejectEvent(
             uuid.UUID(d["event_uuid"]), 
@@ -1105,14 +1105,14 @@ class OwnerEvent(Event):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def dump(self):
-        return super().dump() | {
+    def serialize(self):
+        return super().serialize() | {
             "public_key": self.public_key.hex(),
             "owner_action": self.owner_action.value,
         }
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return OwnerEvent(
             bytes.fromhex(d["public_key"]),
@@ -1165,7 +1165,7 @@ class OwnerAddEvent(OwnerEvent):
             signer)
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return OwnerAddEvent(
             bytes.fromhex(d["public_key"]),
@@ -1190,7 +1190,7 @@ class OwnerRemoveEvent(OwnerEvent):
             signer)
 
     @classmethod
-    def load(cls, d: dict):
+    def deserialize(cls, d: dict):
         jsonschema.validate(instance=d, schema=cls.schema())
         return OwnerRemoveEvent(
             bytes.fromhex(d["public_key"]),
@@ -1726,3 +1726,7 @@ class SchemaValidator(Validator, Consumer):
 
     def _consume_object_update(self, event: ObjectUpdateEvent):
         self._consume_object(event.object)
+
+### Types ###
+
+EventT = typing.TypeVar("EventT", bound=Event)
