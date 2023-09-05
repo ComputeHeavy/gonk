@@ -212,20 +212,20 @@ class Object:
         }
 
 class Annotation:
-    def __init__(self, schema: Identifier, size: int, hash_type: HashTypeT, 
+    def __init__(self, schema_: Identifier, size: int, hash_type: HashTypeT, 
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
             uuid_ = uuid.uuid4()
 
         self.uuid = uuid_
         self.version = version
-        self.schema = schema
+        self.schema_ = schema_
         self.size = size
         self.hash_type = hash_type
         self.hash = hash_
 
     def __copy__(self):
-        return Annotation(self.schema, self.size, self.hash_type, self.hash, 
+        return Annotation(self.schema_, self.size, self.hash_type, self.hash, 
             self.uuid, self.version)
 
     def identifier(self):
@@ -235,7 +235,7 @@ class Annotation:
         return b"".join([
             self.uuid.bytes,
             struct.pack("<Q", self.version),
-            self.schema.signature_bytes(),
+            self.schema_.signature_bytes(),
             struct.pack("<Q", self.size),
             struct.pack("<B", self.hash_type.value),
             bytes.fromhex(self.hash),
@@ -244,7 +244,7 @@ class Annotation:
     def __eq__(self, other):
         return self.uuid == other.uuid and \
             self.version == other.version and \
-            self.schema == other.schema and \
+            self.schema_ == other.schema_ and \
             self.size == other.size and \
             self.hash_type == other.hash_type and \
             self.hash == other.hash
@@ -256,7 +256,7 @@ class Annotation:
         return {
             "uuid": str(self.uuid),
             "version": self.version,
-            "schema": self.schema.dump(),
+            "schema": self.schema_.dump(),
             "size": self.size,
             "hash_type": self.hash_type.value,
             "hash": self.hash,
@@ -332,8 +332,11 @@ class Event:
 
         self.uuid: uuid.UUID = uuid_
         self.timestamp: str = timestamp
-        self.signature: bytes = signature
+        self.signature: typing.Optional[bytes] = signature
         self.signer: typing.Optional[bytes] = signer
+
+    def signature_bytes(self) -> bytes:
+        raise NotImplementedError("unimplemented method")
 
     def _signature_bytes(self) -> bytes:
         return b"".join([
@@ -351,6 +354,12 @@ class Event:
         return not self.__eq__(other)
 
     def dump(self):
+        if self.signature is None:
+            raise ValueError("signature is not set")
+        
+        if self.signer is None:
+            raise ValueError("signature is not set")
+
         return {
             "uuid": str(self.uuid),
             "timestamp": self.timestamp,
@@ -1072,26 +1081,26 @@ class ReviewRejectEvent(ReviewEvent):
 class OwnerEvent(Event):
     def __init__(self, 
         public_key: bytes, 
-        action: OwnerActionT,
+        owner_action: OwnerActionT,
         uuid_: typing.Optional[uuid.UUID] = None, 
         timestamp: typing.Optional[str] = None,
         signature: typing.Optional[bytes] = None,
         signer: typing.Optional[bytes] = None):
         super().__init__(uuid_, timestamp, signature, signer)
         self.public_key = public_key
-        self.action = action
+        self.owner_action = owner_action
 
     def signature_bytes(self) -> bytes:
         return b"".join([
             super()._signature_bytes(),
             self.public_key,
-            struct.pack("<B", self.action.value),
+            struct.pack("<B", self.owner_action.value),
         ])
 
     def __eq__(self, other):
         return super().__eq__(other) and \
             self.public_key == other.public_key and \
-            self.action == other.action 
+            self.owner_action == other.owner_action 
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -1099,7 +1108,7 @@ class OwnerEvent(Event):
     def dump(self):
         return super().dump() | {
             "public_key": self.public_key.hex(),
-            "action": self.action.value,
+            "owner_action": self.owner_action.value,
         }
 
     @classmethod
@@ -1107,7 +1116,7 @@ class OwnerEvent(Event):
         jsonschema.validate(instance=d, schema=cls.schema())
         return OwnerEvent(
             bytes.fromhex(d["public_key"]),
-            ActionT(d["action"]),
+            OwnerActionT(d["owner_action"]),
             uuid.UUID(d["uuid"]),
             d["timestamp"],
             bytes.fromhex(d["signature"]), 
@@ -1124,7 +1133,7 @@ class OwnerEvent(Event):
                 { "$ref": f"#{relative}/definitions/event" }
             ],
             "properties": {
-                "action": {
+                "owner_action": {
                     "type": "integer"
                 },
                 "public_key": {
@@ -1136,7 +1145,7 @@ class OwnerEvent(Event):
             },
             "required": [
                 "public_key",
-                "action",
+                "owner_action",
             ],
         }
 

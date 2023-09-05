@@ -22,10 +22,10 @@ class RecordKeeper(core.RecordKeeper):
 
     def next(self, uuid_: uuid.UUID | None) -> uuid.UUID | None:
         if uuid_ is None:
-            if len(events) == 0:
+            if len(self.events) == 0:
                 return None
 
-            return self.events[0]
+            return self.events[0].uuid
 
         if uuid_ not in self.index:
             raise ValueError('UUID not in index')
@@ -35,4 +35,4 @@ class RecordKeeper(core.RecordKeeper):
         if next_ == len(self.events):
             return None
 
-        return self.events[next_]
+        return self.events[next_].uuid
