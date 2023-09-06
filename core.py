@@ -1267,13 +1267,6 @@ class State:
         uuid_: typing.Optional[uuid.UUID] = None):
         raise NotImplementedError("unimplemented method")
 
-    def objects(self, identifier: typing.Optional[Identifier] = None, 
-        uuid_: typing.Optional[uuid.UUID] = None, 
-        annotation: typing.Optional[uuid.UUID] = None, 
-        page: typing.Optional[int] = None, 
-        page_size: typing.Optional[int] = None):
-        raise NotImplementedError("unimplemented method")
-
     def object_status(self, identifier: typing.Optional[Identifier] = None):
         raise NotImplementedError("unimplemented method")
 
@@ -1287,13 +1280,6 @@ class State:
 
     def annotation_exists(self, identifier: typing.Optional[Identifier] = None, 
         uuid_: typing.Optional[uuid.UUID] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def annotations(self, identifier: typing.Optional[Identifier] = None, 
-        uuid_: typing.Optional[uuid.UUID] = None, 
-        object_: typing.Optional[Identifier] = None, 
-        page: typing.Optional[int] = None, 
-        page_size: typing.Optional[int] = None):
         raise NotImplementedError("unimplemented method")
 
     def annotation_status(self, identifier: Identifier):
@@ -1420,18 +1406,6 @@ class StateValidator(Validator):
         if event.annotation.version != len(versions):
             return f"Annotation version should be {len(versions)}."
 
-        # TODO: function naming
-        objects = self.state.objects(annotation=event.annotation.uuid)
-        for object_ in objects:
-            status = self.state.object_status(identifier=object_.identifier())
-            if StatusT.CREATE_REJECTED in status:
-                raise ValidationError(
-                    "rejected objects cannot be annotated")
-
-            if StatusT.DELETE_ACCEPTED in status:
-                raise ValidationError(
-                    "deleted objects cannot be annotated")
-
     def _validate_annotation_delete(self, event: AnnotationDeleteEvent):
         identifier = event.annotation_identifier
         if not self.state.annotation_exists(identifier=identifier):
@@ -1446,19 +1420,6 @@ class StateValidator(Validator):
 
         if StatusT.DELETE_ACCEPTED in status:
             raise ValidationError("annotation already deleted")
-
-        objects = self.state.objects(annotation=identifier.uuid)
-        for object_ in objects:
-            object_status = self.state.object_status(
-                identifier=object_.identifier())
-
-            if StatusT.CREATE_REJECTED in object_status:
-                raise ValidationError(
-                    "rejected objects cannot be annotated")
-
-            if StatusT.DELETE_ACCEPTED in object_status:
-                raise ValidationError(
-                    "deleted objects cannot be annotated")
 
     def _validate_review_accept(self, event: ReviewAcceptEvent):
         if not self.state.event_pending(uuid_=event.event_uuid):
