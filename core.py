@@ -1262,12 +1262,6 @@ class Depot:
         raise NotImplementedError("unimplemented method")
 
 ### State ###
-class Page:
-    def __init__(self, items: list, page: int, page_size: int):
-        self.page = page
-        self.page_size = page_size
-        self.items = items
-
 class State:
     def object_exists(self, identifier: typing.Optional[Identifier] = None, 
         uuid_: typing.Optional[uuid.UUID] = None):
