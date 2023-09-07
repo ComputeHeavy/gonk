@@ -1,11 +1,9 @@
 import core
-import memd
+import mem
 import nacl
 import uuid
 import sigs
-import memrk
 import hashlib
-import memstate
 import unittest
 import jsonschema
 
@@ -55,10 +53,10 @@ schema_buf = b'''{
 
 class TestSchemaValidation(unittest.TestCase):
     def test_validator_register(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
         
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
         schema_validator = core.SchemaValidator(depot)
@@ -68,16 +66,16 @@ class TestSchemaValidation(unittest.TestCase):
         self.assertEqual(len(machine.consumers), 2)
 
     def test_schema_object_validate(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         schema_validator = core.SchemaValidator(depot)
@@ -94,16 +92,16 @@ class TestSchemaValidation(unittest.TestCase):
         machine.process_event(core.ObjectCreateEvent(s1v0))
 
     def test_schema_annotation_validate(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         schema_validator = core.SchemaValidator(depot)

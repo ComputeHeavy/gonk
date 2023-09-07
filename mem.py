@@ -4,6 +4,91 @@ import nacl
 import enum
 import typing
 
+class RecordKeeper(core.RecordKeeper):
+    def __init__(self):
+        super().__init__()
+        self.events: list[core.Event] = []
+        self.index: dict[uuid.UUID, int] = {}
+
+    def add(self, event: core.Event):
+        self.index[event.uuid] = len(self.events)
+        self.events.append(event)
+
+    def read(self, uuid_: uuid.UUID) -> core.Event:
+        if not self.exists(uuid_):
+            raise ValueError('UUID not in index')
+
+        return self.events[self.index[uuid_]]
+
+    def exists(self, uuid_: uuid.UUID) -> bool:
+        return uuid_ in self.index
+
+    def next(self, uuid_: uuid.UUID | None) -> uuid.UUID | None:
+        if uuid_ is None:
+            if len(self.events) == 0:
+                return None
+
+            return self.events[0].uuid
+
+        if uuid_ not in self.index:
+            raise ValueError('UUID not in index')
+
+        curr = self.index[uuid_]
+        next_ = curr + 1
+        if next_ == len(self.events):
+            return None
+
+        return self.events[next_].uuid
+
+class Depot(core.Depot):
+    def __init__(self):
+        super().__init__()
+        self.storage: dict[core.Identifier, bytes] = {}
+        self.writable: set[core.Identifier] = set()
+
+    def reserve(self, identifier: core.Identifier, size: int):
+        if identifier in self.storage:
+            raise core.StorageError('Identifier already exists in storage.')
+
+        self.storage[identifier] = b'\x00'*size
+        self.writable.add(identifier)
+
+    def write(self, identifier: core.Identifier, offset: int, buf: bytes):
+        if identifier not in self.storage:
+            raise core.StorageError('Identifier not found in storage.')
+
+        if identifier not in self.writable:
+            raise core.StorageError('Identifier already finalized.')
+
+        bs = self.storage[identifier]
+        
+        if offset + len(buf) > len(bs):
+            raise core.StorageError('Write outside of reserved boundary.')
+
+        self.storage[identifier] = bs[:offset] + buf + bs[offset+len(buf):]
+
+    def finalize(self, identifier: core.Identifier):
+        if identifier not in self.writable:
+            raise core.StorageError('Identifier already finalized.')
+
+        self.writable.remove(identifier)
+
+    def read(self, identifier: core.Identifier, offset: int, size: int):
+        if identifier not in self.storage:
+            raise core.StorageError('Identifier not found in storage.')
+
+        if identifier in self.writable:
+            raise core.StorageError('Identifier still being written.')
+
+        return self.storage[identifier][offset:offset+size]
+
+    def purge(self, identifier: core.Identifier):
+        if identifier in self.writable:
+            self.writable.remove(identifier)
+
+        if identifier in self.storage:
+            del self.storage[identifier]
+
 class IdentifierUUIDLink:
     def __init__(self):
         self.forward: dict[core.Identifier, list[uuid.UUID]] = {}

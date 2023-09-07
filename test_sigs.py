@@ -1,8 +1,6 @@
 import core
 import sigs
-import memstate
-import memrk
-import memd
+import mem
 import unittest
 import hashlib
 import nacl
@@ -18,15 +16,15 @@ class TestSigs(unittest.TestCase):
             hashlib.sha256(b"object contents").hexdigest())
 
     def test_signature_validation(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
         machine.register(sigs.SignatureValidator())
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -42,15 +40,15 @@ class TestSigs(unittest.TestCase):
         machine.process_event(oce)
 
     def test_signature_validation_fails(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
         machine.register(sigs.SignatureValidator())
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -69,17 +67,17 @@ class TestSigs(unittest.TestCase):
             machine.process_event(oce)
 
     def test_replay(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
         machine.register(sigs.SignatureValidator())
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
         machine.register(sigs.ReplayValidator(record_keeper))
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()

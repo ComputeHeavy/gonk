@@ -1,8 +1,6 @@
 import core
 import sigs
-import memstate
-import memrk
-import memd
+import mem
 import unittest
 import hashlib
 import nacl
@@ -46,16 +44,16 @@ class TestState(unittest.TestCase):
         return anno
 
     def test_machine_register(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         self.assertEqual(len(machine.validators), 1)
@@ -65,16 +63,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(machine.consumers[1], state_consumer)
 
     def test_object_create_accept(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -102,16 +100,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.entity_status[o1v0.identifier()]), 0)
 
     def test_object_update_accept(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -144,16 +142,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.entity_status[o1v1.identifier()]), 0)
 
     def test_object_delete_accept(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -186,16 +184,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.entity_status[o1v0.identifier()]), 2)
 
     def test_annotation_create_accept(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -245,16 +243,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.entity_status[a1v0.identifier()]), 0)
 
     def test_annotation_update_accept(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -297,16 +295,16 @@ class TestState(unittest.TestCase):
 
 
     def test_annotation_delete_accept(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -347,16 +345,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.entity_status[a1v0.identifier()]), 2)
 
     def test_owner_add(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -384,16 +382,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.owner_list), 2)
 
     def test_owner_remove(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -427,16 +425,16 @@ class TestState(unittest.TestCase):
             machine.process_event(ore2)
 
     def test_object_create_reject(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -460,16 +458,16 @@ class TestState(unittest.TestCase):
             o1v0.identifier()])
 
     def test_object_update_reject(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -497,16 +495,16 @@ class TestState(unittest.TestCase):
             o1v1.identifier()])
 
     def test_object_delete_reject(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -533,16 +531,16 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.entity_status[o1v0.identifier()]), 1)
 
     def test_annotation_create_reject(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -575,16 +573,16 @@ class TestState(unittest.TestCase):
             a1v0.identifier()])
 
     def test_annotation_update_reject(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -620,16 +618,16 @@ class TestState(unittest.TestCase):
             a1v1.identifier()])
 
     def test_annotation_delete_reject(self):
-        depot = memd.Depot()
+        depot = mem.Depot()
         machine = core.Machine()
 
-        record_keeper = memrk.RecordKeeper()
+        record_keeper = mem.RecordKeeper()
         machine.register(record_keeper)
 
-        state = memstate.State(record_keeper)
+        state = mem.State(record_keeper)
         state_validator = core.StateValidator(state)
         machine.register(state_validator)
-        state_consumer = memstate.StateConsumer(state)
+        state_consumer = mem.StateConsumer(state)
         machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
