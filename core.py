@@ -1,3 +1,4 @@
+import abc
 import uuid
 import enum
 import json
@@ -1213,95 +1214,54 @@ class Machine:
             c.consume(event)
 
     def register(self, c):
+        registered = False
+
         if isinstance(c, Validator):
             self.validators.append(c)
+            registered = True
+
 
         if isinstance(c, Consumer):
             self.consumers.append(c)
+            registered = True
 
-class Validator:
+        if not registered:
+            raise ValueError("not a consumer or validator")
+
+class Validator(abc.ABC):
+    @abc.abstractmethod
     def validate(self, event):
         raise NotImplementedError("unimplemented method")
 
-class Consumer:
+class Consumer(abc.ABC):
+    @abc.abstractmethod
     def consume(self, event):
         raise NotImplementedError("unimplemented method")
 
-### Record Keeper (Events) ###
-class RecordKeeper(Consumer):
-    def consume(self, event: Event):
-        self.add(event)
-
-    def add(self, event: Event):
-        raise NotImplementedError("unimplemented method")
-
-    def read(self, uuid_: uuid.UUID) -> Event:
-        raise NotImplementedError("unimplemented method")
-
-    def exists(self, uuid_: uuid.UUID) -> bool:
-        raise NotImplementedError("unimplemented method")
-
-    def next(self, uuid_: uuid.UUID | None) -> uuid.UUID | None:
-        raise NotImplementedError("unimplemented method")
-
 ### Depot (Objects) ###
-class Depot:
+class Depot(abc.ABC):
+    @abc.abstractmethod
     def reserve(self, identifier: Identifier, size: int):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def write(self, identifier: Identifier, offset: int, buf: bytes):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def finalize(self, identifier: Identifier):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def read(self, identifier: Identifier, offset: int, size: int):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def purge(self, identifier: Identifier):
         raise NotImplementedError("unimplemented method")
 
 ### State ###
-class State:
-    def object_exists(self, identifier: typing.Optional[Identifier] = None, 
-        uuid_: typing.Optional[uuid.UUID] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def object_status(self, identifier: typing.Optional[Identifier] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def object_versions(self, uuid_: typing.Optional[uuid.UUID] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def schema_exists(self, identifier: typing.Optional[Identifier] = None, 
-        uuid_: typing.Optional[uuid.UUID] = None, 
-        name: typing.Optional[str] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def annotation_exists(self, identifier: typing.Optional[Identifier] = None, 
-        uuid_: typing.Optional[uuid.UUID] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def annotation_status(self, identifier: Identifier):
-        raise NotImplementedError("unimplemented method")
-
-    def annotation_versions(self, uuid_: typing.Optional[uuid.UUID] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def owner_exists(self, public_key: typing.Optional[bytes] = None):
-        raise NotImplementedError("unimplemented method")
-
-    def owners(self):
-        raise NotImplementedError("unimplemented method")
-
-    def event_pending(self, uuid_: uuid.UUID):
-        raise NotImplementedError("unimplemented method")
-
-class StateValidator(Validator):
-    def __init__(self, state: State):
-        super().__init__()
-        self.state = state
-
+class State(Validator, Consumer, abc.ABC):
     def validate(self, event: Event):
         handler: dict[type[Event], 
             typing.Callable[[typing.Any], typing.Any]] = {
@@ -1322,153 +1282,45 @@ class StateValidator(Validator):
 
         handler[type(event)](event)
 
+    @abc.abstractmethod
     def _validate_object_create(self, event: ObjectCreateEvent):
-        if is_schema(event.object.name):
-            if self.state.schema_exists(name=event.object.name):
-                raise ValidationError("schema name already in use")
+        raise NotImplementedError("unimplemented method")
 
-        if self.state.object_exists(uuid_=event.object.uuid):
-            raise ValidationError("UUID already exists in object store")
-
-        if event.object.version != 0:
-            raise ValidationError(
-                "object version must be zero in create event")
-
+    @abc.abstractmethod
     def _validate_object_update(self, event: ObjectCreateEvent):
-        if not self.state.object_exists(uuid_=event.object.uuid):
-            raise ValidationError("UUID not found in object store")
+        raise NotImplementedError("unimplemented method")
 
-        if is_schema(event.object.name):
-            if not self.state.schema_exists(name=event.object.name):
-                raise ValidationError("schema name does not exist")
-
-        versions = self.state.object_versions(uuid_=event.object.uuid)
-        if versions[-1].uuid != event.object.uuid:
-            raise ValidationError("unexpected UUID for schema name")
-
-        if is_schema(versions[-1].name):
-            if versions[-1].name != event.object.name:
-                raise ValidationError("schema names may not change")
-
-        if event.object.version != len(versions):
-            raise ValidationError(
-                f"object version should be {len(versions)}")
-
+    @abc.abstractmethod
     def _validate_object_delete(self, event: ObjectDeleteEvent):
-        if self.state.schema_exists(uuid_=event.object_identifier.uuid):
-            raise ValidationError("schemas can not be deleted")
+        raise NotImplementedError("unimplemented method")
 
-        identifier = event.object_identifier
-        if not self.state.object_exists(identifier=identifier):
-            raise ValidationError("object identifier not found")
-
-        status = self.state.object_status(identifier=identifier)
-        if StatusT.CREATE_REJECTED in status:
-            raise ValidationError("cannot delete a rejected object")
-
-        if StatusT.DELETE_PENDING in status:
-            raise ValidationError("object version pending deletion")
-
-        if StatusT.DELETE_ACCEPTED in status:
-            raise ValidationError("object version already deleted")
-
+    @abc.abstractmethod
     def _validate_annotation_create(self, event: AnnotationCreateEvent):
-        if self.state.annotation_exists(uuid_=event.annotation.uuid):
-            raise ValidationError(
-                "UUID already exists in annotation store")
+        raise NotImplementedError("unimplemented method")
 
-        if event.annotation.version != 0:
-            raise ValidationError(
-                "annotation version must be zero in create event")
-
-        for identifier in event.object_identifiers:
-            if not self.state.object_exists(identifier=identifier):
-                raise ValidationError(
-                    "object identifier not found in object store")
-
-            status = self.state.object_status(identifier=identifier)
-            if StatusT.CREATE_REJECTED in status:
-                raise ValidationError(
-                    "rejected objects cannot be annotated")
-
-            if StatusT.DELETE_ACCEPTED in status:
-                raise ValidationError(
-                    "deleted objects cannot be annotated")
-
-            if self.state.schema_exists(identifier=identifier):
-                raise ValidationError("schemas can not be annotated")
-
+    @abc.abstractmethod
     def _validate_annotation_update(self, event: AnnotationUpdateEvent):
-        if not self.state.annotation_exists(uuid_=event.annotation.uuid):
-            raise ValidationError("UUID not found in annotation store")
+        raise NotImplementedError("unimplemented method")
 
-        versions = self.state.annotation_versions(uuid_=event.annotation.uuid)
-        if event.annotation.version != len(versions):
-            return f"Annotation version should be {len(versions)}."
-
+    @abc.abstractmethod
     def _validate_annotation_delete(self, event: AnnotationDeleteEvent):
-        identifier = event.annotation_identifier
-        if not self.state.annotation_exists(identifier=identifier):
-            raise ValidationError("annotation identifier not found")
+        raise NotImplementedError("unimplemented method")
 
-        status = self.state.annotation_status(identifier=identifier)
-        if StatusT.CREATE_REJECTED in status:
-            raise ValidationError("cannot delete a rejected annotation")
-
-        if StatusT.DELETE_PENDING in status:
-            raise ValidationError("annotation already pending deletion")
-
-        if StatusT.DELETE_ACCEPTED in status:
-            raise ValidationError("annotation already deleted")
-
+    @abc.abstractmethod
     def _validate_review_accept(self, event: ReviewAcceptEvent):
-        if not self.state.event_pending(uuid_=event.event_uuid):
-            raise ValidationError("target event not pending")
+        raise NotImplementedError("unimplemented method")
 
-        if not self.state.owner_exists(public_key=event.signer):
-            raise ValidationError("review event from non-owner")
-
+    @abc.abstractmethod
     def _validate_review_reject(self, event: ReviewRejectEvent):
-        if not self.state.event_pending(uuid_=event.event_uuid):
-            raise ValidationError("target event not pending")
+        raise NotImplementedError("unimplemented method")
 
-        if not self.state.owner_exists(public_key=event.signer):
-            raise ValidationError("review event from non-owner")
-
+    @abc.abstractmethod
     def _validate_owner_add(self, event: OwnerAddEvent):
-        if self.state.owner_exists(public_key=event.public_key):
-            raise ValidationError("owner already present")
+        raise NotImplementedError("unimplemented method")
 
-        if len(self.state.owners()) > 0:
-            if not self.state.owner_exists(public_key=event.signer):
-                raise ValidationError("only owners can add owners")
-        else:
-            if event.public_key != event.signer:
-                raise ValidationError(
-                    "first owner add event must be self signed")
-
+    @abc.abstractmethod
     def _validate_owner_remove(self, event: OwnerRemoveEvent):
-        if not self.state.owner_exists(public_key=event.public_key):
-            raise ValidationError("owner not present")
-
-        if not self.state.owner_exists(public_key=event.signer):
-            raise ValidationError("only owners can remove owners")
-
-        owners = self.state.owners()
-        if len(owners) == 1:
-            raise ValidationError(
-                "removing owner would leave the dataset ownerless")
-
-        target_rank = owners.index(event.public_key)
-        actor_rank = owners.index(event.signer)
-
-        if actor_rank > target_rank:
-            raise ValidationError("cannot remove a higher ranking owner")
-
-class StateConsumer(Consumer):
-    def __init__(self, state: State):
-        super().__init__()
-        self.state: State = state
+        raise NotImplementedError("unimplemented method")
 
     def consume(self, event: Event):
         handler: dict[typing.Type[Event], 
@@ -1490,33 +1342,43 @@ class StateConsumer(Consumer):
 
         handler[type(event)](event)
 
+    @abc.abstractmethod
     def _consume_object_create(self, event: ObjectCreateEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_object_update(self, event: ObjectUpdateEvent):
        raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_object_delete(self, event: ObjectDeleteEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_annotation_create(self, event: AnnotationCreateEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_annotation_update(self, event: AnnotationUpdateEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_annotation_delete(self, event: AnnotationDeleteEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_review_accept(self, event: ReviewAcceptEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_review_reject(self, event: ReviewRejectEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_owner_add(self, event: OwnerAddEvent):
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
     def _consume_owner_remove(self, event: OwnerRemoveEvent):
         raise NotImplementedError("unimplemented method")
 

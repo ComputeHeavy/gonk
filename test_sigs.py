@@ -25,7 +25,10 @@ class TestSigs(unittest.TestCase):
         machine.register(record_keeper)
 
         state = mem.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = mem.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -49,7 +52,10 @@ class TestSigs(unittest.TestCase):
         machine.register(record_keeper)
 
         state = mem.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = mem.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -78,7 +84,10 @@ class TestSigs(unittest.TestCase):
         machine.register(sigs.ReplayValidator(record_keeper))
 
         state = mem.State(record_keeper)
-        machine.register(state)
+        state_validator = core.StateValidator(state)
+        machine.register(state_validator)
+        state_consumer = mem.StateConsumer(state)
+        machine.register(state_consumer)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
