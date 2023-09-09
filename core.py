@@ -7,7 +7,6 @@ import typing
 import datetime
 import jsonschema
 
-
 def tsnow() -> str:
     return f"{datetime.datetime.utcnow().isoformat('T')}Z"
 
@@ -1238,7 +1237,33 @@ class Consumer(abc.ABC):
     def consume(self, event):
         raise NotImplementedError("unimplemented method")
 
-### Depot (Objects) ###
+### Record Keeper ###
+class RecordKeeper(abc.ABC, Consumer, Validator):
+    def validate(self, event: Event):
+        if self.exists(event.uuid):
+            raise core.ValidationError("event UUID already exists")
+
+    @abc.abstractmethod
+    def consume(self, event: Event):
+        self.add(event)
+
+    @abc.abstractmethod
+    def add(self, event: Event):
+        raise NotImplementedError("unimplemented method")
+
+    @abc.abstractmethod
+    def read(self, uuid_: uuid.UUID) -> Event:
+        raise NotImplementedError("unimplemented method")
+
+    @abc.abstractmethod
+    def exists(self, uuid_: uuid.UUID) -> bool:
+        raise NotImplementedError("unimplemented method")
+
+    @abc.abstractmethod
+    def next(self, uuid_: uuid.UUID | None) -> uuid.UUID | None:
+        raise NotImplementedError("unimplemented method")
+
+### Depot ###
 class Depot(abc.ABC):
     @abc.abstractmethod
     def reserve(self, identifier: Identifier, size: int):
