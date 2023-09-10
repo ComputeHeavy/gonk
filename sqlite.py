@@ -54,10 +54,10 @@ class RecordKeeper(core.RecordKeeper):
 
         return True
 
-    def next(self, uuid_: uuid.UUID | None) -> uuid.UUID | None:
+    def next(self, uuid_: uuid.UUID | None=None) -> uuid.UUID | None:
         cur = self.con.cursor()
         if uuid_ is None:
-            cur.execute("SELECT uuid FROM events WHERE id = 0")
+            cur.execute("SELECT uuid FROM events ORDER BY id LIMIT 1")
             res = cur.fetchone()
 
             if res is None:
@@ -67,7 +67,7 @@ class RecordKeeper(core.RecordKeeper):
 
             return uuid.UUID(next_)
 
-        cur.execute("SELECT id FROM events WHERE uuid = ?", (str(uuid_)))
+        cur.execute("SELECT id FROM events WHERE uuid = ?", (str(uuid_),))
         res = cur.fetchone()
         
         if res is None:
@@ -158,7 +158,7 @@ class State:
             );
         """)
 
-    def _consume_object_create(self, event: ObjectCreateEvent):
+    def _consume_object_create(self, event: core.ObjectCreateEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO objects 
                 (uuid, version, object) 
@@ -187,7 +187,7 @@ class State:
                 event.object.version, 
                 StatusT.CREATE_PENDING.name))
 
-    def _consume_object_update(self, event: ObjectUpdateEvent):
+    def _consume_object_update(self, event: core.ObjectUpdateEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO objects 
                 (uuid, version, object) 
@@ -216,7 +216,7 @@ class State:
                 event.object.version, 
                 StatusT.CREATE_PENDING.name))
 
-    def _consume_object_delete(self, event: ObjectDeleteEvent):
+    def _consume_object_delete(self, event: core.ObjectDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO object_event_link 
                 (object_uuid, object_version, event_uuid) 
@@ -232,7 +232,7 @@ class State:
                 event.object_identifier.version, 
                 StatusT.DELETE_PENDING.name))
 
-    def _consume_annotation_create(self, event: AnnotationCreateEvent):
+    def _consume_annotation_create(self, event: core.AnnotationCreateEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO annotations 
                 (uuid, version, annotation) 
@@ -261,7 +261,7 @@ class State:
                 event.annotation.version, 
                 StatusT.CREATE_PENDING.name))
 
-    def _consume_annotation_update(self, event: AnnotationUpdateEvent):
+    def _consume_annotation_update(self, event: core.AnnotationUpdateEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO annotations 
                 (uuid, version, annotation) 
@@ -282,7 +282,7 @@ class State:
                 event.annotation.version, 
                 StatusT.CREATE_PENDING.name))
 
-    def _consume_annotation_delete(self, event: AnnotationDeleteEvent):
+    def _consume_annotation_delete(self, event: core.AnnotationDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO annotation_event_link 
             (annotation_uuid, annotation_version, event_uuid) 
@@ -298,7 +298,7 @@ class State:
                 event.annotation_identifier.version, 
                 StatusT.DELETE_PENDING.name))
 
-    def _consume_review_accept(self, event: ReviewAcceptEvent):
+    def _consume_review_accept(self, event: core.ReviewAcceptEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO event_review_link 
             (event_uuid, review_uuid) 
@@ -385,7 +385,7 @@ class State:
         else:
             raise ValueError("unexpected event type in accept")
 
-    def _consume_review_reject(self, event: ReviewRejectEvent):
+    def _consume_review_reject(self, event: core.ReviewRejectEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO event_review_link 
             (event_uuid, review_uuid) 
@@ -472,17 +472,17 @@ class State:
         else:
             raise ValueError("unexpected event type in reject")
 
-    def _consume_owner_add(self, event: OwnerAddEvent):
+    def _consume_owner_add(self, event: core.OwnerAddEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO owners (public_key) VALUES (?)""",
             (event.public_key.hex()))
 
-    def _consume_owner_remove(self, event: OwnerRemoveEvent):
+    def _consume_owner_remove(self, event: core.OwnerRemoveEvent):
         cur = self.con.cursor()
         cur.execute("""DELETE FROM owners WHERE public_key = ?""",
             (event.public_key.hex()))
 
-    def _validate_object_create(self, event: ObjectCreateEvent):
+    def _validate_object_create(self, event: core.ObjectCreateEvent):
         cur = self.con.cursor()
         if core.is_schema(event.object.name):
             cur.execute("""SELECT COUNT(*) FROM schemas WHERE name = ?""",
@@ -504,7 +504,7 @@ class State:
             raise ValidationError(
                 "object version must be zero in create event")
 
-    def _validate_object_update(self, event: ObjectCreateEvent):
+    def _validate_object_update(self, event: core.ObjectCreateEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT object 
                 FROM objects 
@@ -530,7 +530,7 @@ class State:
             raise ValidationError(
                 f"object version should be {len(versions)}")
 
-    def _validate_object_delete(self, event: ObjectDeleteEvent):
+    def _validate_object_delete(self, event: core.ObjectDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT COUNT(*) FROM schemas WHERE uuid = ?""",
             (str(event.object_identifier.uuid),))
@@ -567,7 +567,7 @@ class State:
         if core.StatusT.DELETE_ACCEPTED in status:
             raise ValidationError("object version already deleted")
 
-    def _validate_annotation_create(self, event: AnnotationCreateEvent):
+    def _validate_annotation_create(self, event: core.AnnotationCreateEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT COUNT(*) 
                 FROM annotations 
@@ -613,7 +613,7 @@ class State:
             if count != 0:
                 raise ValidationError("schemas can not be deleted")
 
-    def _validate_annotation_update(self, event: AnnotationUpdateEvent):
+    def _validate_annotation_update(self, event: core.AnnotationUpdateEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT uuid, version 
                 FROM annotations
@@ -628,7 +628,7 @@ class State:
             raise ValidationError(
                 f"annotation version should be {len(version_ids)}.")
 
-    def _validate_annotation_delete(self, event: AnnotationDeleteEvent):
+    def _validate_annotation_delete(self, event: core.AnnotationDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT COUNT(*)
                 FROM annotations 
@@ -658,7 +658,7 @@ class State:
         if StatusT.DELETE_ACCEPTED in status:
             raise ValidationError("annotation already deleted")
 
-    def _validate_review(self, event: ReviewAcceptEvent):
+    def _validate_review(self, event: core.ReviewAcceptEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT COUNT(*)
                 FROM event_review_link 
@@ -684,13 +684,13 @@ class State:
         if count == 0:
             raise ValidationError("review event from non-owner")
 
-    def _validate_review_accept(self, event: ReviewAcceptEvent):
+    def _validate_review_accept(self, event: core.ReviewAcceptEvent):
         self._validate_review(event)
 
-    def _validate_review_reject(self, event: ReviewRejectEvent):
+    def _validate_review_reject(self, event: core.ReviewRejectEvent):
         self._validate_review(event)
         
-    def _validate_owner_add(self, event: OwnerAddEvent):
+    def _validate_owner_add(self, event: core.OwnerAddEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT public_key FROM owners""")
 
@@ -709,7 +709,7 @@ class State:
                 raise ValidationError(
                     "first owner add event must be self signed")
 
-    def _validate_owner_remove(self, event: OwnerRemoveEvent):
+    def _validate_owner_remove(self, event: core.OwnerRemoveEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT id, public_key FROM owners""")
 

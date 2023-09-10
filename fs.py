@@ -85,7 +85,7 @@ class RecordKeeper(core.RecordKeeper):
             f"{key[0]}/{key[1]}/{key[2]}/{key}")
         return record_path.exists()
 
-    def next(self, uuid_: uuid.UUID | None) -> uuid.UUID | None:
+    def next(self, uuid_: uuid.UUID | None=None) -> uuid.UUID | None:
         if uuid_ is None:
             if not self.head_path.exists():
                 return None
@@ -106,7 +106,12 @@ class RecordKeeper(core.RecordKeeper):
 
         event_json = record_path.read_text()
         event_data = json.loads(event_json)
-        return uuid.UUID(event_data["next"])
+        next_ = event_data["next"]
+
+        if next_ is None:
+            return None
+
+        return uuid.UUID(next_)
 
 class ObjectStateT(enum.Enum):
     NONEXISTENT = 1<<0
