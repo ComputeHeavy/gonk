@@ -9,7 +9,7 @@ import nacl
 from nacl import signing
 
 
-class TestRecordKeeper(test_utils.GonkTest):
+class TestFileSystemRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
         record_keeper = fs.RecordKeeper(self.test_directory)
 
@@ -95,7 +95,7 @@ class TestRecordKeeper(test_utils.GonkTest):
         self.assertEqual(record_keeper.next(oae1.uuid), oae2.uuid)
         self.assertEqual(record_keeper.next(oae2.uuid), None)
 
-class TestDepot(test_utils.GonkTest):
+class TestFileSystemDepot(test_utils.GonkTest):
     def test_depot_init(self):
         depot = fs.Depot(self.test_directory)
         self.assertTrue(self.test_directory.joinpath("depot").exists())

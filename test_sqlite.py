@@ -19,7 +19,7 @@ def rmtree(p):
             ea.unlink()
     p.rmdir()
 
-class TestRecordKeeper(test_utils.GonkTest):
+class TestSqliteRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
         record_keeper = sqlite.RecordKeeper(
             self.test_directory)
@@ -97,7 +97,7 @@ class TestRecordKeeper(test_utils.GonkTest):
         self.assertEqual(record_keeper.next(oae1.uuid), oae2.uuid)
         self.assertEqual(record_keeper.next(oae2.uuid), None)
 
-class TestState(test_utils.GonkTest):
+class TestSqliteState(test_utils.GonkTest):
     def standard_object(self):
         return core.Object(
             "object.txt", 
@@ -546,6 +546,9 @@ class TestState(test_utils.GonkTest):
         wae1 = signer1.sign(wae1)
         machine.process_event(wae1)
 
+        if wae1.signer is None:
+            raise ValueError("signer is none")
+
         cur = state.con.cursor()
         cur.execute("""SELECT COUNT(*) 
             FROM owners 
@@ -604,6 +607,9 @@ class TestState(test_utils.GonkTest):
 
         ore1 = signer2.sign(core.OwnerRemoveEvent(vk2))
         machine.process_event(ore1)
+
+        if wae1.signer is None:
+            raise ValueError("signer is none")
 
         cur = state.con.cursor()
         cur.execute("""SELECT COUNT(*) 
