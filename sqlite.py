@@ -212,7 +212,7 @@ class State(core.State):
         cur.execute("""INSERT INTO object_event_link 
                 (object_uuid, object_version, event_uuid) 
                 VALUES (?, ?, ?)""", 
-            (str(event.object.uuid), event.object.version, event.uuid))
+            (str(event.object.uuid), event.object.version, str(event.uuid)))
         
         cur.execute("""INSERT INTO object_status 
                 (uuid, version, status) 
@@ -228,7 +228,7 @@ class State(core.State):
                 VALUES (?, ?, ?)""", 
             (str(event.object_identifier.uuid), 
                 event.object_identifier.version, 
-                event.uuid))
+                str(event.uuid)))
         
         cur.execute("""INSERT INTO object_status 
                 (uuid, version, status) 
@@ -252,12 +252,14 @@ class State(core.State):
                     VALUES (?, ?, ?)""", 
                 (str(identifier.uuid), 
                     identifier.version, 
-                    event.annotation.uuid))
+                    str(event.annotation.uuid)))
 
         cur.execute("""INSERT INTO annotation_event_link 
                 (annotation_uuid, annotation_version, event_uuid) 
                 VALUES (?, ?, ?)""", 
-            (str(event.annotation.uuid), event.annotation.version, event.uuid))
+            (str(event.annotation.uuid), 
+                event.annotation.version, 
+                str(event.uuid)))
 
         cur.execute("""INSERT INTO annotation_status 
                 (uuid, version, status) 
@@ -278,7 +280,9 @@ class State(core.State):
         cur.execute("""INSERT INTO annotation_event_link 
             (annotation_uuid, annotation_version, event_uuid) 
             VALUES (?, ?, ?)""", 
-            (str(event.annotation.uuid), event.annotation.version, event.uuid))
+            (str(event.annotation.uuid), 
+                event.annotation.version, 
+                str(event.uuid)))
 
         cur.execute("""INSERT INTO annotation_status 
             (uuid, version, status) 
@@ -294,7 +298,7 @@ class State(core.State):
             VALUES (?, ?, ?)""", 
             (str(event.annotation_identifier.uuid), 
                 event.annotation_identifier.version, 
-                event.uuid))
+                str(event.uuid)))
         
         cur.execute("""INSERT INTO annotation_status 
             (uuid, version, status) 
@@ -327,7 +331,7 @@ class State(core.State):
                         target.object.version, 
                         core.StatusT.CREATE_PENDING.name))
             elif isinstance(target, core.ObjectDeleteEvent):
-                link_parmas = (str(target.object_identifier.uuid), 
+                link_params = (str(target.object_identifier.uuid), 
                     target.object_identifier.version, 
                     str(event.uuid))
 
@@ -399,7 +403,7 @@ class State(core.State):
         cur.execute("""INSERT INTO event_review_link 
             (event_uuid, review_uuid) 
             VALUES (?, ?)""", 
-            (event.event_uuid, str(event.uuid)))
+            (str(event.event_uuid), str(event.uuid)))
 
         target = self.record_keeper.read(event.event_uuid)
         if isinstance(target, core.ObjectEvent):
@@ -425,7 +429,7 @@ class State(core.State):
                         target.object.version, 
                         core.StatusT.CREATE_REJECTED.name))
             elif isinstance(target, core.ObjectDeleteEvent):
-                link_parmas = (str(target.object_identifier.uuid), 
+                link_params = (str(target.object_identifier.uuid), 
                     target.object_identifier.version, 
                     str(event.uuid))
 
@@ -714,7 +718,7 @@ class State(core.State):
         cur = self.con.cursor()
         cur.execute("""SELECT public_key FROM owners""")
 
-        owners = {public_key for public_key, in cur.fetchall()}
+        owners = {bytes.fromhex(public_key) for public_key, in cur.fetchall()}
         if len(owners) > 0:
             if event.public_key in owners:
                 raise core.ValidationError("owner already present")
