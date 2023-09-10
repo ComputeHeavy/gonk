@@ -1,9 +1,13 @@
 import fs
 import core
 import uuid
+import sigs
 import pathlib
 import secrets
 import unittest
+
+import nacl
+from nacl import signing
 
 def rmtree(p):
     for ea in p.iterdir():
@@ -12,6 +16,104 @@ def rmtree(p):
         else:
             ea.unlink()
     p.rmdir()
+
+class TestRecordKeeper(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
+        cls.test_directory.mkdir()
+
+    @classmethod
+    def tearDownClass(cls):
+        rmtree(cls.test_directory)
+
+    def tearDown(self):
+        rmtree(TestRecordKeeper.test_directory.joinpath("rk"))
+    
+    def test_record_keeper_init(self):
+        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+
+        root_dir = TestRecordKeeper.test_directory.joinpath("rk")
+        self.assertTrue(root_dir.exists())
+        self.assertTrue(root_dir.joinpath("events").exists())
+
+    def test_add(self):
+        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        oae1 = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        record_keeper.add(oae1)
+
+        root_dir = TestRecordKeeper.test_directory.joinpath("rk")
+
+        head_path = root_dir.joinpath("head")
+        self.assertTrue(head_path.exists())
+        self.assertEqual(head_path.read_text(), str(oae1.uuid))
+
+        tail_path = root_dir.joinpath("tail")
+        self.assertTrue(tail_path.exists())
+        self.assertEqual(tail_path.read_text(), str(oae1.uuid))
+
+        events_path = root_dir.joinpath("events")
+
+        key = f"{oae1.uuid}"
+        event_path = events_path.joinpath(
+            f"{key[0]}/{key[1]}/{key[2]}/{key}")
+
+        self.assertTrue(event_path.exists())
+
+        sk2 = nacl.signing.SigningKey.generate()
+        oae2 = signer.sign(core.OwnerAddEvent(bytes(sk2.verify_key)))
+        record_keeper.add(oae2)
+
+        self.assertEqual(head_path.read_text(), str(oae1.uuid))
+        self.assertEqual(tail_path.read_text(), str(oae2.uuid))
+
+    def test_read(self):
+        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        oae_in = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        record_keeper.add(oae_in)
+
+        oae_out = record_keeper.read(oae_in.uuid)
+
+        self.assertEqual(oae_in, oae_out)
+
+    def test_exists(self):
+        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        oae1 = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+
+        self.assertTrue(not record_keeper.exists(oae1.uuid))
+
+        record_keeper.add(oae1)
+
+        self.assertTrue(record_keeper.exists(oae1.uuid))
+
+    def test_next(self):
+        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        oae1 = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        record_keeper.add(oae1)
+
+        sk2 = nacl.signing.SigningKey.generate()
+        oae2 = signer.sign(core.OwnerAddEvent(bytes(sk2.verify_key)))
+        record_keeper.add(oae2)
+
+        self.assertEqual(record_keeper.next(), oae1.uuid)
+        self.assertEqual(record_keeper.next(oae1.uuid), oae2.uuid)
+        self.assertEqual(record_keeper.next(oae2.uuid), None)
 
 class TestDepot(unittest.TestCase):
     @classmethod

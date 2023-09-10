@@ -11,7 +11,7 @@ class RecordKeeper(core.RecordKeeper):
         if not parent_directory.exists():
             raise ValueError("parent directory does not exist")
 
-        self.root_directory = parent_directory.joinpath("fsrk")
+        self.root_directory = parent_directory.joinpath("rk")
         self.event_directory = self.root_directory.joinpath("events")
         self.head_path = self.root_directory.joinpath("head")
         self.tail_path = self.root_directory.joinpath("tail")

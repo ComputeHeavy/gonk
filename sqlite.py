@@ -74,7 +74,12 @@ class RecordKeeper(core.RecordKeeper):
             return None
 
         id_, = res
-        cur.execute("SELECT uuid FROM events WHERE id = ?", (id_+1,))
+        cur.execute("""SELECT uuid 
+                FROM events 
+                WHERE id > ? 
+                ORDER BY id 
+                LIMIT 1""", 
+            (id_,))
         res = cur.fetchone()
 
         if res is None:

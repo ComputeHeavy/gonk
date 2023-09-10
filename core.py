@@ -1238,12 +1238,11 @@ class Consumer(abc.ABC):
         raise NotImplementedError("unimplemented method")
 
 ### Record Keeper ###
-class RecordKeeper(abc.ABC, Consumer, Validator):
+class RecordKeeper(Consumer, Validator, abc.ABC):
     def validate(self, event: Event):
         if self.exists(event.uuid):
             raise core.ValidationError("event UUID already exists")
 
-    @abc.abstractmethod
     def consume(self, event: Event):
         self.add(event)
 
