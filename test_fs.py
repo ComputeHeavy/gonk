@@ -2,8 +2,6 @@ import fs
 import core
 import uuid
 import sigs
-import pathlib
-import secrets
 import unittest
 import test_utils
 
@@ -11,14 +9,7 @@ import nacl
 from nacl import signing
 
 
-class TestRecordKeeper(unittest.TestCase):
-    def setUp(self):
-        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
-        self.test_directory.mkdir()
-
-    def tearDown(self):
-        test_utils.rmtree(self.test_directory)
-    
+class TestRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
         record_keeper = fs.RecordKeeper(self.test_directory)
 
@@ -104,14 +95,7 @@ class TestRecordKeeper(unittest.TestCase):
         self.assertEqual(record_keeper.next(oae1.uuid), oae2.uuid)
         self.assertEqual(record_keeper.next(oae2.uuid), None)
 
-class TestDepot(unittest.TestCase):
-    def setUp(self):
-        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
-        self.test_directory.mkdir()
-
-    def tearDown(self):
-        test_utils.rmtree(self.test_directory)
-    
+class TestDepot(test_utils.GonkTest):
     def test_depot_init(self):
         depot = fs.Depot(self.test_directory)
         self.assertTrue(self.test_directory.joinpath("depot").exists())

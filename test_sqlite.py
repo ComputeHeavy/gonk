@@ -5,8 +5,6 @@ import sigs
 import json
 import sqlite
 import hashlib
-import pathlib
-import secrets
 import unittest
 import test_utils
 
@@ -21,18 +19,7 @@ def rmtree(p):
             ea.unlink()
     p.rmdir()
 
-class TestRecordKeeper(unittest.TestCase):
-    test_directory: pathlib.Path
-
-    def setUp(self):
-        self.closers = []
-        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
-        self.test_directory.mkdir()
-
-    def tearDown(self):
-        [ea.close() for ea in self.closers]
-        test_utils.rmtree(self.test_directory)
-
+class TestRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
         record_keeper = sqlite.RecordKeeper(
             self.test_directory)
@@ -110,16 +97,7 @@ class TestRecordKeeper(unittest.TestCase):
         self.assertEqual(record_keeper.next(oae1.uuid), oae2.uuid)
         self.assertEqual(record_keeper.next(oae2.uuid), None)
 
-class TestState(unittest.TestCase):
-    def setUp(self):
-        self.closers = []
-        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
-        self.test_directory.mkdir()
-
-    def tearDown(self):
-        [ea.close() for ea in self.closers]
-        test_utils.rmtree(self.test_directory)
-
+class TestState(test_utils.GonkTest):
     def standard_object(self):
         return core.Object(
             "object.txt", 
@@ -157,7 +135,6 @@ class TestState(unittest.TestCase):
         return anno
 
     def test_machine_register(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -175,7 +152,6 @@ class TestState(unittest.TestCase):
         self.assertEqual(machine.consumers[1], state)
 
     def test_object_create_accept(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -247,7 +223,6 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(status), 0)
 
     def test_object_update_accept(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -305,7 +280,6 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(status), 0)
 
     def test_object_delete_accept(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -354,7 +328,6 @@ class TestState(unittest.TestCase):
         self.assertTrue(core.StatusT.DELETE_ACCEPTED in status)
 
     def test_annotation_create_accept(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -434,7 +407,6 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(status), 0)
 
     def test_annotation_update_accept(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -500,7 +472,6 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(status), 0)
 
     def test_annotation_delete_accept(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -557,7 +528,6 @@ class TestState(unittest.TestCase):
         self.assertTrue(core.StatusT.DELETE_ACCEPTED in status)
 
     def test_owner_add(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -602,7 +572,6 @@ class TestState(unittest.TestCase):
         self.assertEqual(count, 2)
 
     def test_owner_remove(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -650,7 +619,6 @@ class TestState(unittest.TestCase):
             machine.process_event(ore2)
 
     def test_object_create_reject(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -689,7 +657,6 @@ class TestState(unittest.TestCase):
         self.assertTrue(core.StatusT.CREATE_REJECTED in status)
 
     def test_object_update_reject(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -732,7 +699,6 @@ class TestState(unittest.TestCase):
         self.assertTrue(core.StatusT.CREATE_REJECTED in status)
 
     def test_object_delete_reject(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -774,7 +740,6 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(status), 1)
 
     def test_annotation_create_reject(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -822,7 +787,6 @@ class TestState(unittest.TestCase):
         self.assertTrue(core.StatusT.CREATE_REJECTED in status)
 
     def test_annotation_update_reject(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -873,7 +837,6 @@ class TestState(unittest.TestCase):
         self.assertTrue(core.StatusT.CREATE_REJECTED in status)
 
     def test_annotation_delete_reject(self):
-        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)

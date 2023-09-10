@@ -1,19 +1,15 @@
+import fs
 import core
 import sigs
-import fs
-import unittest
+import sqlite
 import hashlib
+import unittest
+import test_utils
+
 import nacl
 from nacl import signing
 
-class TestSigs(unittest.TestCase):
-    def setUp(self):
-        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
-        self.test_directory.mkdir()
-
-    def tearDown(self):
-        test_utils.rmtree(self.test_directory)
-        
+class TestSigs(test_utils.GonkTest):
     def standard_object(self):
         return core.Object(
             "object.txt", 
@@ -23,15 +19,15 @@ class TestSigs(unittest.TestCase):
             hashlib.sha256(b"object contents").hexdigest())
 
     def test_signature_validation(self):
-        depot = mem.Depot()
         machine = core.Machine()
 
         machine.register(sigs.SignatureValidator())
 
-        record_keeper = mem.RecordKeeper()
+        record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = mem.State(record_keeper)
+        state = sqlite.State(self.test_directory, record_keeper)
+        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -47,15 +43,15 @@ class TestSigs(unittest.TestCase):
         machine.process_event(oce)
 
     def test_signature_validation_fails(self):
-        depot = mem.Depot()
         machine = core.Machine()
 
         machine.register(sigs.SignatureValidator())
 
-        record_keeper = mem.RecordKeeper()
+        record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = mem.State(record_keeper)
+        state = sqlite.State(self.test_directory, record_keeper)
+        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -74,17 +70,15 @@ class TestSigs(unittest.TestCase):
             machine.process_event(oce)
 
     def test_replay(self):
-        depot = mem.Depot()
         machine = core.Machine()
 
         machine.register(sigs.SignatureValidator())
 
-        record_keeper = mem.RecordKeeper()
+        record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        machine.register(sigs.ReplayValidator(record_keeper))
-
-        state = mem.State(record_keeper)
+        state = sqlite.State(self.test_directory, record_keeper)
+        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()

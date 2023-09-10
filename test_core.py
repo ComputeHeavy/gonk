@@ -1,9 +1,11 @@
+import fs
 import core
-import mem
 import nacl
 import uuid
 import sigs
+import sqlite
 import hashlib
+import test_utils
 import unittest
 import jsonschema
 
@@ -51,35 +53,36 @@ schema_buf = b'''{
   ]
 }'''
 
-class TestSchemaValidation(unittest.TestCase):
+class TestSchemaValidation(test_utils.GonkTest):
     def test_validator_register(self):
-        depot = mem.Depot()
+        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
-        
-        record_keeper = mem.RecordKeeper()
+
+        record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
         schema_validator = core.SchemaValidator(depot)
         machine.register(schema_validator)
 
-        self.assertEqual(len(machine.validators), 1)
+        self.assertEqual(len(machine.validators), 2)
         self.assertEqual(len(machine.consumers), 2)
 
     def test_schema_object_validate(self):
-        depot = mem.Depot()
+        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
-        record_keeper = mem.RecordKeeper()
+        record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = mem.State(record_keeper)
-        state_validator = core.StateValidator(state)
-        machine.register(state_validator)
-        state_consumer = mem.StateConsumer(state)
-        machine.register(state_consumer)
+        state = sqlite.State(self.test_directory, record_keeper)
+        self.closers.append(state.con)
+        machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)
         machine.register(schema_validator)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
 
         s1v0 = core.Object("schema-bounding-box", "application/schema+json", 
             len(schema_buf), core.HashTypeT.SHA256, 
@@ -89,23 +92,27 @@ class TestSchemaValidation(unittest.TestCase):
         depot.write(s1v0.identifier(), 0, schema_buf)
         depot.finalize(s1v0.identifier())
 
-        machine.process_event(core.ObjectCreateEvent(s1v0))
+        oce = core.ObjectCreateEvent(s1v0)
+        oce = signer.sign(oce)
+
+        machine.process_event(oce)
 
     def test_schema_annotation_validate(self):
-        depot = mem.Depot()
+        depot = fs.Depot(self.test_directory)
         machine = core.Machine()
 
-        record_keeper = mem.RecordKeeper()
+        record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = mem.State(record_keeper)
-        state_validator = core.StateValidator(state)
-        machine.register(state_validator)
-        state_consumer = mem.StateConsumer(state)
-        machine.register(state_consumer)
+        state = sqlite.State(self.test_directory, record_keeper)
+        self.closers.append(state.con)
+        machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)
         machine.register(schema_validator)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
 
         s1v0 = core.Object("schema-bounding-box", "application/schema+json", 
             len(schema_buf), core.HashTypeT.SHA256, 
@@ -115,11 +122,16 @@ class TestSchemaValidation(unittest.TestCase):
         depot.write(s1v0.identifier(), 0, schema_buf)
         depot.finalize(s1v0.identifier())
 
-        machine.process_event(core.ObjectCreateEvent(s1v0))
+        sce = core.ObjectCreateEvent(s1v0)
+        sce = signer.sign(sce)
+        machine.process_event(sce)
 
         o1v0 = core.Object("image.jpeg", "application/jpeg", 10, 
             core.HashTypeT.SHA256, hashlib.sha256(b"0123456789").hexdigest())
-        machine.process_event(core.ObjectCreateEvent(o1v0))
+
+        oce = core.ObjectCreateEvent(o1v0)
+        oce = signer.sign(oce)
+        machine.process_event(oce)
 
         annotation_buf = b'''
             {
@@ -137,8 +149,9 @@ class TestSchemaValidation(unittest.TestCase):
         depot.write(a1v0.identifier(), 0, annotation_buf)
         depot.finalize(a1v0.identifier())
 
-        machine.process_event(
-            core.AnnotationCreateEvent([o1v0.identifier()], a1v0))
+        ace = core.AnnotationCreateEvent([o1v0.identifier()], a1v0)
+        ace = signer.sign(ace)
+        machine.process_event(ace)
 
 class TestEvents(unittest.TestCase):
     def standard_object(self):

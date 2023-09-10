@@ -1,6 +1,7 @@
 import unittest
 from test_core import *
-from test_mem import *
+from test_fs import *
+from test_sqlite import *
 from test_sigs import *
 
 if __name__ == '__main__':

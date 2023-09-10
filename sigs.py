@@ -28,12 +28,3 @@ class SignatureValidator(core.Validator):
         except nacl.exceptions.BadSignatureError as error:
             raise core.ValidationError(
                 "event signature failed to validate") from error
-
-class ReplayValidator(core.Validator):
-    def __init__(self, record_keeper: core.RecordKeeper):
-        super().__init__()
-        self.record_keeper = record_keeper
-
-    def validate(self, event: core.Event):
-        if self.record_keeper.exists(event.uuid):
-            raise core.ValidationError("event UUID exists")
