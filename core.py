@@ -1241,7 +1241,7 @@ class Consumer(abc.ABC):
 class RecordKeeper(Consumer, Validator, abc.ABC):
     def validate(self, event: Event):
         if self.exists(event.uuid):
-            raise core.ValidationError("event UUID already exists")
+            raise ValidationError("event UUID already exists")
 
     def consume(self, event: Event):
         self.add(event)

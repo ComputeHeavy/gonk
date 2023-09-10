@@ -5,40 +5,29 @@ import sigs
 import pathlib
 import secrets
 import unittest
+import test_utils
 
 import nacl
 from nacl import signing
 
-def rmtree(p):
-    for ea in p.iterdir():
-        if ea.is_dir():
-            rmtree(ea)
-        else:
-            ea.unlink()
-    p.rmdir()
 
 class TestRecordKeeper(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
-        cls.test_directory.mkdir()
-
-    @classmethod
-    def tearDownClass(cls):
-        rmtree(cls.test_directory)
+    def setUp(self):
+        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
+        self.test_directory.mkdir()
 
     def tearDown(self):
-        rmtree(TestRecordKeeper.test_directory.joinpath("rk"))
+        test_utils.rmtree(self.test_directory)
     
     def test_record_keeper_init(self):
-        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+        record_keeper = fs.RecordKeeper(self.test_directory)
 
-        root_dir = TestRecordKeeper.test_directory.joinpath("rk")
+        root_dir = self.test_directory.joinpath("rk")
         self.assertTrue(root_dir.exists())
         self.assertTrue(root_dir.joinpath("events").exists())
 
     def test_add(self):
-        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+        record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -46,7 +35,7 @@ class TestRecordKeeper(unittest.TestCase):
         oae1 = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
         record_keeper.add(oae1)
 
-        root_dir = TestRecordKeeper.test_directory.joinpath("rk")
+        root_dir = self.test_directory.joinpath("rk")
 
         head_path = root_dir.joinpath("head")
         self.assertTrue(head_path.exists())
@@ -72,7 +61,7 @@ class TestRecordKeeper(unittest.TestCase):
         self.assertEqual(tail_path.read_text(), str(oae2.uuid))
 
     def test_read(self):
-        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+        record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -85,7 +74,7 @@ class TestRecordKeeper(unittest.TestCase):
         self.assertEqual(oae_in, oae_out)
 
     def test_exists(self):
-        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+        record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -99,7 +88,7 @@ class TestRecordKeeper(unittest.TestCase):
         self.assertTrue(record_keeper.exists(oae1.uuid))
 
     def test_next(self):
-        record_keeper = fs.RecordKeeper(TestRecordKeeper.test_directory)
+        record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -116,24 +105,19 @@ class TestRecordKeeper(unittest.TestCase):
         self.assertEqual(record_keeper.next(oae2.uuid), None)
 
 class TestDepot(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
-        cls.test_directory.mkdir()
-
-    @classmethod
-    def tearDownClass(cls):
-        rmtree(cls.test_directory)
+    def setUp(self):
+        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
+        self.test_directory.mkdir()
 
     def tearDown(self):
-        rmtree(TestDepot.test_directory.joinpath("depot"))
+        test_utils.rmtree(self.test_directory)
     
     def test_depot_init(self):
-        depot = fs.Depot(TestDepot.test_directory)
-        self.assertTrue(TestDepot.test_directory.joinpath("depot").exists())
+        depot = fs.Depot(self.test_directory)
+        self.assertTrue(self.test_directory.joinpath("depot").exists())
 
     def test_reserve(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
@@ -146,7 +130,7 @@ class TestDepot(unittest.TestCase):
         self.assertEqual(object_path.stat().st_size, 128)
 
     def test_write(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
@@ -161,7 +145,7 @@ class TestDepot(unittest.TestCase):
         self.assertEqual(bs, b"\x00"+b"A"*64+b"\x00"*63)
 
     def test_write_boundary(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
@@ -169,7 +153,7 @@ class TestDepot(unittest.TestCase):
             depot.write(id_, 1, b"A"*16)
 
     def test_finalize(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
@@ -187,7 +171,7 @@ class TestDepot(unittest.TestCase):
         self.assertEqual(readable_path.stat().st_size, 128)
 
     def test_read(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
@@ -201,7 +185,7 @@ class TestDepot(unittest.TestCase):
         self.assertEqual(bs, b"\x00"*2 + b"A"*8 + b"\x00"*4)
 
     def test_read_unfinished(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
@@ -209,14 +193,14 @@ class TestDepot(unittest.TestCase):
             depot.read(id_, 1, 10)
 
     def test_read_not_exist(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         with self.assertRaises(core.StorageError):
             depot.read(id_, 1, 10)
 
     def test_read_chunk(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         object_size = 16
@@ -232,7 +216,7 @@ class TestDepot(unittest.TestCase):
         self.assertEqual(len(bs2), object_size-read_size)
 
     def test_purge_unfinished(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
@@ -249,7 +233,7 @@ class TestDepot(unittest.TestCase):
         self.assertTrue(not readable_path.exists())
 
     def test_purge_finished(self):
-        depot = fs.Depot(TestDepot.test_directory)
+        depot = fs.Depot(self.test_directory)
         
         id_ = core.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)

@@ -1,12 +1,19 @@
 import core
 import sigs
-import mem
+import fs
 import unittest
 import hashlib
 import nacl
 from nacl import signing
 
 class TestSigs(unittest.TestCase):
+    def setUp(self):
+        self.test_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")
+        self.test_directory.mkdir()
+
+    def tearDown(self):
+        test_utils.rmtree(self.test_directory)
+        
     def standard_object(self):
         return core.Object(
             "object.txt", 
@@ -25,10 +32,7 @@ class TestSigs(unittest.TestCase):
         machine.register(record_keeper)
 
         state = mem.State(record_keeper)
-        state_validator = core.StateValidator(state)
-        machine.register(state_validator)
-        state_consumer = mem.StateConsumer(state)
-        machine.register(state_consumer)
+        machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -52,10 +56,7 @@ class TestSigs(unittest.TestCase):
         machine.register(record_keeper)
 
         state = mem.State(record_keeper)
-        state_validator = core.StateValidator(state)
-        machine.register(state_validator)
-        state_consumer = mem.StateConsumer(state)
-        machine.register(state_consumer)
+        machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -84,10 +85,7 @@ class TestSigs(unittest.TestCase):
         machine.register(sigs.ReplayValidator(record_keeper))
 
         state = mem.State(record_keeper)
-        state_validator = core.StateValidator(state)
-        machine.register(state_validator)
-        state_consumer = mem.StateConsumer(state)
-        machine.register(state_consumer)
+        machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
