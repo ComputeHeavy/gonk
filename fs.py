@@ -1,9 +1,10 @@
-import core
+import enum
 import uuid
 import json
-import enum
 import pathlib
-import pickle
+
+import core
+import events
 
 class RecordKeeper(core.RecordKeeper):
     def __init__(self, parent_directory: pathlib.Path):
@@ -45,7 +46,7 @@ class RecordKeeper(core.RecordKeeper):
 
         record_path.write_text(event_json)
 
-    def add(self, event: core.EventT):
+    def add(self, event: events.EventT):
         event_data = event.serialize()
         event_data["type"] = event.__class__.__name__
         event_data["next"] = None
@@ -53,7 +54,7 @@ class RecordKeeper(core.RecordKeeper):
         event_json = json.dumps(event_data)
 
         key = event_data["uuid"]
-        
+
         record_path = self.event_directory.joinpath(
             f"{key[0]}/{key[1]}/{key[2]}")
         record_path.mkdir(parents=True, exist_ok=True)
@@ -66,7 +67,7 @@ class RecordKeeper(core.RecordKeeper):
         self._link_tail(key)
         self.tail_path.write_text(key)
 
-    def read(self, uuid_: uuid.UUID) -> core.Event:
+    def read(self, uuid_: uuid.UUID) -> events.Event:
         if not self.exists(uuid_):
             raise ValueError("event does not exist")
 
@@ -129,7 +130,7 @@ class Depot(core.Depot):
         if not self.root_directory.exists():
             self.root_directory.mkdir()
 
-    def _state(self, identifier: core.Identifier) -> ObjectStateT:
+    def _state(self, identifier: events.Identifier) -> ObjectStateT:
         key = f"{identifier.uuid}.{identifier.version}"
 
         readable_path = self.root_directory.joinpath(
@@ -146,7 +147,7 @@ class Depot(core.Depot):
 
         return ObjectStateT.NONEXISTENT
 
-    def reserve(self, identifier: core.Identifier, size: int):
+    def reserve(self, identifier: events.Identifier, size: int):
         if self._state(identifier) != ObjectStateT.NONEXISTENT:
             raise core.StorageError('identifier already exists in storage')
 
@@ -159,7 +160,7 @@ class Depot(core.Depot):
         object_path = object_path.joinpath(f"{key}.wr")
         object_path.write_bytes(b'\x00'*size)
 
-    def write(self, identifier: core.Identifier, offset: int, buf: bytes):
+    def write(self, identifier: events.Identifier, offset: int, buf: bytes):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
             raise core.StorageError('identifier not found in storage')
@@ -180,7 +181,7 @@ class Depot(core.Depot):
             f.seek(offset, 0)
             f.write(buf)
 
-    def finalize(self, identifier: core.Identifier):
+    def finalize(self, identifier: events.Identifier):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
             raise core.StorageError('identifier not found in storage')
@@ -197,7 +198,7 @@ class Depot(core.Depot):
 
         writable_path.rename(readable_path)
 
-    def read(self, identifier: core.Identifier, offset: int, size: int):
+    def read(self, identifier: events.Identifier, offset: int, size: int):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
             raise core.StorageError('identifier not found in storage')
@@ -215,13 +216,13 @@ class Depot(core.Depot):
 
         return buf
 
-    def purge(self, identifier: core.Identifier):
+    def purge(self, identifier: events.Identifier):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
             raise core.StorageError('identifier not found in storage')
 
         key = f"{identifier.uuid}.{identifier.version}"
-        
+
         if state == ObjectStateT.READABLE:
             readable_path = self.root_directory.joinpath(
                 f"{key[0]}/{key[1]}/{key[2]}/{key}")

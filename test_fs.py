@@ -2,6 +2,7 @@ import fs
 import core
 import uuid
 import sigs
+import events
 import unittest
 import test_utils
 
@@ -23,7 +24,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
         record_keeper.add(oae1)
 
         root_dir = self.test_directory.joinpath("rk")
@@ -45,7 +46,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         self.assertTrue(event_path.exists())
 
         sk2 = nacl.signing.SigningKey.generate()
-        oae2 = signer.sign(core.OwnerAddEvent(bytes(sk2.verify_key)))
+        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key)))
         record_keeper.add(oae2)
 
         self.assertEqual(head_path.read_text(), str(oae1.uuid))
@@ -57,7 +58,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae_in = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
         record_keeper.add(oae_in)
 
         oae_out = record_keeper.read(oae_in.uuid)
@@ -70,7 +71,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
 
         self.assertTrue(not record_keeper.exists(oae1.uuid))
 
@@ -84,11 +85,11 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
         record_keeper.add(oae1)
 
         sk2 = nacl.signing.SigningKey.generate()
-        oae2 = signer.sign(core.OwnerAddEvent(bytes(sk2.verify_key)))
+        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key)))
         record_keeper.add(oae2)
 
         self.assertEqual(record_keeper.next(), oae1.uuid)
@@ -103,7 +104,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_reserve(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
 
         key = f"{id_.uuid}.{id_.version}"
@@ -116,7 +117,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_write(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
         depot.write(id_, 1, b"A"*64)
 
@@ -131,7 +132,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_write_boundary(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
         with self.assertRaises(core.StorageError):
             depot.write(id_, 1, b"A"*16)
@@ -139,7 +140,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_finalize(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
         depot.finalize(id_)
 
@@ -157,7 +158,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_read(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
         depot.write(id_, 3, b"A"*8)
         depot.finalize(id_)
@@ -171,7 +172,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_read_unfinished(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
         with self.assertRaises(core.StorageError):
             depot.read(id_, 1, 10)
@@ -179,14 +180,14 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_read_not_exist(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         with self.assertRaises(core.StorageError):
             depot.read(id_, 1, 10)
 
     def test_read_chunk(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         object_size = 16
         depot.reserve(id_, object_size)
         depot.write(id_, 3, b"A"*8)
@@ -202,7 +203,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_purge_unfinished(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
         depot.purge(id_)
 
@@ -219,7 +220,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
     def test_purge_finished(self):
         depot = fs.Depot(self.test_directory)
         
-        id_ = core.Identifier(uuid.uuid4(), 0)
+        id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 128)
         depot.finalize(id_)
         depot.purge(id_)

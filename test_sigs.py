@@ -2,6 +2,7 @@ import fs
 import core
 import sigs
 import sqlite
+import events
 import hashlib
 import unittest
 import test_utils
@@ -11,11 +12,11 @@ from nacl import signing
 
 class TestSigs(test_utils.GonkTest):
     def standard_object(self):
-        return core.Object(
+        return events.Object(
             "object.txt", 
             "text/plain", 
             len("object contents"), 
-            core.HashTypeT.SHA256, 
+            events.HashTypeT.SHA256, 
             hashlib.sha256(b"object contents").hexdigest())
 
     def test_signature_validation(self):
@@ -34,12 +35,12 @@ class TestSigs(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = sk1.verify_key
-        wae1 = core.OwnerAddEvent(bytes(vk1))
+        wae1 = events.OwnerAddEvent(bytes(vk1))
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
         o1v0 = self.standard_object()
-        oce = signer.sign(core.ObjectCreateEvent(o1v0))
+        oce = signer.sign(events.ObjectCreateEvent(o1v0))
         machine.process_event(oce)
 
     def test_signature_validation_fails(self):
@@ -58,12 +59,12 @@ class TestSigs(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = sk1.verify_key
-        wae1 = core.OwnerAddEvent(bytes(vk1))
+        wae1 = events.OwnerAddEvent(bytes(vk1))
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
         o1v0 = self.standard_object()
-        oce = signer.sign(core.ObjectCreateEvent(o1v0))
+        oce = signer.sign(events.ObjectCreateEvent(o1v0))
         o1v0.name = "FORGERY"
 
         with self.assertRaises(core.ValidationError):
@@ -85,7 +86,7 @@ class TestSigs(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = sk1.verify_key
-        wae1 = core.OwnerAddEvent(bytes(vk1))
+        wae1 = events.OwnerAddEvent(bytes(vk1))
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 

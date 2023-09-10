@@ -3,6 +3,7 @@ import core
 import nacl
 import uuid
 import sigs
+import events
 import sqlite
 import hashlib
 import test_utils
@@ -84,15 +85,15 @@ class TestSchemaValidation(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        s1v0 = core.Object("schema-bounding-box", "application/schema+json", 
-            len(schema_buf), core.HashTypeT.SHA256, 
+        s1v0 = events.Object("schema-bounding-box", "application/schema+json", 
+            len(schema_buf), events.HashTypeT.SHA256, 
             hashlib.sha256(schema_buf).hexdigest())
         
         depot.reserve(s1v0.identifier(), len(schema_buf))
         depot.write(s1v0.identifier(), 0, schema_buf)
         depot.finalize(s1v0.identifier())
 
-        oce = core.ObjectCreateEvent(s1v0)
+        oce = events.ObjectCreateEvent(s1v0)
         oce = signer.sign(oce)
 
         machine.process_event(oce)
@@ -114,22 +115,22 @@ class TestSchemaValidation(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        s1v0 = core.Object("schema-bounding-box", "application/schema+json", 
-            len(schema_buf), core.HashTypeT.SHA256, 
+        s1v0 = events.Object("schema-bounding-box", "application/schema+json", 
+            len(schema_buf), events.HashTypeT.SHA256, 
             hashlib.sha256(schema_buf).hexdigest())
         
         depot.reserve(s1v0.identifier(), len(schema_buf))
         depot.write(s1v0.identifier(), 0, schema_buf)
         depot.finalize(s1v0.identifier())
 
-        sce = core.ObjectCreateEvent(s1v0)
+        sce = events.ObjectCreateEvent(s1v0)
         sce = signer.sign(sce)
         machine.process_event(sce)
 
-        o1v0 = core.Object("image.jpeg", "application/jpeg", 10, 
-            core.HashTypeT.SHA256, hashlib.sha256(b"0123456789").hexdigest())
+        o1v0 = events.Object("image.jpeg", "application/jpeg", 10, 
+            events.HashTypeT.SHA256, hashlib.sha256(b"0123456789").hexdigest())
 
-        oce = core.ObjectCreateEvent(o1v0)
+        oce = events.ObjectCreateEvent(o1v0)
         oce = signer.sign(oce)
         machine.process_event(oce)
 
@@ -143,38 +144,38 @@ class TestSchemaValidation(test_utils.GonkTest):
             }
         '''
 
-        a1v0 = core.Annotation(s1v0.identifier(), len(annotation_buf), 
-            core.HashTypeT.SHA256, hashlib.sha256(annotation_buf).hexdigest())
+        a1v0 = events.Annotation(s1v0.identifier(), len(annotation_buf), 
+            events.HashTypeT.SHA256, hashlib.sha256(annotation_buf).hexdigest())
         depot.reserve(a1v0.identifier(), len(annotation_buf))
         depot.write(a1v0.identifier(), 0, annotation_buf)
         depot.finalize(a1v0.identifier())
 
-        ace = core.AnnotationCreateEvent([o1v0.identifier()], a1v0)
+        ace = events.AnnotationCreateEvent([o1v0.identifier()], a1v0)
         ace = signer.sign(ace)
         machine.process_event(ace)
 
-class TestEvents(unittest.TestCase):
+class TestEventSerde(unittest.TestCase):
     def standard_object(self):
-        return core.Object(
+        return events.Object(
             "object.txt", 
             "text/plain", 
             len("object contents"), 
-            core.HashTypeT.SHA256, 
+            events.HashTypeT.SHA256, 
             hashlib.sha256(b"object contents").hexdigest())
 
     def standard_schema(self):
-        return core.Object(
+        return events.Object(
             "schema-sample", 
             "application/schema+json", 
             len("schema contents"), 
-            core.HashTypeT.SHA256, 
+            events.HashTypeT.SHA256, 
             hashlib.sha256(b"schema contents").hexdigest())
 
-    def standard_annotation(self, schema: core.Identifier):
-        return core.Annotation(
+    def standard_annotation(self, schema: events.Identifier):
+        return events.Annotation(
             schema, 
             len("annotation contents"), 
-            core.HashTypeT.SHA256, 
+            events.HashTypeT.SHA256, 
             hashlib.sha256(b"annotation contents").hexdigest())
 
     def test_object_create_serde(self):
@@ -182,9 +183,9 @@ class TestEvents(unittest.TestCase):
         signer = sigs.Signer(sk1)
 
         o1v0 = self.standard_object()
-        oce_in = signer.sign(core.ObjectCreateEvent(o1v0))
+        oce_in = signer.sign(events.ObjectCreateEvent(o1v0))
 
-        oce_out = core.ObjectCreateEvent.deserialize(oce_in.serialize())
+        oce_out = events.ObjectCreateEvent.deserialize(oce_in.serialize())
         self.assertEqual(oce_in, oce_out)
 
     def test_object_update_serde(self):
@@ -193,9 +194,9 @@ class TestEvents(unittest.TestCase):
 
         o1v1 = self.standard_object()
         o1v1.version = 1
-        oue_in = signer.sign(core.ObjectUpdateEvent(o1v1))
+        oue_in = signer.sign(events.ObjectUpdateEvent(o1v1))
 
-        oue_out = core.ObjectUpdateEvent.deserialize(oue_in.serialize())
+        oue_out = events.ObjectUpdateEvent.deserialize(oue_in.serialize())
         self.assertEqual(oue_in, oue_out)
 
     def test_object_delete_serde(self):
@@ -203,9 +204,9 @@ class TestEvents(unittest.TestCase):
         signer = sigs.Signer(sk1)
 
         o1v0 = self.standard_object()
-        ode_in = signer.sign(core.ObjectDeleteEvent(o1v0.identifier()))
+        ode_in = signer.sign(events.ObjectDeleteEvent(o1v0.identifier()))
 
-        ode_out = core.ObjectDeleteEvent.deserialize(ode_in.serialize())
+        ode_out = events.ObjectDeleteEvent.deserialize(ode_in.serialize())
         self.assertEqual(ode_in, ode_out)
 
     def test_annotation_create_serde(self):
@@ -216,9 +217,9 @@ class TestEvents(unittest.TestCase):
         s1v0 = self.standard_schema()
         a1v0 = self.standard_annotation(s1v0.identifier())
         ace_in = signer.sign(
-            core.AnnotationCreateEvent([o1v0.identifier()], a1v0))
+            events.AnnotationCreateEvent([o1v0.identifier()], a1v0))
 
-        ace_out = core.AnnotationCreateEvent.deserialize(ace_in.serialize())
+        ace_out = events.AnnotationCreateEvent.deserialize(ace_in.serialize())
         self.assertEqual(ace_in, ace_out)
 
     def test_annotation_update_serde(self):
@@ -228,9 +229,9 @@ class TestEvents(unittest.TestCase):
         s1v0 = self.standard_schema()
         a1v1 = self.standard_annotation(s1v0.identifier())
         a1v1.version = 1
-        aue_in = signer.sign(core.AnnotationUpdateEvent(a1v1))
+        aue_in = signer.sign(events.AnnotationUpdateEvent(a1v1))
 
-        aue_out = core.AnnotationUpdateEvent.deserialize(aue_in.serialize())
+        aue_out = events.AnnotationUpdateEvent.deserialize(aue_in.serialize())
         self.assertEqual(aue_in, aue_out)
 
     def test_annotation_delete_serde(self):
@@ -239,9 +240,9 @@ class TestEvents(unittest.TestCase):
 
         s1v0 = self.standard_schema()
         a1v0 = self.standard_annotation(s1v0.identifier())
-        ade_in = signer.sign(core.AnnotationDeleteEvent(a1v0.identifier()))
+        ade_in = signer.sign(events.AnnotationDeleteEvent(a1v0.identifier()))
 
-        ade_out = core.AnnotationDeleteEvent.deserialize(ade_in.serialize())
+        ade_out = events.AnnotationDeleteEvent.deserialize(ade_in.serialize())
         self.assertEqual(ade_in, ade_out)
 
     def test_review_accept_serde(self):
@@ -249,9 +250,9 @@ class TestEvents(unittest.TestCase):
         signer = sigs.Signer(sk1)
 
         event_uuid = uuid.uuid4()
-        rae_in = signer.sign(core.ReviewAcceptEvent(event_uuid))
+        rae_in = signer.sign(events.ReviewAcceptEvent(event_uuid))
 
-        rae_out = core.ReviewAcceptEvent.deserialize(rae_in.serialize())
+        rae_out = events.ReviewAcceptEvent.deserialize(rae_in.serialize())
         self.assertEqual(rae_in, rae_out)
 
     def test_review_reject_serde(self):
@@ -259,27 +260,27 @@ class TestEvents(unittest.TestCase):
         signer = sigs.Signer(sk1)
 
         event_uuid = uuid.uuid4()
-        rae_in = signer.sign(core.ReviewRejectEvent(event_uuid))
+        rae_in = signer.sign(events.ReviewRejectEvent(event_uuid))
 
-        rae_out = core.ReviewRejectEvent.deserialize(rae_in.serialize())
+        rae_out = events.ReviewRejectEvent.deserialize(rae_in.serialize())
         self.assertEqual(rae_in, rae_out)
 
     def test_owner_add_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae_in = signer.sign(core.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
 
-        oae_out = core.OwnerAddEvent.deserialize(oae_in.serialize())
+        oae_out = events.OwnerAddEvent.deserialize(oae_in.serialize())
         self.assertEqual(oae_in, oae_out)
 
     def test_owner_remove_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        ore_in = signer.sign(core.OwnerRemoveEvent(bytes(sk1.verify_key)))
+        ore_in = signer.sign(events.OwnerRemoveEvent(bytes(sk1.verify_key)))
 
-        ore_out = core.OwnerRemoveEvent.deserialize(ore_in.serialize())
+        ore_out = events.OwnerRemoveEvent.deserialize(ore_in.serialize())
         self.assertEqual(ore_in, ore_out)
 
 

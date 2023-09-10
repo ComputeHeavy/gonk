@@ -1,8 +1,10 @@
-import core
 import uuid
 import json
 import pathlib
 import sqlite3
+
+import core
+import events
 
 class RecordKeeper(core.RecordKeeper):
     def __init__(self, parent_directory: pathlib.Path):
@@ -20,7 +22,7 @@ class RecordKeeper(core.RecordKeeper):
             event JSON NOT NULL
         )""")
 
-    def add(self, event: core.EventT):
+    def add(self, event: events.EventT):
         event_data = event.serialize()
         event_data["type"] = event.__class__.__name__
 
@@ -30,7 +32,7 @@ class RecordKeeper(core.RecordKeeper):
             "INSERT INTO events (uuid, event) VALUES (?, ?)",
             (event_data["uuid"], event_json))
 
-    def read(self, uuid_: uuid.UUID) -> core.Event:
+    def read(self, uuid_: uuid.UUID) -> events.Event:
         cur = self.con.cursor()
         cur.execute("SELECT event FROM events WHERE uuid = ?", (str(uuid_),))
 
@@ -69,16 +71,16 @@ class RecordKeeper(core.RecordKeeper):
 
         cur.execute("SELECT id FROM events WHERE uuid = ?", (str(uuid_),))
         res = cur.fetchone()
-        
+
         if res is None:
             return None
 
         id_, = res
-        cur.execute("""SELECT uuid 
-                FROM events 
-                WHERE id > ? 
-                ORDER BY id 
-                LIMIT 1""", 
+        cur.execute("""SELECT uuid
+                FROM events
+                WHERE id > ?
+                ORDER BY id
+                LIMIT 1""",
             (id_,))
         res = cur.fetchone()
 
@@ -89,8 +91,8 @@ class RecordKeeper(core.RecordKeeper):
         return uuid.UUID(next_)
 
 class State(core.State):
-    def __init__(self, 
-        parent_directory: pathlib.Path, 
+    def __init__(self,
+        parent_directory: pathlib.Path,
         record_keeper: core.RecordKeeper):
 
         super().__init__()
@@ -163,343 +165,343 @@ class State(core.State):
             );
         """)
 
-    def _consume_object_create(self, event: core.ObjectCreateEvent):
+    def _consume_object_create(self, event: events.ObjectCreateEvent):
         cur = self.con.cursor()
-        cur.execute("""INSERT INTO objects 
-                (uuid, version, object) 
+        cur.execute("""INSERT INTO objects
+                (uuid, version, object)
                 VALUES (?, ?, ?)""",
-            (str(event.object.uuid), 
+            (str(event.object.uuid),
                 event.object.version,
                 json.dumps(event.object.serialize())))
 
         if core.is_schema(event.object.name):
-            cur.execute("""INSERT INTO schemas 
-                    (name, uuid, version) 
+            cur.execute("""INSERT INTO schemas
+                    (name, uuid, version)
                     VALUES (?, ?, ?)""",
-                (event.object.name, 
-                    str(event.object.uuid), 
+                (event.object.name,
+                    str(event.object.uuid),
                     event.object.version))
 
-        cur.execute("""INSERT INTO object_event_link 
-                (object_uuid, object_version, event_uuid) 
-                VALUES (?, ?, ?)""", 
-            (str(event.object.uuid), event.object.version, str(event.uuid)))
-        
-        cur.execute("""INSERT INTO object_status 
-                (uuid, version, status) 
-                VALUES (?, ?, ?)""", 
-            (str(event.object.uuid), 
-                event.object.version, 
-                core.StatusT.CREATE_PENDING.name))
-
-    def _consume_object_update(self, event: core.ObjectUpdateEvent):
-        cur = self.con.cursor()
-        cur.execute("""INSERT INTO objects 
-                (uuid, version, object) 
+        cur.execute("""INSERT INTO object_event_link
+                (object_uuid, object_version, event_uuid)
                 VALUES (?, ?, ?)""",
-            (str(event.object.uuid), 
+            (str(event.object.uuid), event.object.version, str(event.uuid)))
+
+        cur.execute("""INSERT INTO object_status
+                (uuid, version, status)
+                VALUES (?, ?, ?)""",
+            (str(event.object.uuid),
+                event.object.version,
+                events.StatusT.CREATE_PENDING.name))
+
+    def _consume_object_update(self, event: events.ObjectUpdateEvent):
+        cur = self.con.cursor()
+        cur.execute("""INSERT INTO objects
+                (uuid, version, object)
+                VALUES (?, ?, ?)""",
+            (str(event.object.uuid),
                 event.object.version,
                 json.dumps(event.object.serialize())))
 
         if core.is_schema(event.object.name):
-            cur.execute("""INSERT INTO schemas 
-                    (name, uuid, version) 
+            cur.execute("""INSERT INTO schemas
+                    (name, uuid, version)
                     VALUES (?, ?, ?)""",
-                (event.object.name, 
-                    str(event.object.uuid), 
-                    event.object.version))   
+                (event.object.name,
+                    str(event.object.uuid),
+                    event.object.version))
 
-        cur.execute("""INSERT INTO object_event_link 
-                (object_uuid, object_version, event_uuid) 
-                VALUES (?, ?, ?)""", 
-            (str(event.object.uuid), event.object.version, str(event.uuid)))
-        
-        cur.execute("""INSERT INTO object_status 
-                (uuid, version, status) 
-                VALUES (?, ?, ?)""", 
-            (str(event.object.uuid), 
-                event.object.version, 
-                core.StatusT.CREATE_PENDING.name))
-
-    def _consume_object_delete(self, event: core.ObjectDeleteEvent):
-        cur = self.con.cursor()
-        cur.execute("""INSERT INTO object_event_link 
-                (object_uuid, object_version, event_uuid) 
-                VALUES (?, ?, ?)""", 
-            (str(event.object_identifier.uuid), 
-                event.object_identifier.version, 
-                str(event.uuid)))
-        
-        cur.execute("""INSERT INTO object_status 
-                (uuid, version, status) 
-                VALUES (?, ?, ?)""", 
-            (str(event.object_identifier.uuid), 
-                event.object_identifier.version, 
-                core.StatusT.DELETE_PENDING.name))
-
-    def _consume_annotation_create(self, event: core.AnnotationCreateEvent):
-        cur = self.con.cursor()
-        cur.execute("""INSERT INTO annotations 
-                (uuid, version, annotation) 
+        cur.execute("""INSERT INTO object_event_link
+                (object_uuid, object_version, event_uuid)
                 VALUES (?, ?, ?)""",
-            (str(event.annotation.uuid), 
+            (str(event.object.uuid), event.object.version, str(event.uuid)))
+
+        cur.execute("""INSERT INTO object_status
+                (uuid, version, status)
+                VALUES (?, ?, ?)""",
+            (str(event.object.uuid),
+                event.object.version,
+                events.StatusT.CREATE_PENDING.name))
+
+    def _consume_object_delete(self, event: events.ObjectDeleteEvent):
+        cur = self.con.cursor()
+        cur.execute("""INSERT INTO object_event_link
+                (object_uuid, object_version, event_uuid)
+                VALUES (?, ?, ?)""",
+            (str(event.object_identifier.uuid),
+                event.object_identifier.version,
+                str(event.uuid)))
+
+        cur.execute("""INSERT INTO object_status
+                (uuid, version, status)
+                VALUES (?, ?, ?)""",
+            (str(event.object_identifier.uuid),
+                event.object_identifier.version,
+                events.StatusT.DELETE_PENDING.name))
+
+    def _consume_annotation_create(self, event: events.AnnotationCreateEvent):
+        cur = self.con.cursor()
+        cur.execute("""INSERT INTO annotations
+                (uuid, version, annotation)
+                VALUES (?, ?, ?)""",
+            (str(event.annotation.uuid),
                 event.annotation.version,
                 json.dumps(event.annotation.serialize())))
 
         for identifier in event.object_identifiers:
-            cur.execute("""INSERT INTO object_annotation_link 
-                    (object_uuid, object_version, annotation_uuid) 
-                    VALUES (?, ?, ?)""", 
-                (str(identifier.uuid), 
-                    identifier.version, 
+            cur.execute("""INSERT INTO object_annotation_link
+                    (object_uuid, object_version, annotation_uuid)
+                    VALUES (?, ?, ?)""",
+                (str(identifier.uuid),
+                    identifier.version,
                     str(event.annotation.uuid)))
 
-        cur.execute("""INSERT INTO annotation_event_link 
-                (annotation_uuid, annotation_version, event_uuid) 
-                VALUES (?, ?, ?)""", 
-            (str(event.annotation.uuid), 
-                event.annotation.version, 
+        cur.execute("""INSERT INTO annotation_event_link
+                (annotation_uuid, annotation_version, event_uuid)
+                VALUES (?, ?, ?)""",
+            (str(event.annotation.uuid),
+                event.annotation.version,
                 str(event.uuid)))
 
-        cur.execute("""INSERT INTO annotation_status 
-                (uuid, version, status) 
-                VALUES (?, ?, ?)""", 
-            (str(event.annotation.uuid), 
-                event.annotation.version, 
-                core.StatusT.CREATE_PENDING.name))
-
-    def _consume_annotation_update(self, event: core.AnnotationUpdateEvent):
-        cur = self.con.cursor()
-        cur.execute("""INSERT INTO annotations 
-                (uuid, version, annotation) 
+        cur.execute("""INSERT INTO annotation_status
+                (uuid, version, status)
                 VALUES (?, ?, ?)""",
-            (str(event.annotation.uuid), 
+            (str(event.annotation.uuid),
+                event.annotation.version,
+                events.StatusT.CREATE_PENDING.name))
+
+    def _consume_annotation_update(self, event: events.AnnotationUpdateEvent):
+        cur = self.con.cursor()
+        cur.execute("""INSERT INTO annotations
+                (uuid, version, annotation)
+                VALUES (?, ?, ?)""",
+            (str(event.annotation.uuid),
                 event.annotation.version,
                 json.dumps(event.annotation.serialize())))
 
-        cur.execute("""INSERT INTO annotation_event_link 
-            (annotation_uuid, annotation_version, event_uuid) 
-            VALUES (?, ?, ?)""", 
-            (str(event.annotation.uuid), 
-                event.annotation.version, 
+        cur.execute("""INSERT INTO annotation_event_link
+            (annotation_uuid, annotation_version, event_uuid)
+            VALUES (?, ?, ?)""",
+            (str(event.annotation.uuid),
+                event.annotation.version,
                 str(event.uuid)))
 
-        cur.execute("""INSERT INTO annotation_status 
-            (uuid, version, status) 
-            VALUES (?, ?, ?)""", 
-            (str(event.annotation.uuid), 
-                event.annotation.version, 
-                core.StatusT.CREATE_PENDING.name))
+        cur.execute("""INSERT INTO annotation_status
+            (uuid, version, status)
+            VALUES (?, ?, ?)""",
+            (str(event.annotation.uuid),
+                event.annotation.version,
+                events.StatusT.CREATE_PENDING.name))
 
-    def _consume_annotation_delete(self, event: core.AnnotationDeleteEvent):
+    def _consume_annotation_delete(self, event: events.AnnotationDeleteEvent):
         cur = self.con.cursor()
-        cur.execute("""INSERT INTO annotation_event_link 
-            (annotation_uuid, annotation_version, event_uuid) 
-            VALUES (?, ?, ?)""", 
-            (str(event.annotation_identifier.uuid), 
-                event.annotation_identifier.version, 
+        cur.execute("""INSERT INTO annotation_event_link
+            (annotation_uuid, annotation_version, event_uuid)
+            VALUES (?, ?, ?)""",
+            (str(event.annotation_identifier.uuid),
+                event.annotation_identifier.version,
                 str(event.uuid)))
-        
-        cur.execute("""INSERT INTO annotation_status 
-            (uuid, version, status) 
-            VALUES (?, ?, ?)""", 
-            (str(event.annotation_identifier.uuid), 
-                event.annotation_identifier.version, 
-                core.StatusT.DELETE_PENDING.name))
 
-    def _consume_review_accept(self, event: core.ReviewAcceptEvent):
+        cur.execute("""INSERT INTO annotation_status
+            (uuid, version, status)
+            VALUES (?, ?, ?)""",
+            (str(event.annotation_identifier.uuid),
+                event.annotation_identifier.version,
+                events.StatusT.DELETE_PENDING.name))
+
+    def _consume_review_accept(self, event: events.ReviewAcceptEvent):
         cur = self.con.cursor()
-        cur.execute("""INSERT INTO event_review_link 
-                (event_uuid, review_uuid) 
-                VALUES (?, ?)""", 
+        cur.execute("""INSERT INTO event_review_link
+                (event_uuid, review_uuid)
+                VALUES (?, ?)""",
             (str(event.event_uuid), str(event.uuid)))
 
         target = self.record_keeper.read(event.event_uuid)
-        if isinstance(target, core.ObjectEvent):
-            if isinstance(target, 
-                (core.ObjectCreateEvent, core.ObjectUpdateEvent)):
+        if isinstance(target, events.ObjectEvent):
+            if isinstance(target,
+                (events.ObjectCreateEvent, events.ObjectUpdateEvent)):
 
-                link_params = (str(target.object.uuid), 
-                    target.object.version, 
+                link_params = (str(target.object.uuid),
+                    target.object.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM object_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.object.uuid), 
-                        target.object.version, 
-                        core.StatusT.CREATE_PENDING.name))
-            elif isinstance(target, core.ObjectDeleteEvent):
-                link_params = (str(target.object_identifier.uuid), 
-                    target.object_identifier.version, 
+                cur.execute("""DELETE FROM object_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.object.uuid),
+                        target.object.version,
+                        events.StatusT.CREATE_PENDING.name))
+            elif isinstance(target, events.ObjectDeleteEvent):
+                link_params = (str(target.object_identifier.uuid),
+                    target.object_identifier.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM object_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.object_identifier.uuid), 
-                        target.object_identifier.version, 
-                        core.StatusT.DELETE_PENDING.name))
+                cur.execute("""DELETE FROM object_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.object_identifier.uuid),
+                        target.object_identifier.version,
+                        events.StatusT.DELETE_PENDING.name))
 
-                cur.execute("""INSERT INTO object_status 
-                    (uuid, version, status) 
-                    VALUES (?, ?, ?)""", 
-                    (str(target.object_identifier.uuid), 
-                        target.object_identifier.version, 
-                        core.StatusT.DELETE_ACCEPTED.name))
+                cur.execute("""INSERT INTO object_status
+                    (uuid, version, status)
+                    VALUES (?, ?, ?)""",
+                    (str(target.object_identifier.uuid),
+                        target.object_identifier.version,
+                        events.StatusT.DELETE_ACCEPTED.name))
             else:
                 raise ValueError("unexpected object event type in accept")
 
-            cur.execute("""INSERT INTO object_event_link 
-                (object_uuid, object_version, event_uuid) 
+            cur.execute("""INSERT INTO object_event_link
+                (object_uuid, object_version, event_uuid)
                 VALUES (?, ?, ?)""", link_params)
-        elif isinstance(target, core.AnnotationEvent):
-            if isinstance(target, 
-                (core.AnnotationCreateEvent, core.AnnotationUpdateEvent)):
+        elif isinstance(target, events.AnnotationEvent):
+            if isinstance(target,
+                (events.AnnotationCreateEvent, events.AnnotationUpdateEvent)):
 
-                link_params = (str(target.annotation.uuid), 
-                    target.annotation.version, 
+                link_params = (str(target.annotation.uuid),
+                    target.annotation.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM annotation_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.annotation.uuid), 
-                        target.annotation.version, 
-                        core.StatusT.CREATE_PENDING.name))
-            elif isinstance(target, core.AnnotationDeleteEvent):
-                link_params = (str(target.annotation_identifier.uuid), 
-                    target.annotation_identifier.version, 
+                cur.execute("""DELETE FROM annotation_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.annotation.uuid),
+                        target.annotation.version,
+                        events.StatusT.CREATE_PENDING.name))
+            elif isinstance(target, events.AnnotationDeleteEvent):
+                link_params = (str(target.annotation_identifier.uuid),
+                    target.annotation_identifier.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM annotation_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.annotation_identifier.uuid), 
-                        target.annotation_identifier.version, 
-                        core.StatusT.DELETE_PENDING.name))
+                cur.execute("""DELETE FROM annotation_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.annotation_identifier.uuid),
+                        target.annotation_identifier.version,
+                        events.StatusT.DELETE_PENDING.name))
 
-                cur.execute("""INSERT INTO annotation_status 
-                    (uuid, version, status) 
-                    VALUES (?, ?, ?)""", 
-                    (str(target.annotation_identifier.uuid), 
-                        target.annotation_identifier.version, 
-                        core.StatusT.DELETE_ACCEPTED.name))
+                cur.execute("""INSERT INTO annotation_status
+                    (uuid, version, status)
+                    VALUES (?, ?, ?)""",
+                    (str(target.annotation_identifier.uuid),
+                        target.annotation_identifier.version,
+                        events.StatusT.DELETE_ACCEPTED.name))
             else:
                 raise ValueError("unexpected annotation event type in accept")
 
-            cur.execute("""INSERT INTO annotation_event_link 
-                (annotation_uuid, annotation_version, event_uuid) 
+            cur.execute("""INSERT INTO annotation_event_link
+                (annotation_uuid, annotation_version, event_uuid)
                 VALUES (?, ?, ?)""", link_params)
         else:
             raise ValueError("unexpected event type in accept")
 
-    def _consume_review_reject(self, event: core.ReviewRejectEvent):
+    def _consume_review_reject(self, event: events.ReviewRejectEvent):
         cur = self.con.cursor()
-        cur.execute("""INSERT INTO event_review_link 
-            (event_uuid, review_uuid) 
-            VALUES (?, ?)""", 
+        cur.execute("""INSERT INTO event_review_link
+            (event_uuid, review_uuid)
+            VALUES (?, ?)""",
             (str(event.event_uuid), str(event.uuid)))
 
         target = self.record_keeper.read(event.event_uuid)
-        if isinstance(target, core.ObjectEvent):
-            if isinstance(target, 
-                (core.ObjectCreateEvent, core.ObjectUpdateEvent)):
+        if isinstance(target, events.ObjectEvent):
+            if isinstance(target,
+                (events.ObjectCreateEvent, events.ObjectUpdateEvent)):
 
-                link_params = (str(target.object.uuid), 
-                    target.object.version, 
+                link_params = (str(target.object.uuid),
+                    target.object.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM object_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.object.uuid), 
-                        target.object.version, 
-                        core.StatusT.CREATE_PENDING.name))
+                cur.execute("""DELETE FROM object_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.object.uuid),
+                        target.object.version,
+                        events.StatusT.CREATE_PENDING.name))
 
-                cur.execute("""INSERT INTO object_status 
-                    (uuid, version, status) 
-                    VALUES (?, ?, ?)""", 
-                    (str(target.object.uuid), 
-                        target.object.version, 
-                        core.StatusT.CREATE_REJECTED.name))
-            elif isinstance(target, core.ObjectDeleteEvent):
-                link_params = (str(target.object_identifier.uuid), 
-                    target.object_identifier.version, 
+                cur.execute("""INSERT INTO object_status
+                    (uuid, version, status)
+                    VALUES (?, ?, ?)""",
+                    (str(target.object.uuid),
+                        target.object.version,
+                        events.StatusT.CREATE_REJECTED.name))
+            elif isinstance(target, events.ObjectDeleteEvent):
+                link_params = (str(target.object_identifier.uuid),
+                    target.object_identifier.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM object_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.object_identifier.uuid), 
-                        target.object_identifier.version, 
-                        core.StatusT.DELETE_PENDING.name))
+                cur.execute("""DELETE FROM object_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.object_identifier.uuid),
+                        target.object_identifier.version,
+                        events.StatusT.DELETE_PENDING.name))
             else:
                 raise ValueError("unexpected object event type in reject")
 
-            cur.execute("""INSERT INTO object_event_link 
-                (object_uuid, object_version, event_uuid) 
+            cur.execute("""INSERT INTO object_event_link
+                (object_uuid, object_version, event_uuid)
                 VALUES (?, ?, ?)""", link_params)
-        elif isinstance(target, core.AnnotationEvent):
+        elif isinstance(target, events.AnnotationEvent):
             if isinstance(target, (
-                core.AnnotationCreateEvent, core.AnnotationUpdateEvent)):
+                events.AnnotationCreateEvent, events.AnnotationUpdateEvent)):
 
-                link_params = (str(target.annotation.uuid), 
-                    target.annotation.version, 
+                link_params = (str(target.annotation.uuid),
+                    target.annotation.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM annotation_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.annotation.uuid), 
-                        target.annotation.version, 
-                        core.StatusT.CREATE_PENDING.name))
+                cur.execute("""DELETE FROM annotation_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.annotation.uuid),
+                        target.annotation.version,
+                        events.StatusT.CREATE_PENDING.name))
 
-                cur.execute("""INSERT INTO annotation_status 
-                    (uuid, version, status) 
-                    VALUES (?, ?, ?)""", 
-                    (str(target.annotation.uuid), 
-                        target.annotation.version, 
-                        core.StatusT.CREATE_REJECTED.name))
-            elif isinstance(target, core.AnnotationDeleteEvent):
-                link_params = (str(target.annotation_identifier.uuid), 
-                    target.annotation_identifier.version, 
+                cur.execute("""INSERT INTO annotation_status
+                    (uuid, version, status)
+                    VALUES (?, ?, ?)""",
+                    (str(target.annotation.uuid),
+                        target.annotation.version,
+                        events.StatusT.CREATE_REJECTED.name))
+            elif isinstance(target, events.AnnotationDeleteEvent):
+                link_params = (str(target.annotation_identifier.uuid),
+                    target.annotation_identifier.version,
                     str(event.uuid))
 
-                cur.execute("""DELETE FROM annotation_status 
-                    WHERE uuid = ? 
-                        AND version = ? 
-                        AND status = ?""", 
-                    (str(target.annotation_identifier.uuid), 
-                        target.annotation_identifier.version, 
-                        core.StatusT.DELETE_PENDING.name))
+                cur.execute("""DELETE FROM annotation_status
+                    WHERE uuid = ?
+                        AND version = ?
+                        AND status = ?""",
+                    (str(target.annotation_identifier.uuid),
+                        target.annotation_identifier.version,
+                        events.StatusT.DELETE_PENDING.name))
             else:
                 raise ValueError("unexpected annotation event type in reject")
 
-            cur.execute("""INSERT INTO annotation_event_link 
-                (annotation_uuid, annotation_version, event_uuid) 
+            cur.execute("""INSERT INTO annotation_event_link
+                (annotation_uuid, annotation_version, event_uuid)
                 VALUES (?, ?, ?)""", link_params)
         else:
             raise ValueError("unexpected event type in reject")
 
-    def _consume_owner_add(self, event: core.OwnerAddEvent):
+    def _consume_owner_add(self, event: events.OwnerAddEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO owners (public_key) VALUES (?)""",
             (event.public_key.hex(),))
 
-    def _consume_owner_remove(self, event: core.OwnerRemoveEvent):
+    def _consume_owner_remove(self, event: events.OwnerRemoveEvent):
         cur = self.con.cursor()
         cur.execute("""DELETE FROM owners WHERE public_key = ?""",
             (event.public_key.hex(),))
 
-    def _validate_object_create(self, event: core.ObjectCreateEvent):
+    def _validate_object_create(self, event: events.ObjectCreateEvent):
         cur = self.con.cursor()
         if core.is_schema(event.object.name):
             cur.execute("""SELECT COUNT(*) FROM schemas WHERE name = ?""",
@@ -508,8 +510,8 @@ class State(core.State):
             if count != 0:
                 raise core.ValidationError("schema name already in use")
 
-        cur.execute("""SELECT COUNT(*) 
-                FROM objects 
+        cur.execute("""SELECT COUNT(*)
+                FROM objects
                 WHERE uuid = ?""",
             (str(event.object.uuid),))
 
@@ -521,11 +523,11 @@ class State(core.State):
             raise core.ValidationError(
                 "object version must be zero in create event")
 
-    def _validate_object_update(self, event: core.ObjectCreateEvent):
+    def _validate_object_update(self, event: events.ObjectCreateEvent):
         cur = self.con.cursor()
-        cur.execute("""SELECT object 
-                FROM objects 
-                WHERE uuid = ?""", 
+        cur.execute("""SELECT object
+                FROM objects
+                WHERE uuid = ?""",
             (str(event.object.uuid),))
 
         versions_json = cur.fetchall()
@@ -533,8 +535,8 @@ class State(core.State):
             raise core.ValidationError("no objects with UUID found")
 
         versions_data = [json.loads(ea) for ea, in versions_json]
-        
-        versions = [core.Object.deserialize(ea) for ea in versions_data]
+
+        versions = [events.Object.deserialize(ea) for ea in versions_data]
 
         if core.is_schema(versions[-1].name):
             if versions[-1].name != event.object.name:
@@ -547,20 +549,20 @@ class State(core.State):
             raise core.ValidationError(
                 f"object version should be {len(versions)}")
 
-    def _validate_object_delete(self, event: core.ObjectDeleteEvent):
+    def _validate_object_delete(self, event: events.ObjectDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT COUNT(*) FROM schemas WHERE uuid = ?""",
             (str(event.object_identifier.uuid),))
-        
+
         count, = cur.fetchone()
         if count != 0:
             raise core.ValidationError("schemas can not be deleted")
 
         cur.execute("""SELECT COUNT(*)
-                FROM objects 
-                WHERE uuid = ? 
-                    AND version = ?""", 
-            (str(event.object_identifier.uuid), 
+                FROM objects
+                WHERE uuid = ?
+                    AND version = ?""",
+            (str(event.object_identifier.uuid),
                 event.object_identifier.version))
 
         count, = cur.fetchone()
@@ -568,26 +570,26 @@ class State(core.State):
             raise core.ValidationError("object identifier not found")
 
         cur.execute("""SELECT status
-                FROM object_status 
-                WHERE uuid = ? 
+                FROM object_status
+                WHERE uuid = ?
                     AND version = ?""",
-            (str(event.object_identifier.uuid), 
+            (str(event.object_identifier.uuid),
                 event.object_identifier.version))
 
-        status = set([getattr(core.StatusT, ea) for ea, in cur.fetchall()])
-        if core.StatusT.CREATE_REJECTED in status:
+        status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
+        if events.StatusT.CREATE_REJECTED in status:
             raise core.ValidationError("cannot delete a rejected object")
 
-        if core.StatusT.DELETE_PENDING in status:
+        if events.StatusT.DELETE_PENDING in status:
             raise core.ValidationError("object version pending deletion")
 
-        if core.StatusT.DELETE_ACCEPTED in status:
+        if events.StatusT.DELETE_ACCEPTED in status:
             raise core.ValidationError("object version already deleted")
 
-    def _validate_annotation_create(self, event: core.AnnotationCreateEvent):
+    def _validate_annotation_create(self, event: events.AnnotationCreateEvent):
         cur = self.con.cursor()
-        cur.execute("""SELECT COUNT(*) 
-                FROM annotations 
+        cur.execute("""SELECT COUNT(*)
+                FROM annotations
                 WHERE uuid = ?""",
             (str(event.annotation.uuid),))
 
@@ -601,26 +603,26 @@ class State(core.State):
 
         for identifier in event.object_identifiers:
             cur.execute("""SELECT COUNT(*)
-                    FROM objects 
+                    FROM objects
                     WHERE uuid = ?
-                        AND version = ?""", 
+                        AND version = ?""",
                 (str(identifier.uuid), identifier.version))
             count, = cur.fetchone()
             if count == 0:
                 raise core.ValidationError("object identifier not found")
 
             cur.execute("""SELECT status
-                FROM object_status 
-                WHERE uuid = ? 
+                FROM object_status
+                WHERE uuid = ?
                     AND version = ?""",
                 (str(identifier.uuid), identifier.version))
 
-            status = set([getattr(core.StatusT, ea) for ea, in cur.fetchall()])
-            if core.StatusT.CREATE_REJECTED in status:
+            status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
+            if events.StatusT.CREATE_REJECTED in status:
                 raise core.ValidationError(
                     "rejected objects cannot be annotated")
 
-            if core.StatusT.DELETE_ACCEPTED in status:
+            if events.StatusT.DELETE_ACCEPTED in status:
                 raise core.ValidationError(
                     "deleted objects cannot be annotated")
 
@@ -630,11 +632,11 @@ class State(core.State):
             if count != 0:
                 raise core.ValidationError("schemas can not be deleted")
 
-    def _validate_annotation_update(self, event: core.AnnotationUpdateEvent):
+    def _validate_annotation_update(self, event: events.AnnotationUpdateEvent):
         cur = self.con.cursor()
-        cur.execute("""SELECT uuid, version 
+        cur.execute("""SELECT uuid, version
                 FROM annotations
-                WHERE uuid = ?""", 
+                WHERE uuid = ?""",
             (str(event.annotation.uuid),))
 
         version_ids = cur.fetchall()
@@ -645,13 +647,13 @@ class State(core.State):
             raise core.ValidationError(
                 f"annotation version should be {len(version_ids)}.")
 
-    def _validate_annotation_delete(self, event: core.AnnotationDeleteEvent):
+    def _validate_annotation_delete(self, event: events.AnnotationDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT COUNT(*)
-                FROM annotations 
+                FROM annotations
                 WHERE uuid = ?
-                    AND version = ?""", 
-            (str(event.annotation_identifier.uuid), 
+                    AND version = ?""",
+            (str(event.annotation_identifier.uuid),
                 event.annotation_identifier.version))
 
         count, = cur.fetchone()
@@ -659,29 +661,29 @@ class State(core.State):
             raise core.ValidationError("annotation identifier not found")
 
         cur.execute("""SELECT status
-                FROM annotation_status 
-                WHERE uuid = ? 
+                FROM annotation_status
+                WHERE uuid = ?
                     AND version = ?""",
-            (str(event.annotation_identifier.uuid), 
+            (str(event.annotation_identifier.uuid),
                 event.annotation_identifier.version))
 
-        status = set([getattr(core.StatusT, ea) for ea, in cur.fetchall()])
-        if core.StatusT.CREATE_REJECTED in status:
+        status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
+        if events.StatusT.CREATE_REJECTED in status:
             raise core.ValidationError("cannot delete a rejected annotation")
 
-        if core.StatusT.DELETE_PENDING in status:
+        if events.StatusT.DELETE_PENDING in status:
             raise core.ValidationError("annotation already pending deletion")
 
-        if core.StatusT.DELETE_ACCEPTED in status:
+        if events.StatusT.DELETE_ACCEPTED in status:
             raise core.ValidationError("annotation already deleted")
 
-    def _validate_review(self, 
-        event: core.ReviewAcceptEvent|core.ReviewRejectEvent):
+    def _validate_review(self,
+        event: events.ReviewAcceptEvent|events.ReviewRejectEvent):
 
         cur = self.con.cursor()
         cur.execute("""SELECT COUNT(*)
-                FROM event_review_link 
-                WHERE event_uuid = ?""", 
+                FROM event_review_link
+                WHERE event_uuid = ?""",
             (str(event.event_uuid),))
 
         count, = cur.fetchone()
@@ -690,31 +692,31 @@ class State(core.State):
 
         if not self.record_keeper.exists(event.event_uuid):
             raise core.ValidationError("no events with event UUID found")
-    
+
         target_event = self.record_keeper.read(event.event_uuid)
-        if not isinstance(target_event, 
-            (core.AnnotationEvent, core.ObjectEvent)):
+        if not isinstance(target_event,
+            (events.AnnotationEvent, events.ObjectEvent)):
             raise core.ValidationError(
                 "review on non object or annotation event")
 
         if event.signer is None:
             raise core.ValidationError("signer is empty")
 
-        cur.execute("""SELECT COUNT(*) 
-            FROM owners 
+        cur.execute("""SELECT COUNT(*)
+            FROM owners
             WHERE public_key = ?""",
             (event.signer.hex(),))
         count, = cur.fetchone()
         if count == 0:
             raise core.ValidationError("review event from non-owner")
 
-    def _validate_review_accept(self, event: core.ReviewAcceptEvent):
+    def _validate_review_accept(self, event: events.ReviewAcceptEvent):
         self._validate_review(event)
 
-    def _validate_review_reject(self, event: core.ReviewRejectEvent):
+    def _validate_review_reject(self, event: events.ReviewRejectEvent):
         self._validate_review(event)
-        
-    def _validate_owner_add(self, event: core.OwnerAddEvent):
+
+    def _validate_owner_add(self, event: events.OwnerAddEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT public_key FROM owners""")
 
@@ -730,7 +732,7 @@ class State(core.State):
                 raise core.ValidationError(
                     "first owner add event must be self signed")
 
-    def _validate_owner_remove(self, event: core.OwnerRemoveEvent):
+    def _validate_owner_remove(self, event: events.OwnerRemoveEvent):
         cur = self.con.cursor()
         cur.execute("""SELECT id, public_key FROM owners""")
 
@@ -745,7 +747,7 @@ class State(core.State):
 
         if event.public_key not in ranks:
             raise core.ValidationError("target key is not an owner")
-        
+
         if len(ranks) == 1:
             raise core.ValidationError(
                 "removing owner would leave the dataset ownerless")
