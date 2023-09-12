@@ -65,6 +65,11 @@ POST    /datasets/{did}/readme - Create
 PATCH   /datasets/{did}/readme - Update
 '''
 
+import fs
+import sqlite
+import core
+import sigs
+
 import click
 import flask
 import string
@@ -75,47 +80,10 @@ import pathlib
 import secrets
 
 root_directory = pathlib.Path("root")
+datasets_directory = root_directory.joinpath("datasets")
 database_path = root_directory.joinpath("gonk.db")
 
 app = flask.Flask(__name__)
-
-@app.before_request
-def before_request():
-    flask.g.con = sqlite3.connect(database_path)
-
-@app.teardown_request
-def teardown_request(error):
-    if hasattr(flask.g, "con"):
-        flask.g.con.close()
-
-def authorize(endpoint):
-    def wrapper(*args, **kwargs):
-        api_key = flask.request.headers.get('x-api-key')
-        if not api_key:
-            return flask.jsonify({"error": "Missing x-api-key header."}), 400
-
-        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-        cur = flask.g.con.cursor()
-        cur.execute("""SELECT id, username 
-                FROM users
-                WHERE api_key_hash = ?""", 
-            (api_key_hash,))
-
-        res = cur.fetchall()
-        if len(res) != 1:
-            return flask.jsonify({"error": "Invalid API key."}), 401
-
-        user_id, username = res[0]
-        flask.g.user_id = user_id
-        flask.g.username = username
-
-        return endpoint(*args, **kwargs)
-    return wrapper
-
-@app.get("/")
-@authorize
-def index():
-    return flask.jsonify({"message": "hello"})
 
 @click.group()
 def cli():
@@ -139,6 +107,9 @@ def init(ctx, username):
     if not root_directory.exists():
         root_directory.mkdir()
 
+    if not datasets_directory.exists():
+        datasets_directory.mkdir()
+
     con = sqlite3.connect(database_path)
     cur = con.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS users (
@@ -161,6 +132,11 @@ def user():
 def user_add(username):
     if not database_path.exists():
         print("Please initialize the application with the `init` command.")
+        exit(1)
+
+    allowed = set(string.ascii_letters + string.digits + '._-')
+    if len(set(name).difference(allowed)) > 0:
+        print("Invalid username. [A-Za-z0-9._-]")
         exit(1)
 
     api_key = generate_api_key()
@@ -214,6 +190,86 @@ def user_list():
     for id_, username in users:
         print(f"{id_}\t{username}")
 
+@app.before_request
+def before_request():
+    flask.g.con = sqlite3.connect(database_path)
+
+@app.teardown_request
+def teardown_request(error):
+    if hasattr(flask.g, "con"):
+        flask.g.con.close()
+
+def authorize(endpoint):
+    def authwrap(*args, **kwargs):
+        api_key = flask.request.headers.get('x-api-key')
+        if not api_key:
+            return flask.jsonify({"error": "Missing x-api-key header."}), 400
+
+        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        cur = flask.g.con.cursor()
+        cur.execute("""SELECT id, username 
+                FROM users
+                WHERE api_key_hash = ?""", 
+            (api_key_hash,))
+
+        res = cur.fetchall()
+        if len(res) != 1:
+            return flask.jsonify({"error": "Invalid API key."}), 401
+
+        user_id, username = res[0]
+        flask.g.user_id = user_id
+        flask.g.username = username
+
+        return endpoint(*args, **kwargs)
+    authwrap.__name__ = endpoint.__name__
+    return authwrap
+
+@app.get("/")
+@authorize
+def index():
+    return flask.jsonify({"message": "hello"})
+
+@app.get("/datasets")
+@authorize
+def datasets_list():
+    return flask.jsonify({"message": "hello"})
+
+class Dataset:
+    def __init__(self, dataset_directory):
+        self.dataset_directory = dataset_directory
+        self.record_keeper = fs.RecordKeeper(dataset_directory)
+        self.machine = core.Machine()
+        self.depot = fs.Depot(dataset_directory)
+        self.state = sqlite.State(dataset_directory, self.record_keeper)
+
+        self.machine.register(core.FieldValidator())
+        self.machine.register(sigs.SignatureValidator())
+        self.machine.register(core.SchemaValidator(self.depot))
+        self.machine.register(self.record_keeper)
+        self.machine.register(self.state)
+
+@app.put("/datasets/<name>")
+@authorize
+def datasets_create(name):
+    allowed = set(string.ascii_letters + string.digits + '-')
+    if len(set(name).difference(allowed)) > 0:
+        return flask.jsonify(
+            {"error": "Only letters, numbers, and dashes (-) allowed."}), 400
+
+    if name.startswith("-"):
+        return flask.jsonify({"error": "Names may not start with a dash."}), 400
+
+    dataset_directory = datasets_directory.joinpath(name)
+
+    if dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset already exists."}), 400
+
+    dataset_directory.mkdir()
+
+    _ = Dataset(dataset_directory)
+
+    return flask.jsonify({"message": name})
+
 @cli.command("run")
 def run():
     if not database_path.exists():
@@ -224,46 +280,3 @@ def run():
 
 if __name__ == "__main__":
     cli()
-
-
-# @app.post("/datasets/{name}")
-# def read_item(name: str):
-#     allowed = set(string.ascii_letters + string.digits + '-')
-#     if len(set(name).difference(allowed)) > 0:
-#         raise fastapi.HTTPException(
-#             status_code=400, 
-#             detail="Only letters, numbers, and dashes (-) allowed.")
-
-#     if name.startswith("-"):
-#         raise fastapi.HTTPException(
-#             status_code=400, 
-#             detail="Names may not start with a dash.")
-
-#     dataset_directory = root_directory.joinpath(name)
-
-#     if dataset_directory.exists():
-#         raise fastapi.HTTPException(
-#             status_code=400, 
-#             detail="Dataset already exists.")
-
-#     if name in datasets:
-#         raise fastapi.HTTPException(
-#             status_code=400, 
-#             detail="Dataset already loaded.")        
-
-#     record_keeper = fs.RecordKeeper(dataset_directory)
-
-#     datasets[name] = {
-#         "machine": core.Machine(),
-#         "depot": fs.Depot(dataset_directory),
-#         "record_keeper": record_keeper,
-#         "state": sqlite.State(dataset_directory, record_keeper),
-#     }
-
-#     machine.register(core.FieldValidator())
-#     machine.register(sigs.SignatureValidator())
-#     machine.register(core.SchemaValidator(datasets[name]["depot"]))
-#     machine.register(datasets[name]["record_keeper"])
-#     machine.register(datasets[name]["state"])
-
-#     return {"name": name}
