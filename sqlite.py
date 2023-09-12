@@ -18,7 +18,7 @@ class RecordKeeper(core.RecordKeeper):
         cur = self.con.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid text NOT NULL,
+            uuid TEXT NOT NULL,
             event JSON NOT NULL
         )""")
 
@@ -31,6 +31,7 @@ class RecordKeeper(core.RecordKeeper):
         cur.execute(
             "INSERT INTO events (uuid, event) VALUES (?, ?)",
             (event_data["uuid"], event_json))
+        self.con.commit()
 
     def read(self, uuid_: uuid.UUID) -> events.Event:
         cur = self.con.cursor()
@@ -42,7 +43,7 @@ class RecordKeeper(core.RecordKeeper):
 
         event_json, = res
         event_data = json.loads(event_json)
-        event = getattr(core, event_data["type"]).deserialize(event_data)
+        event = getattr(events, event_data["type"]).deserialize(event_data)
 
         return event
 
@@ -194,6 +195,8 @@ class State(core.State):
                 event.object.version,
                 events.StatusT.CREATE_PENDING.name))
 
+        self.con.commit()
+
     def _consume_object_update(self, event: events.ObjectUpdateEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO objects
@@ -223,6 +226,8 @@ class State(core.State):
                 event.object.version,
                 events.StatusT.CREATE_PENDING.name))
 
+        self.con.commit()
+
     def _consume_object_delete(self, event: events.ObjectDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO object_event_link
@@ -238,6 +243,8 @@ class State(core.State):
             (str(event.object_identifier.uuid),
                 event.object_identifier.version,
                 events.StatusT.DELETE_PENDING.name))
+
+        self.con.commit()
 
     def _consume_annotation_create(self, event: events.AnnotationCreateEvent):
         cur = self.con.cursor()
@@ -270,6 +277,8 @@ class State(core.State):
                 event.annotation.version,
                 events.StatusT.CREATE_PENDING.name))
 
+        self.con.commit()
+
     def _consume_annotation_update(self, event: events.AnnotationUpdateEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO annotations
@@ -293,6 +302,8 @@ class State(core.State):
                 event.annotation.version,
                 events.StatusT.CREATE_PENDING.name))
 
+        self.con.commit()
+
     def _consume_annotation_delete(self, event: events.AnnotationDeleteEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO annotation_event_link
@@ -308,6 +319,8 @@ class State(core.State):
             (str(event.annotation_identifier.uuid),
                 event.annotation_identifier.version,
                 events.StatusT.DELETE_PENDING.name))
+
+        self.con.commit()
 
     def _consume_review_accept(self, event: events.ReviewAcceptEvent):
         cur = self.con.cursor()
@@ -399,6 +412,8 @@ class State(core.State):
                 VALUES (?, ?, ?)""", link_params)
         else:
             raise ValueError("unexpected event type in accept")
+        
+        self.con.commit()
 
     def _consume_review_reject(self, event: events.ReviewRejectEvent):
         cur = self.con.cursor()
@@ -491,15 +506,21 @@ class State(core.State):
         else:
             raise ValueError("unexpected event type in reject")
 
+        self.con.commit()
+
     def _consume_owner_add(self, event: events.OwnerAddEvent):
         cur = self.con.cursor()
         cur.execute("""INSERT INTO owners (public_key) VALUES (?)""",
             (event.public_key.hex(),))
 
+        self.con.commit()
+
     def _consume_owner_remove(self, event: events.OwnerRemoveEvent):
         cur = self.con.cursor()
         cur.execute("""DELETE FROM owners WHERE public_key = ?""",
             (event.public_key.hex(),))
+
+        self.con.commit()
 
     def _validate_object_create(self, event: events.ObjectCreateEvent):
         cur = self.con.cursor()

@@ -7,6 +7,24 @@ from nacl import exceptions
 import core
 import events
 
+class KeyPair:
+    def __init__(self, signing_key: bytes|None=None):
+        if signing_key is not None:
+            self.signing_key = nacl.signing.SigningKey(signing_key)
+        else:
+            self.signing_key = nacl.signing.SigningKey.generate()
+        self.verify_key = self.signing_key.verify_key
+
+    def serialize(self):
+        return {
+            "signing_key": bytes(self.signing_key).hex(),
+            "verify_key": bytes(self.verify_key).hex(),
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict):
+        return KeyPair(bytes.fromhex(data["signing_key"]))
+
 class Signer:
     def __init__(self, signing_key: nacl.signing.SigningKey):
         self.signing_key: nacl.signing.SigningKey = signing_key

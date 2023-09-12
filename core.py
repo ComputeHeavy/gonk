@@ -2,6 +2,7 @@ import abc
 import json
 import uuid
 import typing
+import threading
 import jsonschema
 
 import events
@@ -20,13 +21,15 @@ class Machine:
     def __init__(self):
         self.validators: list[Validator] = []
         self.consumers: list[Consumer] = []
+        self.lock = threading.Lock()
 
     def process_event(self, event):
-        for validator in self.validators:
-            validator.validate(event)
+        with self.lock:
+            for validator in self.validators:
+                validator.validate(event)
 
-        for consumer in self.consumers:
-            consumer.consume(event)
+            for consumer in self.consumers:
+                consumer.consume(event)
 
     def register(self, worker):
         registered = False

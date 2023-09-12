@@ -76,7 +76,7 @@ class RecordKeeper(core.RecordKeeper):
             f"{key[0]}/{key[1]}/{key[2]}/{key}")
         event_json = record_path.read_text()
         event_data = json.loads(event_json)
-        event = getattr(core, event_data["type"]).deserialize(event_data)
+        event = getattr(events, event_data["type"]).deserialize(event_data)
 
         return event
 
