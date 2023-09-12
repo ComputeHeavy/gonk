@@ -28,7 +28,6 @@ class TestSigs(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -52,7 +51,6 @@ class TestSigs(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -79,7 +77,6 @@ class TestSigs(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()

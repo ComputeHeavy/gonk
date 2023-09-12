@@ -13,31 +13,38 @@ class RecordKeeper(core.RecordKeeper):
             raise ValueError("parent directory does not exist")
 
         self.database_path = parent_directory.joinpath("rk.db")
-        self.con = sqlite3.connect(self.database_path)
 
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             uuid TEXT NOT NULL,
             event JSON NOT NULL
         )""")
+        con.commit()
+        con.close()
 
     def add(self, event: events.EventT):
         event_data = event.serialize()
         event_data["type"] = event.__class__.__name__
 
         event_json = json.dumps(event_data)
-        cur = self.con.cursor()
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute(
             "INSERT INTO events (uuid, event) VALUES (?, ?)",
             (event_data["uuid"], event_json))
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def read(self, uuid_: uuid.UUID) -> events.Event:
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("SELECT event FROM events WHERE uuid = ?", (str(uuid_),))
 
         res = cur.fetchone()
+        con.close()
         if res is None:
             raise ValueError("event does not exist")
 
@@ -48,32 +55,37 @@ class RecordKeeper(core.RecordKeeper):
         return event
 
     def exists(self, uuid_: uuid.UUID) -> bool:
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("SELECT id FROM events WHERE uuid = ?", (str(uuid_),))
 
         res = cur.fetchone()
+        con.close()
         if res is None:
             return False
 
         return True
 
     def next(self, uuid_: uuid.UUID | None=None) -> uuid.UUID | None:
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         if uuid_ is None:
             cur.execute("SELECT uuid FROM events ORDER BY id LIMIT 1")
             res = cur.fetchone()
 
             if res is None:
+                con.close()
                 return None
 
             next_, = res
-
+            con.close()
             return uuid.UUID(next_)
 
         cur.execute("SELECT id FROM events WHERE uuid = ?", (str(uuid_),))
         res = cur.fetchone()
 
         if res is None:
+            con.close()
             return None
 
         id_, = res
@@ -86,9 +98,11 @@ class RecordKeeper(core.RecordKeeper):
         res = cur.fetchone()
 
         if res is None:
+            con.close()
             return None
 
         next_, = res
+        con.close()
         return uuid.UUID(next_)
 
 class State(core.State):
@@ -103,9 +117,9 @@ class State(core.State):
         self.record_keeper = record_keeper
 
         self.database_path = parent_directory.joinpath("state.db")
-        self.con = sqlite3.connect(self.database_path)
 
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.executescript("""
             CREATE TABLE IF NOT EXISTS event_review_link (
                 event_uuid TEXT NOT NULL,
@@ -165,9 +179,12 @@ class State(core.State):
                 public_key TEXT NOT NULL
             );
         """)
+        con.commit()
+        con.close()
 
     def _consume_object_create(self, event: events.ObjectCreateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO objects
                 (uuid, version, object)
                 VALUES (?, ?, ?)""",
@@ -195,10 +212,12 @@ class State(core.State):
                 event.object.version,
                 events.StatusT.CREATE_PENDING.name))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_object_update(self, event: events.ObjectUpdateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO objects
                 (uuid, version, object)
                 VALUES (?, ?, ?)""",
@@ -226,10 +245,12 @@ class State(core.State):
                 event.object.version,
                 events.StatusT.CREATE_PENDING.name))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_object_delete(self, event: events.ObjectDeleteEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO object_event_link
                 (object_uuid, object_version, event_uuid)
                 VALUES (?, ?, ?)""",
@@ -244,10 +265,12 @@ class State(core.State):
                 event.object_identifier.version,
                 events.StatusT.DELETE_PENDING.name))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_annotation_create(self, event: events.AnnotationCreateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO annotations
                 (uuid, version, annotation)
                 VALUES (?, ?, ?)""",
@@ -277,10 +300,12 @@ class State(core.State):
                 event.annotation.version,
                 events.StatusT.CREATE_PENDING.name))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_annotation_update(self, event: events.AnnotationUpdateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO annotations
                 (uuid, version, annotation)
                 VALUES (?, ?, ?)""",
@@ -302,10 +327,12 @@ class State(core.State):
                 event.annotation.version,
                 events.StatusT.CREATE_PENDING.name))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_annotation_delete(self, event: events.AnnotationDeleteEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO annotation_event_link
             (annotation_uuid, annotation_version, event_uuid)
             VALUES (?, ?, ?)""",
@@ -320,10 +347,12 @@ class State(core.State):
                 event.annotation_identifier.version,
                 events.StatusT.DELETE_PENDING.name))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_review_accept(self, event: events.ReviewAcceptEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO event_review_link
                 (event_uuid, review_uuid)
                 VALUES (?, ?)""",
@@ -413,10 +442,12 @@ class State(core.State):
         else:
             raise ValueError("unexpected event type in accept")
         
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_review_reject(self, event: events.ReviewRejectEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO event_review_link
             (event_uuid, review_uuid)
             VALUES (?, ?)""",
@@ -506,29 +537,36 @@ class State(core.State):
         else:
             raise ValueError("unexpected event type in reject")
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_owner_add(self, event: events.OwnerAddEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""INSERT INTO owners (public_key) VALUES (?)""",
             (event.public_key.hex(),))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _consume_owner_remove(self, event: events.OwnerRemoveEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""DELETE FROM owners WHERE public_key = ?""",
             (event.public_key.hex(),))
 
-        self.con.commit()
+        con.commit()
+        con.close()
 
     def _validate_object_create(self, event: events.ObjectCreateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         if core.is_schema(event.object.name):
             cur.execute("""SELECT COUNT(*) FROM schemas WHERE name = ?""",
                 (event.object.name,))
             count, = cur.fetchone()
             if count != 0:
+                con.close()
                 raise core.ValidationError("schema name already in use")
 
         cur.execute("""SELECT COUNT(*)
@@ -537,6 +575,7 @@ class State(core.State):
             (str(event.object.uuid),))
 
         count, = cur.fetchone()
+        con.close()
         if count != 0:
             raise core.ValidationError("object with UUID already exists")
 
@@ -545,13 +584,15 @@ class State(core.State):
                 "object version must be zero in create event")
 
     def _validate_object_update(self, event: events.ObjectCreateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT object
                 FROM objects
                 WHERE uuid = ?""",
             (str(event.object.uuid),))
 
         versions_json = cur.fetchall()
+        con.close()
         if len(versions_json) == 0:
             raise core.ValidationError("no objects with UUID found")
 
@@ -571,12 +612,14 @@ class State(core.State):
                 f"object version should be {len(versions)}")
 
     def _validate_object_delete(self, event: events.ObjectDeleteEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*) FROM schemas WHERE uuid = ?""",
             (str(event.object_identifier.uuid),))
 
         count, = cur.fetchone()
         if count != 0:
+            con.close()
             raise core.ValidationError("schemas can not be deleted")
 
         cur.execute("""SELECT COUNT(*)
@@ -588,6 +631,7 @@ class State(core.State):
 
         count, = cur.fetchone()
         if count == 0:
+            con.close()
             raise core.ValidationError("object identifier not found")
 
         cur.execute("""SELECT status
@@ -598,6 +642,7 @@ class State(core.State):
                 event.object_identifier.version))
 
         status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
+        con.close()
         if events.StatusT.CREATE_REJECTED in status:
             raise core.ValidationError("cannot delete a rejected object")
 
@@ -608,7 +653,8 @@ class State(core.State):
             raise core.ValidationError("object version already deleted")
 
     def _validate_annotation_create(self, event: events.AnnotationCreateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*)
                 FROM annotations
                 WHERE uuid = ?""",
@@ -616,9 +662,11 @@ class State(core.State):
 
         count, = cur.fetchone()
         if count != 0:
+            con.close()
             raise core.ValidationError("annotation with UUID already exists")
 
         if event.annotation.version != 0:
+            con.close()
             raise core.ValidationError(
                 "annotation version must be zero in create event")
 
@@ -630,6 +678,7 @@ class State(core.State):
                 (str(identifier.uuid), identifier.version))
             count, = cur.fetchone()
             if count == 0:
+                con.close()
                 raise core.ValidationError("object identifier not found")
 
             cur.execute("""SELECT status
@@ -640,27 +689,32 @@ class State(core.State):
 
             status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
             if events.StatusT.CREATE_REJECTED in status:
+                con.close()
                 raise core.ValidationError(
                     "rejected objects cannot be annotated")
 
             if events.StatusT.DELETE_ACCEPTED in status:
+                con.close()
                 raise core.ValidationError(
                     "deleted objects cannot be annotated")
 
             cur.execute("""SELECT COUNT(*) FROM schemas WHERE uuid = ?""",
                 (str(identifier.uuid),))
             count, = cur.fetchone()
+            con.close()
             if count != 0:
                 raise core.ValidationError("schemas can not be deleted")
 
     def _validate_annotation_update(self, event: events.AnnotationUpdateEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT uuid, version
                 FROM annotations
                 WHERE uuid = ?""",
             (str(event.annotation.uuid),))
 
         version_ids = cur.fetchall()
+        con.close()
         if len(version_ids) == 0:
             raise core.ValidationError("no annotations with UUID found")
 
@@ -669,7 +723,8 @@ class State(core.State):
                 f"annotation version should be {len(version_ids)}.")
 
     def _validate_annotation_delete(self, event: events.AnnotationDeleteEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*)
                 FROM annotations
                 WHERE uuid = ?
@@ -679,6 +734,7 @@ class State(core.State):
 
         count, = cur.fetchone()
         if count == 0:
+            con.close()
             raise core.ValidationError("annotation identifier not found")
 
         cur.execute("""SELECT status
@@ -689,6 +745,7 @@ class State(core.State):
                 event.annotation_identifier.version))
 
         status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
+        con.close()
         if events.StatusT.CREATE_REJECTED in status:
             raise core.ValidationError("cannot delete a rejected annotation")
 
@@ -701,7 +758,8 @@ class State(core.State):
     def _validate_review(self,
         event: events.ReviewAcceptEvent|events.ReviewRejectEvent):
 
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*)
                 FROM event_review_link
                 WHERE event_uuid = ?""",
@@ -709,18 +767,22 @@ class State(core.State):
 
         count, = cur.fetchone()
         if count != 0:
+            con.close()            
             raise core.ValidationError("event already reviewed")
 
         if not self.record_keeper.exists(event.event_uuid):
+            con.close()            
             raise core.ValidationError("no events with event UUID found")
 
         target_event = self.record_keeper.read(event.event_uuid)
         if not isinstance(target_event,
             (events.AnnotationEvent, events.ObjectEvent)):
+            con.close()        
             raise core.ValidationError(
                 "review on non object or annotation event")
 
         if event.signer is None:
+            con.close()            
             raise core.ValidationError("signer is empty")
 
         cur.execute("""SELECT COUNT(*)
@@ -728,6 +790,7 @@ class State(core.State):
             WHERE public_key = ?""",
             (event.signer.hex(),))
         count, = cur.fetchone()
+        con.close()
         if count == 0:
             raise core.ValidationError("review event from non-owner")
 
@@ -738,10 +801,12 @@ class State(core.State):
         self._validate_review(event)
 
     def _validate_owner_add(self, event: events.OwnerAddEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT public_key FROM owners""")
 
         owners = {bytes.fromhex(public_key) for public_key, in cur.fetchall()}
+        con.close()
         if len(owners) > 0:
             if event.public_key in owners:
                 raise core.ValidationError("owner already present")
@@ -754,10 +819,12 @@ class State(core.State):
                     "first owner add event must be self signed")
 
     def _validate_owner_remove(self, event: events.OwnerRemoveEvent):
-        cur = self.con.cursor()
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT id, public_key FROM owners""")
 
         owners = cur.fetchall()
+        con.close()
         if len(owners) == 0:
             raise core.ValidationError("dataset has no owners to remove")
 

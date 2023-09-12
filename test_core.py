@@ -76,7 +76,6 @@ class TestSchemaValidation(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)
@@ -106,7 +105,6 @@ class TestSchemaValidation(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)

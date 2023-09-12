@@ -2,8 +2,8 @@ import abc
 import json
 import uuid
 import typing
-import threading
 import jsonschema
+import multiprocessing
 
 import events
 
@@ -21,7 +21,7 @@ class Machine:
     def __init__(self):
         self.validators: list[Validator] = []
         self.consumers: list[Consumer] = []
-        self.lock = threading.Lock()
+        self.lock = multiprocessing.Lock()
 
     def process_event(self, event):
         with self.lock:

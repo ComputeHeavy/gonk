@@ -5,6 +5,7 @@ import sigs
 import json
 import sqlite
 import events
+import sqlite3
 import hashlib
 import unittest
 import test_utils
@@ -24,14 +25,12 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
         record_keeper = sqlite.RecordKeeper(
             self.test_directory)
-        self.closers.append(record_keeper.con)
 
         db_path = self.test_directory.joinpath("rk.db")
         self.assertTrue(db_path.exists())
 
     def test_add(self):
         record_keeper = sqlite.RecordKeeper(self.test_directory)
-        self.closers.append(record_keeper.con)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -39,9 +38,11 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
         record_keeper.add(oae_in)
 
-        cur = record_keeper.con.cursor()
+        con = sqlite3.connect(record_keeper.database_path)
+        cur = con.cursor()
         cur.execute("""SELECT uuid, event FROM events""")
         res = cur.fetchone()
+        con.close()
         self.assertTrue(res is not None)
 
         uuid_, event_json = res
@@ -53,7 +54,6 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
 
     def test_read(self):
         record_keeper = sqlite.RecordKeeper(self.test_directory)
-        self.closers.append(record_keeper.con)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -67,7 +67,6 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
 
     def test_exists(self):
         record_keeper = sqlite.RecordKeeper(self.test_directory)
-        self.closers.append(record_keeper.con)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -82,7 +81,6 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
 
     def test_next(self):
         record_keeper = sqlite.RecordKeeper(self.test_directory)
-        self.closers.append(record_keeper.con)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
@@ -142,7 +140,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         self.assertEqual(len(machine.validators), 2)
@@ -159,7 +156,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -174,7 +170,9 @@ class TestSqliteState(test_utils.GonkTest):
         oce = signer.sign(events.ObjectCreateEvent(o1v0))
         machine.process_event(oce)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT object 
                 FROM objects 
                 WHERE uuid = ?
@@ -230,7 +228,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -249,7 +246,9 @@ class TestSqliteState(test_utils.GonkTest):
         oue = signer.sign(events.ObjectUpdateEvent(o1v1))
         machine.process_event(oue)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*) 
                 FROM objects 
                 WHERE uuid = ?""", 
@@ -287,7 +286,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -305,7 +303,9 @@ class TestSqliteState(test_utils.GonkTest):
         ode = signer.sign(events.ObjectDeleteEvent(o1v0.identifier()))
         machine.process_event(ode)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM object_status 
                 WHERE uuid = ? 
@@ -335,7 +335,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -359,7 +358,9 @@ class TestSqliteState(test_utils.GonkTest):
             events.AnnotationCreateEvent([o1v0.identifier()], a1v0))
         machine.process_event(ace)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT annotation 
                 FROM annotations 
                 WHERE uuid = ?
@@ -414,7 +415,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -442,7 +442,9 @@ class TestSqliteState(test_utils.GonkTest):
         aue = signer.sign(events.AnnotationUpdateEvent(a1v1))        
         machine.process_event(aue)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*)
                 FROM annotations
                 WHERE uuid = ?""",
@@ -480,7 +482,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -507,7 +508,9 @@ class TestSqliteState(test_utils.GonkTest):
         ade = signer.sign(events.AnnotationDeleteEvent(a1v0.identifier()))    
         machine.process_event(ade)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM annotation_status 
                 WHERE uuid = ? 
@@ -537,7 +540,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -552,7 +554,9 @@ class TestSqliteState(test_utils.GonkTest):
         if wae1.signer is None:
             raise ValueError("signer is none")
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*) 
             FROM owners 
             WHERE public_key = ?""",
@@ -584,7 +588,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -614,7 +617,9 @@ class TestSqliteState(test_utils.GonkTest):
         if wae1.signer is None:
             raise ValueError("signer is none")
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT COUNT(*) 
             FROM owners 
             WHERE public_key = ?""",
@@ -634,7 +639,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -653,7 +657,9 @@ class TestSqliteState(test_utils.GonkTest):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM object_status 
                 WHERE uuid = ? 
@@ -672,7 +678,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -695,7 +700,9 @@ class TestSqliteState(test_utils.GonkTest):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM object_status 
                 WHERE uuid = ? 
@@ -714,7 +721,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -736,7 +742,9 @@ class TestSqliteState(test_utils.GonkTest):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM object_status 
                 WHERE uuid = ? 
@@ -755,7 +763,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -783,7 +790,9 @@ class TestSqliteState(test_utils.GonkTest):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM annotation_status 
                 WHERE uuid = ? 
@@ -802,7 +811,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -834,7 +842,9 @@ class TestSqliteState(test_utils.GonkTest):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM annotation_status 
                 WHERE uuid = ? 
@@ -853,7 +863,6 @@ class TestSqliteState(test_utils.GonkTest):
         machine.register(record_keeper)
 
         state = sqlite.State(self.test_directory, record_keeper)
-        self.closers.append(state.con)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -884,7 +893,9 @@ class TestSqliteState(test_utils.GonkTest):
         rre = signer.sign(rre)
         machine.process_event(rre)
 
-        cur = state.con.cursor()
+        con = sqlite3.connect(state.database_path)
+        self.closers.append(con)
+        cur = con.cursor()
         cur.execute("""SELECT status
                 FROM annotation_status 
                 WHERE uuid = ? 

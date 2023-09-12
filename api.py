@@ -1,11 +1,4 @@
 '''
-PUT     /users - Add
-GET     /users - List
-GET     /users/{key} - Details
-DELETE  /users - Delete
-PUT     /users/{key}/admin - Make Admin
-DELETE  /users/{key}/admin - Remove Admin
-
 PUT     /datasets/{name} - Create
 GET     /datasets - List
 
@@ -72,7 +65,6 @@ POST    /datasets/{did}/readme - Create
 PATCH   /datasets/{did}/readme - Update
 '''
 
-import json
 import click
 import flask
 import string
@@ -123,7 +115,7 @@ def authorize(endpoint):
 @app.get("/")
 @authorize
 def index():
-    return json.dumps({"message": "hello"})
+    return flask.jsonify({"message": "hello"})
 
 @click.group()
 def cli():
@@ -227,9 +219,6 @@ def run():
     if not database_path.exists():
         print("Please initialize the application with the `init` command.")
         exit(1)
-
-    with app.app_context():
-        flask.g.con = sqlite3.connect(database_path)
 
     app.run()
 
