@@ -66,8 +66,9 @@ PATCH   /datasets/{did}/readme - Update
 '''
 
 import fs
-import sqlite
 import core
+import events
+import sqlite
 import integrity
 
 import click
@@ -80,7 +81,7 @@ import pathlib
 import secrets
 import multiprocessing
 
-lock = multiprocessing.Lock() # TODO: make this dataset specific
+lock = multiprocessing.Lock() # TODO: lock per dataset 
 
 root_directory = pathlib.Path("root")
 datasets_directory = root_directory.joinpath("datasets")
@@ -241,18 +242,16 @@ class Dataset:
     def __init__(self, dataset_directory):
         self.dataset_directory = dataset_directory
         self.record_keeper = fs.RecordKeeper(dataset_directory)
+        self.linker = integrity.HashChainLinker(self.record_keeper)
         self.machine = core.Machine()
         self.depot = fs.Depot(dataset_directory)
         self.state = sqlite.State(dataset_directory, self.record_keeper)
 
         self.machine.register(core.FieldValidator())
-        self.machine.register(integrity.SignatureValidator())
+        self.machine.register(integrity.HashChainValidator(self.record_keeper))
         self.machine.register(core.SchemaValidator(self.depot))
         self.machine.register(self.record_keeper)
         self.machine.register(self.state)
-
-def event_integrity(event):
-    event.author = flask.g.username
 
 @app.put("/datasets/<name>")
 @authorize
@@ -273,10 +272,11 @@ def datasets_create(name):
     dataset_directory.mkdir()
 
     dataset = Dataset(dataset_directory)
-    # add owner event
-    # keys??
+    oae = events.OwnerAddEvent(flask.g.username)
+    oae = dataset.linker.link(oae, flask.g.username)
+    dataset.machine.process_event(oae)
 
-    return flask.jsonify({"message": name})
+    return flask.jsonify({"message": f"Dataset {name} created."})
 
 @cli.command("run")
 def run():
