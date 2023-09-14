@@ -343,16 +343,14 @@ class Event:
         return not self.__eq__(other)
 
     def serialize(self):
-        if self.integrity is None:
-            raise ValueError("integrity is not set")
-
-        if self.author is None:
-            raise ValueError("integrity is not set")
+        integrity = None
+        if self.integrity is not None:
+            integrity = self.integrity.hex()
 
         return {
             "uuid": str(self.uuid),
             "timestamp": self.timestamp,
-            "integrity": self.integrity.hex(),
+            "integrity": integrity,
             "author": self.author,
         }
 

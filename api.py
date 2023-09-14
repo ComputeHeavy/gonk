@@ -1,5 +1,5 @@
 '''
-PUT     /datasets/{name} - Create
+POST    /datasets/{name} - Create
 GET     /datasets - List
 
 POST    /datasets/{name}/schemas - Create
@@ -67,10 +67,12 @@ PATCH   /datasets/{did}/readme - Update
 
 import fs
 import core
+import base64
 import events
 import sqlite
 import integrity
 
+import sys
 import click
 import flask
 import string
@@ -79,6 +81,8 @@ import sqlite3
 import hashlib
 import pathlib
 import secrets
+import traceback 
+import jsonschema
 import multiprocessing
 
 lock = multiprocessing.Lock() # TODO: lock per dataset 
@@ -228,14 +232,19 @@ def authorize(endpoint):
     authwrap.__name__ = endpoint.__name__
     return authwrap
 
+def accept_json(endpoint):
+    def jsonwrap(*args, **kwargs):
+        content_type = flask.request.headers.get('Content-Type')
+        if content_type != "application/json":
+            return flask.jsonify({"error": "Endpoint only accepts JSON."}), 400
+
+        return endpoint(*args, **kwargs)
+    jsonwrap.__name__ = endpoint.__name__
+    return jsonwrap
+
 @app.get("/")
 @authorize
 def index():
-    return flask.jsonify({"message": "hello"})
-
-@app.get("/datasets")
-@authorize
-def datasets_list():
     return flask.jsonify({"message": "hello"})
 
 class Dataset:
@@ -253,18 +262,18 @@ class Dataset:
         self.machine.register(self.record_keeper)
         self.machine.register(self.state)
 
-@app.put("/datasets/<name>")
+@app.post("/datasets/<dataset_name>")
 @authorize
-def datasets_create(name):
+def datasets_create(dataset_name):
     allowed = set(string.ascii_letters + string.digits + '-')
-    if len(set(name).difference(allowed)) > 0:
+    if len(set(dataset_name).difference(allowed)) > 0:
         return flask.jsonify(
             {"error": "Only letters, numbers, and dashes (-) allowed."}), 400
 
-    if name.startswith("-"):
+    if dataset_name.startswith("-"):
         return flask.jsonify({"error": "Names may not start with a dash."}), 400
 
-    dataset_directory = datasets_directory.joinpath(name)
+    dataset_directory = datasets_directory.joinpath(dataset_name)
 
     if dataset_directory.exists():
         return flask.jsonify({"error": "Dataset already exists."}), 400
@@ -276,7 +285,84 @@ def datasets_create(name):
     oae = dataset.linker.link(oae, flask.g.username)
     dataset.machine.process_event(oae)
 
-    return flask.jsonify({"message": f"Dataset {name} created."})
+    return flask.jsonify({
+            "message": f"Dataset created.",
+            "name": dataset_name,
+        })
+
+@app.get("/datasets")
+@authorize
+def datasets_list():
+    return flask.jsonify({
+        "datasets": [d.stem for d in datasets_directory.iterdir()]
+    })
+
+@app.errorhandler(Exception)
+def exception_handler(error):
+    etype, exc, tb = sys.exc_info()
+    traceback.print_exception(etype, exc, tb)
+
+    msg = "An incommunicable error occurred."
+    if etype == jsonschema.exceptions.ValidationError:
+        msg = " ".join(
+            str(exc).replace("\n\n", " - ").replace("\n", " ").split())
+    elif len(exc.args) > 0 and type(exc.args[0]) == str:
+        msg = exc.args[0]
+
+    return flask.jsonify({"error": {etype.__name__: msg}}), 500
+
+@app.post("/datasets/<dataset_name>/schemas")
+@accept_json
+@authorize
+def schemas_create(dataset_name):
+    request_data = flask.request.json
+    if "name" not in request_data:
+        return flask.jsonify({"error": "Missing key 'event'."}), 400
+
+    if "schema" not in request_data:
+        return flask.jsonify({"error": "Missing key 'schema'."}), 400
+
+    schema_name = request_data["name"]
+    schema_buf = base64.b64decode(request_data["schema"])
+
+    if not core.is_schema(schema_name):
+        return flask.jsonify(
+            {"error": "Schema names must start with 'schema-'."}), 400
+    
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    sce = dataset.linker.link(
+        events.ObjectCreateEvent(
+            events.Object(
+                schema_name, 
+                "application/schema+json",
+                len(schema_buf), 
+                events.HashTypeT.SHA256, 
+                hashlib.sha256(schema_buf).hexdigest())), 
+        flask.g.username)
+
+
+    with lock:
+        id_ = sce.object.identifier()
+        try:
+            dataset.depot.reserve(id_, sce.object.size)
+            dataset.depot.write(id_, 0, schema_buf)
+            dataset.depot.finalize(id_)
+            dataset.machine.process_event(sce)
+        except Exception as e:
+            if dataset.depot.exists(id_):
+                dataset.depot.purge(id_)
+            raise e
+
+    return flask.jsonify({
+            "message": f"Schema created.",
+            "name": schema_name,
+            "dataset": dataset_name,
+        })
 
 @cli.command("run")
 def run():

@@ -88,6 +88,10 @@ class RecordKeeper(Consumer, Validator, abc.ABC):
 ### Depot ###
 class Depot(abc.ABC):
     @abc.abstractmethod
+    def exists(self, identifier: events.Identifier):
+        raise NotImplementedError("unimplemented method")
+
+    @abc.abstractmethod
     def reserve(self, identifier: events.Identifier, size: int):
         raise NotImplementedError("unimplemented method")
 

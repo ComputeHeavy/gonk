@@ -155,6 +155,9 @@ class Depot(core.Depot):
 
         return ObjectStateT.NONEXISTENT
 
+    def exists(self, identifier: events.Identifier):
+        return self._state(identifier) != ObjectStateT.NONEXISTENT
+
     def reserve(self, identifier: events.Identifier, size: int):
         if self._state(identifier) != ObjectStateT.NONEXISTENT:
             raise core.StorageError('identifier already exists in storage')
