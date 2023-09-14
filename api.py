@@ -68,7 +68,7 @@ PATCH   /datasets/{did}/readme - Update
 import fs
 import sqlite
 import core
-import sigs
+import integrity
 
 import click
 import flask
@@ -246,7 +246,7 @@ class Dataset:
         self.state = sqlite.State(dataset_directory, self.record_keeper)
 
         self.machine.register(core.FieldValidator())
-        self.machine.register(sigs.SignatureValidator())
+        self.machine.register(integrity.SignatureValidator())
         self.machine.register(core.SchemaValidator(self.depot))
         self.machine.register(self.record_keeper)
         self.machine.register(self.state)

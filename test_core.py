@@ -2,7 +2,7 @@ import fs
 import core
 import nacl
 import uuid
-import sigs
+import integrity
 import events
 import sqlite
 import hashlib
@@ -82,7 +82,7 @@ class TestSchemaValidation(test_utils.GonkTest):
         machine.register(schema_validator)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         s1v0 = events.Object("schema-bounding-box", "application/schema+json", 
             len(schema_buf), events.HashTypeT.SHA256, 
@@ -111,7 +111,7 @@ class TestSchemaValidation(test_utils.GonkTest):
         machine.register(schema_validator)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         s1v0 = events.Object("schema-bounding-box", "application/schema+json", 
             len(schema_buf), events.HashTypeT.SHA256, 
@@ -178,7 +178,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_object_create_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         o1v0 = self.standard_object()
         oce_in = signer.sign(events.ObjectCreateEvent(o1v0))
@@ -188,7 +188,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_object_update_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         o1v1 = self.standard_object()
         o1v1.version = 1
@@ -199,7 +199,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_object_delete_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         o1v0 = self.standard_object()
         ode_in = signer.sign(events.ObjectDeleteEvent(o1v0.identifier()))
@@ -209,7 +209,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_annotation_create_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         o1v0 = self.standard_object()
         s1v0 = self.standard_schema()
@@ -222,7 +222,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_annotation_update_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         s1v0 = self.standard_schema()
         a1v1 = self.standard_annotation(s1v0.identifier())
@@ -234,7 +234,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_annotation_delete_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         s1v0 = self.standard_schema()
         a1v0 = self.standard_annotation(s1v0.identifier())
@@ -245,7 +245,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_review_accept_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         event_uuid = uuid.uuid4()
         rae_in = signer.sign(events.ReviewAcceptEvent(event_uuid))
@@ -255,7 +255,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_review_reject_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         event_uuid = uuid.uuid4()
         rae_in = signer.sign(events.ReviewRejectEvent(event_uuid))
@@ -265,7 +265,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_owner_add_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
 
@@ -274,7 +274,7 @@ class TestEventSerde(unittest.TestCase):
 
     def test_owner_remove_serde(self):
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         ore_in = signer.sign(
             events.OwnerRemoveEvent(bytes(sk1.verify_key).hex()))

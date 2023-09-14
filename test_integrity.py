@@ -1,6 +1,6 @@
 import fs
 import core
-import sigs
+import integrity
 import sqlite
 import events
 import hashlib
@@ -22,7 +22,7 @@ class TestSigs(test_utils.GonkTest):
     def test_signature_validation(self):
         machine = core.Machine()
 
-        machine.register(sigs.SignatureValidator())
+        machine.register(integrity.SignatureValidator())
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -31,7 +31,7 @@ class TestSigs(test_utils.GonkTest):
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         vk1 = sk1.verify_key
         wae1 = events.OwnerAddEvent(bytes(vk1).hex())
@@ -45,7 +45,7 @@ class TestSigs(test_utils.GonkTest):
     def test_signature_validation_fails(self):
         machine = core.Machine()
 
-        machine.register(sigs.SignatureValidator())
+        machine.register(integrity.SignatureValidator())
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -54,7 +54,7 @@ class TestSigs(test_utils.GonkTest):
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         vk1 = sk1.verify_key
         wae1 = events.OwnerAddEvent(bytes(vk1).hex())
@@ -71,7 +71,7 @@ class TestSigs(test_utils.GonkTest):
     def test_replay(self):
         machine = core.Machine()
 
-        machine.register(sigs.SignatureValidator())
+        machine.register(integrity.SignatureValidator())
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -80,7 +80,7 @@ class TestSigs(test_utils.GonkTest):
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         vk1 = sk1.verify_key
         wae1 = events.OwnerAddEvent(bytes(vk1).hex())
@@ -105,13 +105,13 @@ class TestHashChain(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        machine.register(sigs.HashChainValidator(record_keeper))
+        machine.register(integrity.HashChainValidator(record_keeper))
 
         state = sqlite.State(self.test_directory, record_keeper)
         machine.register(state)
 
         author = "TACIXAT"
-        linker = sigs.HashChainLinker(record_keeper)
+        linker = integrity.HashChainLinker(record_keeper)
 
         wae = events.OwnerAddEvent(author)
         wae = linker.link(wae, author)
@@ -128,13 +128,13 @@ class TestHashChain(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        machine.register(sigs.HashChainValidator(record_keeper))
+        machine.register(integrity.HashChainValidator(record_keeper))
 
         state = sqlite.State(self.test_directory, record_keeper)
         machine.register(state)
 
         author = "TACIXAT"
-        linker = sigs.HashChainLinker(record_keeper)
+        linker = integrity.HashChainLinker(record_keeper)
 
         wae = events.OwnerAddEvent(author)
         wae = linker.link(wae, author)
@@ -153,13 +153,13 @@ class TestHashChain(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        machine.register(sigs.HashChainValidator(record_keeper))
+        machine.register(integrity.HashChainValidator(record_keeper))
 
         state = sqlite.State(self.test_directory, record_keeper)
         machine.register(state)
 
         author = "TACIXAT"
-        linker = sigs.HashChainLinker(record_keeper)
+        linker = integrity.HashChainLinker(record_keeper)
 
         wae = events.OwnerAddEvent(author)
         wae = linker.link(wae, author)

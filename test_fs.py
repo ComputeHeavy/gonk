@@ -1,7 +1,7 @@
 import fs
 import core
 import uuid
-import sigs
+import integrity
 import events
 import unittest
 import test_utils
@@ -22,7 +22,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae1)
@@ -56,7 +56,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae_in)
@@ -69,7 +69,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
 
@@ -83,7 +83,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae1)
@@ -100,7 +100,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
-        signer = sigs.Signer(sk1)
+        signer = integrity.Signer(sk1)
 
         oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae1)
