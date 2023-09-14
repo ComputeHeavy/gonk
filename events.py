@@ -310,8 +310,8 @@ class Event:
     def __init__(self,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
 
         if uuid_ is None:
             uuid_ = uuid.uuid4()
@@ -321,8 +321,8 @@ class Event:
 
         self.uuid: uuid.UUID = uuid_
         self.timestamp: str = timestamp
-        self.signature: typing.Optional[bytes] = signature
-        self.signer: typing.Optional[bytes] = signer
+        self.integrity: typing.Optional[bytes] = integrity
+        self.author: typing.Optional[str] = author
 
     def signature_bytes(self) -> bytes:
         raise NotImplementedError("unimplemented method")
@@ -336,24 +336,24 @@ class Event:
     def __eq__(self, other):
         return self.uuid == other.uuid and \
             self.timestamp == other.timestamp and \
-            self.signature == other.signature and \
-            self.signer == other.signer
+            self.integrity == other.integrity and \
+            self.author == other.author
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def serialize(self):
-        if self.signature is None:
-            raise ValueError("signature is not set")
+        if self.integrity is None:
+            raise ValueError("integrity is not set")
 
-        if self.signer is None:
-            raise ValueError("signature is not set")
+        if self.author is None:
+            raise ValueError("integrity is not set")
 
         return {
             "uuid": str(self.uuid),
             "timestamp": self.timestamp,
-            "signature": self.signature.hex(),
-            "signer": self.signer.hex(),
+            "integrity": self.integrity.hex(),
+            "author": self.author,
         }
 
     @classmethod
@@ -361,8 +361,8 @@ class Event:
         jsonschema.validate(instance=data, schema=cls.schema())
         return Event(uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -376,24 +376,23 @@ class Event:
                 "timestamp": {
                     "type": "string"
                 },
-                "signature": {
+                "integrity": {
                     "type": "string",
-                    "minLength": 128,
-                    "maxLength": 128,
-                    "pattern": "^[0-9a-fA-F]{128}$"
+                    "minLength": 32,
+                    "maxLength": 256,
+                    "pattern": "^[0-9a-fA-F]{32,256}$"
                 },
-                "signer": {
+                "author": {
                     "type": "string",
-                    "minLength": 64,
-                    "maxLength": 64,
-                    "pattern": "^[0-9a-fA-F]{64}$"
+                    "minLength": 1,
+                    "maxLength": 512,
                 },
             },
             "required": [
                 "uuid",
                 "timestamp",
-                "signature",
-                "signer",
+                "integrity",
+                "author",
             ],
         }
 
@@ -405,9 +404,9 @@ class ObjectEvent(Event):
         action: ActionT,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(uuid_, timestamp, integrity, author)
         self.action = action
 
     def signature_bytes(self) -> bytes:
@@ -434,8 +433,8 @@ class ObjectEvent(Event):
         return ObjectEvent(ActionT(data["action"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -462,9 +461,9 @@ class ObjectCreateEvent(ObjectEvent):
         object_: Object,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(ActionT.CREATE, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(ActionT.CREATE, uuid_, timestamp, integrity, author)
         self.object = object_
 
     def signature_bytes(self) -> bytes:
@@ -491,8 +490,8 @@ class ObjectCreateEvent(ObjectEvent):
         return ObjectCreateEvent(Object.deserialize(data["object"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -520,9 +519,9 @@ class ObjectUpdateEvent(ObjectEvent):
         object_: Object,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(ActionT.UPDATE, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(ActionT.UPDATE, uuid_, timestamp, integrity, author)
         self.object = object_
 
     def signature_bytes(self) -> bytes:
@@ -549,8 +548,8 @@ class ObjectUpdateEvent(ObjectEvent):
         return ObjectUpdateEvent(Object.deserialize(data["object"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -578,9 +577,9 @@ class ObjectDeleteEvent(ObjectEvent):
         object_identifier: Identifier,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(ActionT.DELETE, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(ActionT.DELETE, uuid_, timestamp, integrity, author)
         self.object_identifier = object_identifier
 
     def signature_bytes(self) -> bytes:
@@ -607,8 +606,8 @@ class ObjectDeleteEvent(ObjectEvent):
         return ObjectDeleteEvent(Identifier.deserialize(data["object_identifier"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -637,9 +636,9 @@ class AnnotationEvent(Event):
         action: ActionT,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(uuid_, timestamp, integrity, author)
         self.action = action
 
     def signature_bytes(self) -> bytes:
@@ -666,8 +665,8 @@ class AnnotationEvent(Event):
         return AnnotationEvent(ActionT(data["action"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -695,9 +694,9 @@ class AnnotationCreateEvent(AnnotationEvent):
         annotation: Annotation,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(ActionT.CREATE, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(ActionT.CREATE, uuid_, timestamp, integrity, author)
         self.object_identifiers = object_identifiers
         self.annotation = annotation
 
@@ -730,8 +729,8 @@ class AnnotationCreateEvent(AnnotationEvent):
             Annotation.deserialize(data["annotation"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -768,9 +767,9 @@ class AnnotationUpdateEvent(AnnotationEvent):
         annotation: Annotation,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(ActionT.UPDATE, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(ActionT.UPDATE, uuid_, timestamp, integrity, author)
         self.annotation = annotation
 
     def signature_bytes(self) -> bytes:
@@ -798,8 +797,8 @@ class AnnotationUpdateEvent(AnnotationEvent):
             Annotation.deserialize(data["annotation"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -828,9 +827,9 @@ class AnnotationDeleteEvent(AnnotationEvent):
         annotation_identifier: Identifier,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(ActionT.DELETE, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(ActionT.DELETE, uuid_, timestamp, integrity, author)
         self.annotation_identifier = annotation_identifier
 
     def signature_bytes(self) -> bytes:
@@ -858,8 +857,8 @@ class AnnotationDeleteEvent(AnnotationEvent):
             Identifier.deserialize(data["annotation_identifier"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -889,9 +888,9 @@ class ReviewEvent(Event):
         decision: DecisionT,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(uuid_, timestamp, integrity, author)
         self.decision = decision
 
     def signature_bytes(self) -> bytes:
@@ -919,8 +918,8 @@ class ReviewEvent(Event):
             DecisionT(data["decision"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -947,9 +946,9 @@ class ReviewAcceptEvent(ReviewEvent):
         event_uuid: uuid.UUID,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(DecisionT.ACCEPT, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(DecisionT.ACCEPT, uuid_, timestamp, integrity, author)
         self.event_uuid = event_uuid
 
     def signature_bytes(self) -> bytes:
@@ -977,8 +976,8 @@ class ReviewAcceptEvent(ReviewEvent):
             uuid.UUID(data["event_uuid"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -1006,9 +1005,9 @@ class ReviewRejectEvent(ReviewEvent):
         event_uuid: uuid.UUID,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(DecisionT.REJECT, uuid_, timestamp, signature, signer)
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(DecisionT.REJECT, uuid_, timestamp, integrity, author)
         self.event_uuid = event_uuid
 
     def signature_bytes(self) -> bytes:
@@ -1036,8 +1035,8 @@ class ReviewRejectEvent(ReviewEvent):
             uuid.UUID(data["event_uuid"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -1064,26 +1063,26 @@ class ReviewRejectEvent(ReviewEvent):
 
 class OwnerEvent(Event):
     def __init__(self,
-        public_key: bytes,
+        owner: str,
         owner_action: OwnerActionT,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
-        super().__init__(uuid_, timestamp, signature, signer)
-        self.public_key = public_key
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        super().__init__(uuid_, timestamp, integrity, author)
+        self.owner = owner
         self.owner_action = owner_action
 
     def signature_bytes(self) -> bytes:
         return b"".join([
             super()._signature_bytes(),
-            self.public_key,
+            self.owner.encode(),
             struct.pack("<B", self.owner_action.value),
         ])
 
     def __eq__(self, other):
         return super().__eq__(other) and \
-            self.public_key == other.public_key and \
+            self.owner == other.owner and \
             self.owner_action == other.owner_action
 
     def __ne__(self, other):
@@ -1091,7 +1090,7 @@ class OwnerEvent(Event):
 
     def serialize(self):
         return super().serialize() | {
-            "public_key": self.public_key.hex(),
+            "owner": self.owner,
             "owner_action": self.owner_action.value,
         }
 
@@ -1099,12 +1098,12 @@ class OwnerEvent(Event):
     def deserialize(cls, data: dict):
         jsonschema.validate(instance=data, schema=cls.schema())
         return OwnerEvent(
-            bytes.fromhex(data["public_key"]),
+            data["owner"],
             OwnerActionT(data["owner_action"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
     @staticmethod
     def schema(relative=""):
@@ -1120,65 +1119,64 @@ class OwnerEvent(Event):
                 "owner_action": {
                     "type": "integer"
                 },
-                "public_key": {
+                "owner": {
                     "type": "string",
-                    "minLength": 64,
-                    "maxLength": 64,
-                    "pattern": "^[0-9a-fA-F]{64}$"
+                    "minLength": 1,
+                    "maxLength": 512,
                 },
             },
             "required": [
-                "public_key",
+                "owner",
                 "owner_action",
             ],
         }
 
 class OwnerAddEvent(OwnerEvent):
     def __init__(self,
-        public_key: bytes,
+        owner: str,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
         super().__init__(
-            public_key,
+            owner,
             OwnerActionT.ADD,
             uuid_,
             timestamp,
-            signature,
-            signer)
+            integrity,
+            author)
 
     @classmethod
     def deserialize(cls, data: dict):
         jsonschema.validate(instance=data, schema=cls.schema())
         return OwnerAddEvent(
-            bytes.fromhex(data["public_key"]),
+            data["owner"],
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])
 
 class OwnerRemoveEvent(OwnerEvent):
     def __init__(self,
-        public_key: bytes,
+        owner: str,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
-        signature: typing.Optional[bytes] = None,
-        signer: typing.Optional[bytes] = None):
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
         super().__init__(
-            public_key,
+            owner,
             OwnerActionT.REMOVE,
             uuid_,
             timestamp,
-            signature,
-            signer)
+            integrity,
+            author)
 
     @classmethod
     def deserialize(cls, data: dict):
         jsonschema.validate(instance=data, schema=cls.schema())
         return OwnerRemoveEvent(
-            bytes.fromhex(data["public_key"]),
+            data["owner"],
             uuid.UUID(data["uuid"]),
             data["timestamp"],
-            bytes.fromhex(data["signature"]),
-            bytes.fromhex(data["signer"]))
+            bytes.fromhex(data["integrity"]),
+            data["author"])

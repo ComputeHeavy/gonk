@@ -81,6 +81,10 @@ class RecordKeeper(Consumer, Validator, abc.ABC):
     def next(self, uuid_: uuid.UUID | None) -> uuid.UUID | None:
         raise NotImplementedError("unimplemented method")
 
+    @abc.abstractmethod
+    def tail(self) -> uuid.UUID | None:
+        raise NotImplementedError("unimplemented method")
+
 ### Depot ###
 class Depot(abc.ABC):
     @abc.abstractmethod

@@ -35,7 +35,7 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae_in)
 
         con = sqlite3.connect(record_keeper.database_path)
@@ -58,7 +58,7 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae_in)
 
         oae_out = record_keeper.read(oae_in.uuid)
@@ -71,7 +71,7 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
 
         self.assertTrue(not record_keeper.exists(oae1.uuid))
 
@@ -85,16 +85,33 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae1)
 
         sk2 = nacl.signing.SigningKey.generate()
-        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key)))
+        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key).hex()))
         record_keeper.add(oae2)
 
         self.assertEqual(record_keeper.next(), oae1.uuid)
         self.assertEqual(record_keeper.next(oae1.uuid), oae2.uuid)
         self.assertEqual(record_keeper.next(oae2.uuid), None)
+
+    def test_tail(self):
+        record_keeper = fs.RecordKeeper(self.test_directory)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
+        record_keeper.add(oae1)
+
+        self.assertEqual(record_keeper.tail(), oae1.uuid)
+
+        sk2 = nacl.signing.SigningKey.generate()
+        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key).hex()))
+        record_keeper.add(oae2)
+
+        self.assertEqual(record_keeper.tail(), oae2.uuid)
 
 class TestSqliteState(test_utils.GonkTest):
     def standard_object(self):
@@ -162,7 +179,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -234,7 +251,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -292,7 +309,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -341,7 +358,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -421,7 +438,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -488,7 +505,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -546,28 +563,28 @@ class TestSqliteState(test_utils.GonkTest):
         signer1 = sigs.Signer(sk1)
         
         vk1 = signer1.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
 
         wae1 = signer1.sign(wae1)
         machine.process_event(wae1)
 
-        if wae1.signer is None:
-            raise ValueError("signer is none")
+        if wae1.author is None:
+            raise ValueError("author is none")
 
         con = sqlite3.connect(state.database_path)
         self.closers.append(con)
         cur = con.cursor()
         cur.execute("""SELECT COUNT(*) 
             FROM owners 
-            WHERE public_key = ?""",
-            (wae1.signer.hex(),))
+            WHERE owner = ?""",
+            (wae1.author,))
         count, = cur.fetchone()
 
         self.assertEqual(count, 1)
 
         sk2 = nacl.signing.SigningKey.generate()
         signer2 = sigs.Signer(sk2)
-        oae2 = events.OwnerAddEvent(signer2.verify_bytes)
+        oae2 = events.OwnerAddEvent(signer2.verify_bytes.hex())
 
         with self.assertRaises(core.ValidationError):
             oae2 = signer2.sign(oae2)
@@ -594,7 +611,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer1 = sigs.Signer(sk1)
         
         vk1 = signer1.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
 
         wae1 = signer1.sign(wae1)
         machine.process_event(wae1)
@@ -602,34 +619,34 @@ class TestSqliteState(test_utils.GonkTest):
         sk2 = nacl.signing.SigningKey.generate()
         signer2 = sigs.Signer(sk2)
         vk2 = signer2.verify_bytes
-        oae2 = events.OwnerAddEvent(vk2)
+        oae2 = events.OwnerAddEvent(vk2.hex())
 
         oae2 = signer1.sign(oae2)
         machine.process_event(oae2)
 
         with self.assertRaises(core.ValidationError):
-            ore0 = signer2.sign(events.OwnerRemoveEvent(vk1))
+            ore0 = signer2.sign(events.OwnerRemoveEvent(vk1.hex()))
             machine.process_event(ore0)
 
-        ore1 = signer2.sign(events.OwnerRemoveEvent(vk2))
+        ore1 = signer2.sign(events.OwnerRemoveEvent(vk2.hex()))
         machine.process_event(ore1)
 
-        if wae1.signer is None:
-            raise ValueError("signer is none")
+        if wae1.author is None:
+            raise ValueError("author is none")
 
         con = sqlite3.connect(state.database_path)
         self.closers.append(con)
         cur = con.cursor()
         cur.execute("""SELECT COUNT(*) 
             FROM owners 
-            WHERE public_key = ?""",
-            (wae1.signer.hex(),))
+            WHERE owner = ?""",
+            (wae1.author,))
         count, = cur.fetchone()
 
         self.assertEqual(count, 1)
 
         with self.assertRaises(core.ValidationError):
-            ore2 = signer1.sign(events.OwnerRemoveEvent(vk1))
+            ore2 = signer1.sign(events.OwnerRemoveEvent(vk1.hex()))
             machine.process_event(ore2)
 
     def test_object_create_reject(self):
@@ -645,7 +662,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -684,7 +701,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -727,7 +744,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -769,7 +786,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -817,7 +834,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
@@ -869,7 +886,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer = sigs.Signer(sk1)
 
         vk1 = signer.verify_bytes
-        wae1 = events.OwnerAddEvent(vk1)
+        wae1 = events.OwnerAddEvent(vk1.hex())
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 

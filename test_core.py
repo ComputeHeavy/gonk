@@ -267,7 +267,7 @@ class TestEventSerde(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
 
         oae_out = events.OwnerAddEvent.deserialize(oae_in.serialize())
         self.assertEqual(oae_in, oae_out)
@@ -276,7 +276,8 @@ class TestEventSerde(unittest.TestCase):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        ore_in = signer.sign(events.OwnerRemoveEvent(bytes(sk1.verify_key)))
+        ore_in = signer.sign(
+            events.OwnerRemoveEvent(bytes(sk1.verify_key).hex()))
 
         ore_out = events.OwnerRemoveEvent.deserialize(ore_in.serialize())
         self.assertEqual(ore_in, ore_out)

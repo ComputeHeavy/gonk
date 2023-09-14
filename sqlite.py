@@ -105,6 +105,20 @@ class RecordKeeper(core.RecordKeeper):
         con.close()
         return uuid.UUID(next_)
 
+    def tail(self) -> uuid.UUID | None:
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("SELECT uuid FROM events ORDER BY id DESC LIMIT 1")
+        res = cur.fetchone()
+
+        if res is None:
+            con.close()
+            return None
+
+        tail, = res
+        con.close()
+        return uuid.UUID(tail)
+
 class State(core.State):
     def __init__(self,
         parent_directory: pathlib.Path,
@@ -176,7 +190,7 @@ class State(core.State):
 
             CREATE TABLE IF NOT EXISTS owners (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                public_key TEXT NOT NULL
+                owner TEXT NOT NULL
             );
         """)
         con.commit()
@@ -543,8 +557,8 @@ class State(core.State):
     def _consume_owner_add(self, event: events.OwnerAddEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""INSERT INTO owners (public_key) VALUES (?)""",
-            (event.public_key.hex(),))
+        cur.execute("""INSERT INTO owners (owner) VALUES (?)""",
+            (event.owner,))
 
         con.commit()
         con.close()
@@ -552,8 +566,8 @@ class State(core.State):
     def _consume_owner_remove(self, event: events.OwnerRemoveEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""DELETE FROM owners WHERE public_key = ?""",
-            (event.public_key.hex(),))
+        cur.execute("""DELETE FROM owners WHERE owner = ?""",
+            (event.owner,))
 
         con.commit()
         con.close()
@@ -781,14 +795,14 @@ class State(core.State):
             raise core.ValidationError(
                 "review on non object or annotation event")
 
-        if event.signer is None:
+        if event.author is None:
             con.close()            
-            raise core.ValidationError("signer is empty")
+            raise core.ValidationError("author is empty")
 
         cur.execute("""SELECT COUNT(*)
             FROM owners
-            WHERE public_key = ?""",
-            (event.signer.hex(),))
+            WHERE owner = ?""",
+            (event.author,))
         count, = cur.fetchone()
         con.close()
         if count == 0:
@@ -803,45 +817,45 @@ class State(core.State):
     def _validate_owner_add(self, event: events.OwnerAddEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""SELECT public_key FROM owners""")
+        cur.execute("""SELECT owner FROM owners""")
 
-        owners = {bytes.fromhex(public_key) for public_key, in cur.fetchall()}
+        owners = {owner for owner, in cur.fetchall()}
         con.close()
         if len(owners) > 0:
-            if event.public_key in owners:
+            if event.owner in owners:
                 raise core.ValidationError("owner already present")
 
-            if event.signer not in owners:
+            if event.author not in owners:
                 raise core.ValidationError("only owners can add owners")
         else:
-            if event.public_key != event.signer:
+            if event.owner != event.author:
                 raise core.ValidationError(
                     "first owner add event must be self signed")
 
     def _validate_owner_remove(self, event: events.OwnerRemoveEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""SELECT id, public_key FROM owners""")
+        cur.execute("""SELECT id, owner FROM owners""")
 
         owners = cur.fetchall()
         con.close()
         if len(owners) == 0:
             raise core.ValidationError("dataset has no owners to remove")
 
-        ranks = {bytes.fromhex(public_key): id_ for id_, public_key in owners}
+        ranks = {owner: id_ for id_, owner in owners}
 
-        if event.signer not in ranks:
+        if event.author not in ranks:
             raise core.ValidationError("only owners may remove owners")
 
-        if event.public_key not in ranks:
+        if event.owner not in ranks:
             raise core.ValidationError("target key is not an owner")
 
         if len(ranks) == 1:
             raise core.ValidationError(
                 "removing owner would leave the dataset ownerless")
 
-        target_rank = ranks[event.public_key]
-        signer_rank = ranks[event.signer]
+        target_rank = ranks[event.owner]
+        signer_rank = ranks[event.author]
 
         if signer_rank > target_rank:
             raise core.ValidationError("cannot remove a higher ranking owner")

@@ -78,6 +78,9 @@ import sqlite3
 import hashlib
 import pathlib
 import secrets
+import multiprocessing
+
+lock = multiprocessing.Lock() # TODO: make this dataset specific
 
 root_directory = pathlib.Path("root")
 datasets_directory = root_directory.joinpath("datasets")
@@ -135,7 +138,7 @@ def user_add(username):
         exit(1)
 
     allowed = set(string.ascii_letters + string.digits + '._-')
-    if len(set(name).difference(allowed)) > 0:
+    if len(set(username).difference(allowed)) > 0:
         print("Invalid username. [A-Za-z0-9._-]")
         exit(1)
 
@@ -248,6 +251,9 @@ class Dataset:
         self.machine.register(self.record_keeper)
         self.machine.register(self.state)
 
+def event_integrity(event):
+    event.author = flask.g.username
+
 @app.put("/datasets/<name>")
 @authorize
 def datasets_create(name):
@@ -266,7 +272,9 @@ def datasets_create(name):
 
     dataset_directory.mkdir()
 
-    _ = Dataset(dataset_directory)
+    dataset = Dataset(dataset_directory)
+    # add owner event
+    # keys??
 
     return flask.jsonify({"message": name})
 

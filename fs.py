@@ -114,6 +114,14 @@ class RecordKeeper(core.RecordKeeper):
 
         return uuid.UUID(next_)
 
+    def tail(self) -> uuid.UUID|None:
+        if not self.tail_path.exists():
+            return None
+
+        tail = self.tail_path.read_text()
+
+        return uuid.UUID(tail)
+
 class ObjectStateT(enum.Enum):
     NONEXISTENT = 1<<0
     READABLE = 1<<1

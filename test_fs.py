@@ -24,7 +24,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae1)
 
         root_dir = self.test_directory.joinpath("rk")
@@ -46,7 +46,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         self.assertTrue(event_path.exists())
 
         sk2 = nacl.signing.SigningKey.generate()
-        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key)))
+        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key).hex()))
         record_keeper.add(oae2)
 
         self.assertEqual(head_path.read_text(), str(oae1.uuid))
@@ -58,7 +58,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae_in = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae_in)
 
         oae_out = record_keeper.read(oae_in.uuid)
@@ -71,7 +71,7 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
 
         self.assertTrue(not record_keeper.exists(oae1.uuid))
 
@@ -85,16 +85,33 @@ class TestFileSystemRecordKeeper(test_utils.GonkTest):
         sk1 = nacl.signing.SigningKey.generate()
         signer = sigs.Signer(sk1)
 
-        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key)))
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
         record_keeper.add(oae1)
 
         sk2 = nacl.signing.SigningKey.generate()
-        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key)))
+        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key).hex()))
         record_keeper.add(oae2)
 
         self.assertEqual(record_keeper.next(), oae1.uuid)
         self.assertEqual(record_keeper.next(oae1.uuid), oae2.uuid)
         self.assertEqual(record_keeper.next(oae2.uuid), None)
+
+    def test_tail(self):
+        record_keeper = fs.RecordKeeper(self.test_directory)
+
+        sk1 = nacl.signing.SigningKey.generate()
+        signer = sigs.Signer(sk1)
+
+        oae1 = signer.sign(events.OwnerAddEvent(bytes(sk1.verify_key).hex()))
+        record_keeper.add(oae1)
+
+        self.assertEqual(record_keeper.tail(), oae1.uuid)
+
+        sk2 = nacl.signing.SigningKey.generate()
+        oae2 = signer.sign(events.OwnerAddEvent(bytes(sk2.verify_key).hex()))
+        record_keeper.add(oae2)
+
+        self.assertEqual(record_keeper.tail(), oae2.uuid)
 
 class TestFileSystemDepot(test_utils.GonkTest):
     def test_depot_init(self):
