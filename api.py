@@ -1,13 +1,4 @@
 '''
-GET     /datasets/{name}/owners - List
-    State get owners
-    Link to usernames in app
-
-PUT     /datasets/{name}/owners - Add
-    OwnerAddEvent
-DELETE  /datasets/{name}/owners - Delete
-    OwnerRemoveEvent
-
 POST    /datasets/{name}/objects - Create
     ObjectCreateEvent (signed)
     Object bytes
@@ -65,6 +56,14 @@ GET     /datasets/{name}/schemas - List
 GET     /datasets/{name}/schemas/{name} - Latest
 GET     /datasets/{name}/schemas/{name}/{version} - Details
 PATCH   /datasets/{name}/schemas/{name} - Update
+
+GET     /datasets/{name}/owners - List
+    State get owners
+    Link to usernames in app
+PUT     /datasets/{name}/owners - Add
+    OwnerAddEvent
+DELETE  /datasets/{name}/owners - Delete
+    OwnerRemoveEvent
 
 '''
 
@@ -134,11 +133,11 @@ def init(ctx, username):
 
     ctx.forward(user_add)
 
-@cli.group("user")
-def user():
+@cli.group("users")
+def users():
     pass
 
-@user.command("add")
+@users.command("add")
 @click.argument("username")
 def user_add(username):
     if not database_path.exists():
@@ -164,7 +163,7 @@ def user_add(username):
     
     show_api_key(username, api_key)
 
-@user.command("rekey")
+@users.command("rekey")
 @click.argument("username")
 def user_rekey(username):
     if not database_path.exists():
@@ -185,7 +184,7 @@ def user_rekey(username):
 
     show_api_key(username, api_key)
 
-@user.command("list")
+@users.command("list")
 def user_list():
     if not database_path.exists():
         print("Please initialize the application with the `init` command.")
@@ -290,7 +289,7 @@ def datasets_create(dataset_name):
 
     return flask.jsonify({
             "message": f"Dataset created.",
-            "name": dataset_name,
+            "dataset": dataset_name,
         })
 
 @app.get("/datasets")
@@ -370,8 +369,9 @@ def schemas_create(dataset_name):
 
     return flask.jsonify({
             "message": f"Schema created.",
-            "name": schema_name,
             "dataset": dataset_name,
+            "name": schema_name,
+            "version": 0,
         })
 
 @app.get("/datasets/<dataset_name>/schemas")
@@ -385,6 +385,7 @@ def schemas_list(dataset_name):
     schemas = [schema.serialize() for schema in dataset.state.schemas()]
 
     return flask.jsonify({
+            "dataset": dataset_name,
             "schemas": schemas,
         })
 
@@ -405,7 +406,9 @@ def schemas_info(dataset_name, schema_name):
     schema, = schemas
 
     return flask.jsonify({
-            "schema": schema,
+            "dataset": dataset_name,
+            "schema": schema_name,
+            "info": schema,
         })
 
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:schema_version>")
@@ -424,7 +427,9 @@ def schemas_get(dataset_name, schema_name, schema_version):
     schema_buf = dataset.depot.read(schema.identifier(), 0, schema.size)
 
     return flask.jsonify({
-            "schema": base64.b64encode(schema_buf).decode(),
+            "dataset": dataset_name,
+            "schema": schema_name,
+            "data": base64.b64encode(schema_buf).decode(),
         })
 
 @app.patch("/datasets/<dataset_name>/schemas/<schema_name>")
@@ -483,9 +488,9 @@ def schemas_update(dataset_name, schema_name):
 
     return flask.jsonify({
             "message": f"Schema updated.",
+            "dataset": dataset_name,
             "name": schema_name,
             "version": schema_info.versions,
-            "dataset": dataset_name,
         })
 
 @app.get("/datasets/<dataset_name>/owners")
@@ -500,6 +505,138 @@ def owners_list(dataset_name):
 
     return flask.jsonify({
             "owners": owners,
+            "dataset": dataset_name,
+        })
+
+@app.put("/datasets/<dataset_name>/owners")
+@accept_json
+@authorize
+def owners_add(dataset_name):
+    request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
+    if "username" not in request_data:
+        return flask.jsonify({"error": "Missing key 'username'."}), 400
+
+    username = request_data["username"]
+
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    con = sqlite3.connect(database_path)
+    cur = con.cursor()
+    cur.execute("""SELECT COUNT(*) 
+            FROM users WHERE username = ?""",
+        (username,))
+    count, = cur.fetchone()
+    con.close()
+
+    if count != 1:
+        return flask.jsonify({"error": "User does not exist."}), 400
+
+    with lock:
+        oae = events.OwnerAddEvent(username)
+        oae = dataset.linker.link(oae, flask.g.username)
+        dataset.machine.process_event(oae)
+
+    return flask.jsonify({
+            "message": f"Owner added.",
+            "dataset": dataset_name,
+            "username": username,
+        })
+
+@app.delete("/datasets/<dataset_name>/owners")
+@accept_json
+@authorize
+def owners_remove(dataset_name):
+    request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
+    if "username" not in request_data:
+        return flask.jsonify({"error": "Missing key 'username'."}), 400
+
+    username = request_data["username"]
+
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    with lock:
+        oae = events.OwnerRemoveEvent(username)
+        oae = dataset.linker.link(oae, flask.g.username)
+        dataset.machine.process_event(oae)
+
+    return flask.jsonify({
+            "message": f"Owner removed.",
+            "dataset": dataset_name,
+            "username": username,
+        })
+
+@app.post("/datasets/<dataset_name>/objects")
+@accept_json
+@authorize
+def objects_create(dataset_name):
+    request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
+    if "name" not in request_data:
+        return flask.jsonify({"error": "Missing key 'name'."}), 400
+
+    if "object" not in request_data:
+        return flask.jsonify({"error": "Missing key 'object'."}), 400
+
+    if "mimetype" not in request_data:
+        return flask.jsonify({"error": "Missing key 'mimetype'."}), 400
+
+    object_name = request_data["name"]
+    object_buf = base64.b64decode(request_data["object"])
+    object_mime = request_data["mimetype"]
+
+    if core.is_schema(object_name):
+        return flask.jsonify(
+            {"error": "Object names may not start with 'schema-'."}), 400
+    
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    oce = dataset.linker.link(
+        events.ObjectCreateEvent(
+            events.Object(
+                object_name, 
+                object_mime,
+                len(object_buf), 
+                events.HashTypeT.SHA256, 
+                hashlib.sha256(object_buf).hexdigest())), 
+        flask.g.username)
+
+    with lock:
+        id_ = oce.object.identifier()
+        try:
+            dataset.depot.reserve(id_, oce.object.size)
+            dataset.depot.write(id_, 0, object_buf)
+            dataset.depot.finalize(id_)
+            dataset.machine.process_event(oce)
+        except Exception as e:
+            if dataset.depot.exists(id_):
+                dataset.depot.purge(id_)
+            raise e
+
+    return flask.jsonify({
+            "message": f"Object created.",
+            "dataset": dataset_name,
+            "uuid": oce.object.uuid,
+            "version": 0,
         })
 
 @cli.command("run")

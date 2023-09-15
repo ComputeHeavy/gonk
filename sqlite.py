@@ -664,6 +664,9 @@ class State(core.State):
             if core.is_schema(event.object.name):
                 raise core.ValidationError("object may not become schema")
 
+        if versions[-1].hash == event.object.hash:
+            raise core.ValidationError("object hash unchanged")
+
         if event.object.version != len(versions):
             raise core.ValidationError(
                 f"object version should be {len(versions)}")
