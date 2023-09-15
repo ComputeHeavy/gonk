@@ -196,36 +196,48 @@ class State(core.State):
         con.commit()
         con.close()
 
-    def schemas(self):
-        con = sqlite3.connect(self.database_path)
-        cur = con.cursor()
-        cur.execute("""SELECT name, uuid, 
-                COUNT(version) OVER (PARTITION BY uuid)
-            FROM schemas""")
-        return [core.SchemaInfo(name, uuid_, version) 
-            for name, uuid_, version in cur.fetchall()]
-
-    def schema(self, name=None, uuid_=None, version=None):
-        if name is None and uuid_ is None:
-            raise ValueError("requires uuid_ or name")
-
+    def schemas(self, name=None): 
+        params = tuple()
+        where = ""
         if name is not None:
             where = " WHERE name = ?"
             params = (name,)
-        elif uuid_ is not None:
-            where = " WHERE uuid = ?"
-            params = (uuid_,)
-
-        if version is not None:
-            where += " AND version = ?"
-            params += (version,)
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""SELECT name, uuid, version
+        cur.execute("""SELECT DISTINCT name, uuid, 
+                COUNT(version) OVER (PARTITION BY uuid)
             FROM schemas""" + where, params)
+
         return [core.SchemaInfo(name, uuid_, version) 
             for name, uuid_, version in cur.fetchall()]
+
+    def schema(self, name, version):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT O.object
+                FROM schemas S
+                INNER JOIN objects O
+                    ON S.uuid = O.uuid AND S.version = O.version
+                WHERE S.name = ?
+                    AND S.version = ?""", 
+            (name, version))
+        res = cur.fetchone()
+        con.close()
+
+        if res is None:
+            return None
+
+        schema_json, = res
+        schema_data = json.loads(schema_json)
+
+        return events.Object.deserialize(schema_data)
+
+    def owners(self): 
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT owner FROM owners ORDER BY id""")
+        return [owner for owner, in cur.fetchall()]
 
     def _consume_object_create(self, event: events.ObjectCreateEvent):
         con = sqlite3.connect(self.database_path)

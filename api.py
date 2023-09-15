@@ -1,6 +1,4 @@
 '''
-PATCH   /datasets/{name}/schemas/{name} - Update
-
 GET     /datasets/{name}/owners - List
     State get owners
     Link to usernames in app
@@ -66,6 +64,7 @@ POST    /datasets/{name}/schemas - Create
 GET     /datasets/{name}/schemas - List
 GET     /datasets/{name}/schemas/{name} - Latest
 GET     /datasets/{name}/schemas/{name}/{version} - Details
+PATCH   /datasets/{name}/schemas/{name} - Update
 
 '''
 
@@ -329,7 +328,7 @@ def schemas_create(dataset_name):
         return flask.jsonify({"error": "Request JSON is None."}), 500
 
     if "name" not in request_data:
-        return flask.jsonify({"error": "Missing key 'event'."}), 400
+        return flask.jsonify({"error": "Missing key 'name'."}), 400
 
     if "schema" not in request_data:
         return flask.jsonify({"error": "Missing key 'schema'."}), 400
@@ -390,35 +389,39 @@ def schemas_list(dataset_name):
         })
 
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>")
-@app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:version>")
 @authorize
-def schemas_get(dataset_name, schema_name, version=None):
+def schemas_info(dataset_name, schema_name):
     dataset_directory = datasets_directory.joinpath(dataset_name)
     if not dataset_directory.exists():
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    schemas = {schema.name: schema for schema in dataset.state.schemas()}
+    schemas = [schema.serialize() 
+        for schema in dataset.state.schemas(name=schema_name)]
 
-    if schema_name not in schemas:
+    if len(schemas) != 1:
         return flask.jsonify({"error": "Schema not found."}), 404
 
-    schema = schemas[schema_name]
+    schema, = schemas
 
-    if version is None:
-        version = schema.versions-1
+    return flask.jsonify({
+            "schema": schema,
+        })
 
-    if version >= schema.versions:
-        return flask.jsonify({"error": "Version does not exist."}), 404
+@app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:schema_version>")
+@authorize
+def schemas_get(dataset_name, schema_name, schema_version):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
 
-    id_ = events.Identifier(schema.uuid, version)
-    schema_buf = b""
-    while True:
-        size = 5*1024
-        buf = dataset.depot.read(id_, 0, size)
-        schema_buf += buf
-        if len(buf) < size:
-            break
+    dataset = Dataset(dataset_directory)
+    schema = dataset.state.schema(schema_name, schema_version)
+
+    if schema is None:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    schema_buf = dataset.depot.read(schema.identifier(), 0, schema.size)
 
     return flask.jsonify({
             "schema": base64.b64encode(schema_buf).decode(),
@@ -427,18 +430,14 @@ def schemas_get(dataset_name, schema_name, version=None):
 @app.patch("/datasets/<dataset_name>/schemas/<schema_name>")
 @accept_json
 @authorize
-def schemas_update(dataset_name):
+def schemas_update(dataset_name, schema_name):
     request_data = flask.request.json
     if request_data is None:
         return flask.jsonify({"error": "Request JSON is None."}), 500
 
-    if "name" not in request_data:
-        return flask.jsonify({"error": "Missing key 'event'."}), 400
-
     if "schema" not in request_data:
         return flask.jsonify({"error": "Missing key 'schema'."}), 400
 
-    schema_name = request_data["name"]
     schema_buf = base64.b64decode(request_data["schema"])
 
     if not core.is_schema(schema_name):
@@ -451,33 +450,57 @@ def schemas_update(dataset_name):
 
     dataset = Dataset(dataset_directory)
 
-    # sce = dataset.linker.link(
-    #     events.ObjectCreateEvent(
-    #         events.Object(
-    #             schema_name, 
-    #             "application/schema+json",
-    #             len(schema_buf), 
-    #             events.HashTypeT.SHA256, 
-    #             hashlib.sha256(schema_buf).hexdigest())), 
-    #     flask.g.username)
+    with lock:
+        schema_info = dataset.state.schemas(name=schema_name)
 
-    # with lock:
-    #     id_ = sce.object.identifier()
-    #     try:
-    #         dataset.depot.reserve(id_, sce.object.size)
-    #         dataset.depot.write(id_, 0, schema_buf)
-    #         dataset.depot.finalize(id_)
-    #         dataset.machine.process_event(sce)
-    #     except Exception as e:
-    #         if dataset.depot.exists(id_):
-    #             dataset.depot.purge(id_)
-    #         raise e
+        if len(schema_info) != 1:
+            return flask.jsonify({"error": "Schema not found."}), 404
 
-    # return flask.jsonify({
-    #         "message": f"Schema created.",
-    #         "name": schema_name,
-    #         "dataset": dataset_name,
-    #     })
+        schema_info, = schema_info
+
+        sue = dataset.linker.link(
+            events.ObjectUpdateEvent(
+                events.Object(
+                    schema_info.name, 
+                    "application/schema+json",
+                    len(schema_buf), 
+                    events.HashTypeT.SHA256, 
+                    hashlib.sha256(schema_buf).hexdigest(),
+                    schema_info.uuid,
+                    schema_info.versions)), 
+            flask.g.username)
+
+        id_ = sue.object.identifier()
+        try:
+            dataset.depot.reserve(id_, sue.object.size)
+            dataset.depot.write(id_, 0, schema_buf)
+            dataset.depot.finalize(id_)
+            dataset.machine.process_event(sue)
+        except Exception as e:
+            if dataset.depot.exists(id_):
+                dataset.depot.purge(id_)
+            raise e
+
+    return flask.jsonify({
+            "message": f"Schema updated.",
+            "name": schema_name,
+            "version": schema_info.versions,
+            "dataset": dataset_name,
+        })
+
+@app.get("/datasets/<dataset_name>/owners")
+@authorize
+def owners_list(dataset_name):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    owners = dataset.state.owners()
+
+    return flask.jsonify({
+            "owners": owners,
+        })
 
 @cli.command("run")
 def run():
