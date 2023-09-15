@@ -196,6 +196,15 @@ class State(core.State):
         con.commit()
         con.close()
 
+    def schemas(self):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT name, uuid, 
+                COUNT(version) OVER (PARTITION BY uuid)
+            FROM schemas""")
+        return [core.SchemaInfo(name, uuid_, version) 
+            for name, uuid_, version in cur.fetchall()]
+
     def _consume_object_create(self, event: events.ObjectCreateEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()

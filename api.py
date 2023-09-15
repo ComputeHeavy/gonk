@@ -1,10 +1,5 @@
 '''
-POST    /datasets/{name} - Create
-GET     /datasets - List
-
-POST    /datasets/{name}/schemas - Create
-GET     /datasets/{name}/schemas - List
-GET     /datasets/{name}/schemas/{name} - List
+GET     /datasets/{name}/schemas/{name} - Latest
 GET     /datasets/{name}/schemas/{name}/{version} - Details
 PATCH   /datasets/{name}/schemas/{name} - Update
 
@@ -63,6 +58,15 @@ GET     /datasets/{did}/readme - Latest
 GET     /datasets/{did}/readme/{version} - Details
 POST    /datasets/{did}/readme - Create
 PATCH   /datasets/{did}/readme - Update
+
+==== DONE ====
+
+POST    /datasets/{name} - Create
+GET     /datasets - List
+
+POST    /datasets/{name}/schemas - Create
+GET     /datasets/{name}/schemas - List
+
 '''
 
 import fs
@@ -302,20 +306,28 @@ def exception_handler(error):
     etype, exc, tb = sys.exc_info()
     traceback.print_exception(etype, exc, tb)
 
-    msg = "An incommunicable error occurred."
-    if etype == jsonschema.exceptions.ValidationError:
-        msg = " ".join(
-            str(exc).replace("\n\n", " - ").replace("\n", " ").split())
-    elif len(exc.args) > 0 and type(exc.args[0]) == str:
-        msg = exc.args[0]
+    ename = "Exception"
+    if etype is not None:
+        ename = etype.__name__
 
-    return flask.jsonify({"error": {etype.__name__: msg}}), 500
+    msg = "An incommunicable error occurred."
+    if exc is not None:
+        if etype == jsonschema.exceptions.ValidationError:
+            msg = " ".join(
+                str(exc).replace("\n\n", " - ").replace("\n", " ").split())
+        elif len(exc.args) > 0 and type(exc.args[0]) == str:
+            msg = exc.args[0]
+
+    return flask.jsonify({"error": {ename: msg}}), 500
 
 @app.post("/datasets/<dataset_name>/schemas")
 @accept_json
 @authorize
 def schemas_create(dataset_name):
     request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
     if "name" not in request_data:
         return flask.jsonify({"error": "Missing key 'event'."}), 400
 
@@ -345,7 +357,6 @@ def schemas_create(dataset_name):
                 hashlib.sha256(schema_buf).hexdigest())), 
         flask.g.username)
 
-
     with lock:
         id_ = sce.object.identifier()
         try:
@@ -362,6 +373,55 @@ def schemas_create(dataset_name):
             "message": f"Schema created.",
             "name": schema_name,
             "dataset": dataset_name,
+        })
+
+@app.get("/datasets/<dataset_name>/schemas")
+@authorize
+def schemas_list(dataset_name):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    schemas = [schema.serialize() for schema in dataset.state.schemas()]
+
+    return flask.jsonify({
+            "schemas": schemas,
+        })
+
+@app.get("/datasets/<dataset_name>/schemas/<schema_name>")
+@app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:version>")
+@authorize
+def schemas_get(dataset_name, schema_name, version=-1):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    schemas = {schema.name: schema for schema in dataset.state.schemas()}
+
+    if schema_name not in schemas:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    schema = schemas[schema_name]
+
+    if version >= schema.versions:
+        return flask.jsonify({"error": "Version does not exist."}), 404
+
+    if version < 0:
+        version = schema.versions-1
+
+    id_ = events.Identifier(schema.uuid, version)
+    schema_buf = b""
+    while True:
+        size = 5*1024
+        buf = dataset.depot.read(id_, 0, size)
+        schema_buf += buf
+        if len(buf) < size:
+            break
+
+    return flask.jsonify({
+            "schema": base64.b64encode(schema_buf).decode(),
         })
 
 @cli.command("run")

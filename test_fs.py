@@ -9,7 +9,6 @@ import test_utils
 import nacl
 from nacl import signing
 
-
 class TestFileSystemRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
         record_keeper = fs.RecordKeeper(self.test_directory)
@@ -216,6 +215,21 @@ class TestFileSystemDepot(test_utils.GonkTest):
 
         self.assertEqual(len(bs1), read_size)
         self.assertEqual(len(bs2), object_size-read_size)
+
+    def test_read_exact(self):
+        depot = fs.Depot(self.test_directory)
+        
+        id_ = events.Identifier(uuid.uuid4(), 0)
+        object_size = 16
+        depot.reserve(id_, object_size)
+        depot.finalize(id_)
+
+        read_size = 16
+        bs1 = depot.read(id_, 0, read_size)
+        bs2 = depot.read(id_, read_size, read_size)
+
+        self.assertEqual(len(bs1), read_size)
+        self.assertEqual(len(bs2), 0)
 
     def test_purge_unfinished(self):
         depot = fs.Depot(self.test_directory)

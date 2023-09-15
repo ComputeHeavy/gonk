@@ -112,10 +112,23 @@ class Depot(abc.ABC):
         raise NotImplementedError("unimplemented method")
 
 ### State ###
+class SchemaInfo:
+    def __init__(self, name: str, uuid_: uuid.UUID, versions: int):
+        self.name = name
+        self.uuid = uuid_
+        self.versions = versions
+
+    def serialize(self):
+        return {
+            "name": self.name,
+            "uuid": self.uuid,
+            "versions": self.versions,
+        }
+
 class State(Validator, Consumer, abc.ABC):
     def validate(self, event: events.EventT):
         handler: dict[type[events.Event],
-            typing.Callable[[typing.Any], typing.Any]] = {
+            typing.Callable[[typing.Any], None]] = {
             events.ObjectCreateEvent: self._validate_object_create,
             events.ObjectUpdateEvent: self._validate_object_update,
             events.ObjectDeleteEvent: self._validate_object_delete,
@@ -132,6 +145,10 @@ class State(Validator, Consumer, abc.ABC):
             raise NotImplementedError("unhandled event type in validate")
 
         handler[type(event)](event)
+
+    @abc.abstractmethod
+    def schemas(self) -> list[SchemaInfo]:
+        raise NotImplementedError("unimplemented method")
 
     @abc.abstractmethod
     def _validate_object_create(self, event: events.ObjectCreateEvent):
