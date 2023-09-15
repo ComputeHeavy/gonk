@@ -205,6 +205,28 @@ class State(core.State):
         return [core.SchemaInfo(name, uuid_, version) 
             for name, uuid_, version in cur.fetchall()]
 
+    def schema(self, name=None, uuid_=None, version=None):
+        if name is None and uuid_ is None:
+            raise ValueError("requires uuid_ or name")
+
+        if name is not None:
+            where = " WHERE name = ?"
+            params = (name,)
+        elif uuid_ is not None:
+            where = " WHERE uuid = ?"
+            params = (uuid_,)
+
+        if version is not None:
+            where += " AND version = ?"
+            params += (version,)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT name, uuid, version
+            FROM schemas""" + where, params)
+        return [core.SchemaInfo(name, uuid_, version) 
+            for name, uuid_, version in cur.fetchall()]
+
     def _consume_object_create(self, event: events.ObjectCreateEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()

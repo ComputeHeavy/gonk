@@ -1,6 +1,4 @@
 '''
-GET     /datasets/{name}/schemas/{name} - Latest
-GET     /datasets/{name}/schemas/{name}/{version} - Details
 PATCH   /datasets/{name}/schemas/{name} - Update
 
 GET     /datasets/{name}/owners - List
@@ -66,6 +64,8 @@ GET     /datasets - List
 
 POST    /datasets/{name}/schemas - Create
 GET     /datasets/{name}/schemas - List
+GET     /datasets/{name}/schemas/{name} - Latest
+GET     /datasets/{name}/schemas/{name}/{version} - Details
 
 '''
 
@@ -392,7 +392,7 @@ def schemas_list(dataset_name):
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>")
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:version>")
 @authorize
-def schemas_get(dataset_name, schema_name, version=-1):
+def schemas_get(dataset_name, schema_name, version=None):
     dataset_directory = datasets_directory.joinpath(dataset_name)
     if not dataset_directory.exists():
         return flask.jsonify({"error": "Dataset not found."}), 404
@@ -405,11 +405,11 @@ def schemas_get(dataset_name, schema_name, version=-1):
 
     schema = schemas[schema_name]
 
+    if version is None:
+        version = schema.versions-1
+
     if version >= schema.versions:
         return flask.jsonify({"error": "Version does not exist."}), 404
-
-    if version < 0:
-        version = schema.versions-1
 
     id_ = events.Identifier(schema.uuid, version)
     schema_buf = b""
@@ -423,6 +423,61 @@ def schemas_get(dataset_name, schema_name, version=-1):
     return flask.jsonify({
             "schema": base64.b64encode(schema_buf).decode(),
         })
+
+@app.patch("/datasets/<dataset_name>/schemas/<schema_name>")
+@accept_json
+@authorize
+def schemas_update(dataset_name):
+    request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
+    if "name" not in request_data:
+        return flask.jsonify({"error": "Missing key 'event'."}), 400
+
+    if "schema" not in request_data:
+        return flask.jsonify({"error": "Missing key 'schema'."}), 400
+
+    schema_name = request_data["name"]
+    schema_buf = base64.b64decode(request_data["schema"])
+
+    if not core.is_schema(schema_name):
+        return flask.jsonify(
+            {"error": "Schema names must start with 'schema-'."}), 400
+    
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    # sce = dataset.linker.link(
+    #     events.ObjectCreateEvent(
+    #         events.Object(
+    #             schema_name, 
+    #             "application/schema+json",
+    #             len(schema_buf), 
+    #             events.HashTypeT.SHA256, 
+    #             hashlib.sha256(schema_buf).hexdigest())), 
+    #     flask.g.username)
+
+    # with lock:
+    #     id_ = sce.object.identifier()
+    #     try:
+    #         dataset.depot.reserve(id_, sce.object.size)
+    #         dataset.depot.write(id_, 0, schema_buf)
+    #         dataset.depot.finalize(id_)
+    #         dataset.machine.process_event(sce)
+    #     except Exception as e:
+    #         if dataset.depot.exists(id_):
+    #             dataset.depot.purge(id_)
+    #         raise e
+
+    # return flask.jsonify({
+    #         "message": f"Schema created.",
+    #         "name": schema_name,
+    #         "dataset": dataset_name,
+    #     })
 
 @cli.command("run")
 def run():
