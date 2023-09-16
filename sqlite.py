@@ -632,9 +632,22 @@ class State(core.State):
             (str(event.object.uuid),))
 
         count, = cur.fetchone()
-        con.close()
         if count != 0:
+            con.close()
             raise core.ValidationError("object with UUID already exists")
+
+        cur.execute("""SELECT uuid, version
+                FROM objects
+                WHERE object->>'$.hash' = ?""",
+            (event.object.hash,))
+
+        res = cur.fetchone()
+        con.close()
+
+        if res is not None:
+            dup_uuid, dup_version = res
+            raise core.ValidationError(
+                f"duplicate hash detected in object {dup_uuid}:{dup_version}")
 
         if event.object.version != 0:
             raise core.ValidationError(
@@ -643,6 +656,19 @@ class State(core.State):
     def _validate_object_update(self, event: events.ObjectCreateEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
+        cur.execute("""SELECT uuid, version
+                FROM objects
+                WHERE object->>'$.hash' = ?""",
+            (event.object.hash,))
+
+        res = cur.fetchone()
+
+        if res is not None:
+            con.close()
+            dup_uuid, dup_version = res
+            raise core.ValidationError(
+                f"duplicate hash detected in object {dup_uuid}:{dup_version}")
+
         cur.execute("""SELECT object
                 FROM objects
                 WHERE uuid = ?""",

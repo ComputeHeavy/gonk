@@ -126,6 +126,7 @@ class TestSqliteState(test_utils.GonkTest):
         obj = object_.__copy__()
         obj.version += 1
         obj.name = "object.rtf"
+        obj.hash = hashlib.sha256(b"updated contents").hexdigest()
 
         return obj
 
