@@ -1,7 +1,4 @@
 '''
-POST    /datasets/{name}/objects - Create
-    ObjectCreateEvent (signed)
-    Object bytes
 GET     /datasets/{name}/objects - List (All, Paged)
 GET     /datasets/{name}/objects/{uuid}/{version} - Details
 
@@ -65,6 +62,9 @@ PUT     /datasets/{name}/owners - Add
 DELETE  /datasets/{name}/owners - Delete
     OwnerRemoveEvent
 
+POST    /datasets/{name}/objects - Create
+    ObjectCreateEvent (signed)
+    Object bytes
 '''
 
 import fs
@@ -92,8 +92,12 @@ lock = multiprocessing.Lock() # TODO: lock per dataset
 root_directory = pathlib.Path("root")
 datasets_directory = root_directory.joinpath("datasets")
 database_path = root_directory.joinpath("gonk.db")
+dataset_cache = {}
 
 app = flask.Flask(__name__)
+
+from werkzeug.middleware.profiler import ProfilerMiddleware
+app.wsgi_app = ProfilerMiddleware(app.wsgi_app)
 
 @click.group()
 def cli():
