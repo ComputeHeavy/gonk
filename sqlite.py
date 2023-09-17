@@ -207,13 +207,13 @@ class State(core.State):
             raise ValueError("only provide one of uuid_, after")
 
         params = tuple()
-        where = ""
+        where = "WHERE S.uuid IS NULL"
         if uuid_ is not None:
-            where = " WHERE uuid = ?"
+            where += " AND O.uuid = ?"
             params = (uuid_,)
         
         if after is not None:
-            where = """ WHERE id > (
+            where += """ AND O.id > (
                 SELECT id 
                 FROM objects 
                 WHERE uuid = ?
@@ -223,37 +223,40 @@ class State(core.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT DISTINCT uuid, 
-                COUNT(version) OVER (PARTITION BY uuid),
-                FIRST_VALUE(id) OVER (PARTITION BY uuid)
-            FROM objects 
+        cur.execute(f"""SELECT DISTINCT O.uuid, 
+                COUNT(O.version) OVER (PARTITION BY O.uuid),
+                FIRST_VALUE(O.id) OVER (PARTITION BY O.uuid)
+            FROM objects O
+            LEFT JOIN schemas S
+                ON O.uuid = S.uuid AND O.version = S.version
             {where} 
-            ORDER BY id
+            ORDER BY O.id
             LIMIT 25""", params)
 
         return [core.ObjectInfo(uuid_, versions) 
             for uuid_, versions, _ in cur.fetchall()]
 
-    def object(self, name, version):
+    def object(self, uuid_, version):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT O.object
-                FROM schemas S
-                INNER JOIN objects O
-                    ON S.uuid = O.uuid AND S.version = O.version
-                WHERE S.name = ?
-                    AND S.version = ?""", 
-            (name, version))
+                FROM objects O
+                LEFT JOIN schemas S
+                    ON O.uuid = S.uuid AND O.version = S.version
+                WHERE O.uuid = ?
+                    AND O.version = ?
+                    AND S.uuid IS NULL""", 
+            (uuid_, version))
         res = cur.fetchone()
         con.close()
 
         if res is None:
             return None
 
-        schema_json, = res
-        schema_data = json.loads(schema_json)
+        object_json, = res
+        object_data = json.loads(object_json)
 
-        return events.Object.deserialize(schema_data)
+        return events.Object.deserialize(object_data)
 
     def schemas(self, name=None): 
         params = tuple()

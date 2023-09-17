@@ -1,11 +1,4 @@
 '''
-GET     /datasets/{name}/objects - List (All, Paged)
-GET     /datasets/{name}/objects/{uuid}/{version} - Details
-
-PATCH   /datasets/{name}/objects/{uuid} - Version
-    ObjectUpdateEvent
-    Object bytes
-
 DELETE   /datasets/{name}/objects/{uuid}/{version} - Delete
     ObjectDeleteEvent
 
@@ -64,6 +57,11 @@ DELETE  /datasets/{name}/owners - Delete
 
 POST    /datasets/{name}/objects - Create
     ObjectCreateEvent (signed)
+    Object bytes
+GET     /datasets/{name}/objects - List (All, Paged)
+GET     /datasets/{name}/objects/{uuid}/{version} - Details
+PATCH   /datasets/{name}/objects/{uuid} - Version
+    ObjectUpdateEvent
     Object bytes
 '''
 
@@ -431,7 +429,7 @@ def schemas_get(dataset_name, schema_name, schema_version):
 
     return flask.jsonify({
             "dataset": dataset_name,
-            "schema": schema_name,
+            "info": schema.serialize(),
             "data": base64.b64encode(schema_buf).decode(),
         })
 
@@ -660,6 +658,122 @@ def objects_list(dataset_name):
     return flask.jsonify({
             "objects": objects,
             "dataset": dataset_name,
+        })
+
+@app.get("/datasets/<dataset_name>/objects/<object_uuid>/<int:object_version>")
+@authorize
+def objects_get(dataset_name, object_uuid, object_version):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    object_ = dataset.state.object(object_uuid, object_version)
+
+    if object_ is None:
+        return flask.jsonify({"error": "Object not found."}), 404
+
+    object_buf = dataset.depot.read(object_.identifier(), 0, object_.size)
+
+    return flask.jsonify({
+            "dataset": dataset_name,
+            "info": object_.serialize(),
+            "data": base64.b64encode(schema_buf).decode(),
+        })
+
+@app.patch("/datasets/<dataset_name>/objects/<object_uuid>")
+@accept_json
+@authorize
+def objects_update(dataset_name, object_uuid):
+    request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
+    if "name" not in request_data:
+        return flask.jsonify({"error": "Missing key 'name'."}), 400
+
+    if "object" not in request_data:
+        return flask.jsonify({"error": "Missing key 'object'."}), 400
+
+    if "mimetype" not in request_data:
+        return flask.jsonify({"error": "Missing key 'mimetype'."}), 400
+
+    object_name = request_data["name"]
+    object_buf = base64.b64decode(request_data["object"])
+    object_mime = request_data["mimetype"]
+
+    if core.is_schema(object_name):
+        return flask.jsonify(
+            {"error": "Object names may not start with 'schema-'."}), 400
+    
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    with lock:
+        object_info = dataset.state.objects(uuid_=object_uuid)
+
+        if len(object_info) != 1:
+            return flask.jsonify({"error": "Object not found."}), 404
+
+        object_info, = object_info
+
+        oue = dataset.linker.link(
+            events.ObjectUpdateEvent(
+                events.Object(
+                    object_name, 
+                    object_mime,
+                    len(object_buf), 
+                    events.HashTypeT.SHA256, 
+                    hashlib.sha256(object_buf).hexdigest(),
+                    object_info.uuid,
+                    object_info.versions)), 
+            flask.g.username)
+
+        id_ = oue.object.identifier()
+        try:
+            dataset.depot.reserve(id_, oue.object.size)
+            dataset.depot.write(id_, 0, object_buf)
+            dataset.depot.finalize(id_)
+            dataset.machine.process_event(oue)
+        except Exception as e:
+            if dataset.depot.exists(id_):
+                dataset.depot.purge(id_)
+            raise e
+
+    return flask.jsonify({
+            "message": f"Object updated.",
+            "dataset": dataset_name,
+            "uuid": oue.object.uuid,
+            "version": 0,
+        })
+
+@app.delete(
+    "/datasets/<dataset_name>/objects/<object_uuid>/<int:object_version>")
+@authorize
+def objects_delete(dataset_name, object_uuid, object_version):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    object_ = dataset.state.object(object_uuid, object_version)
+
+    if object_ is None:
+        return flask.jsonify({"error": "Object not found."}), 404
+
+    with lock:
+        ode = events.ObjectDeleteEvent(object_.identifier())
+        ode = dataset.linker.link(ode, flask.g.username)
+        dataset.machine.process_event(ode)
+
+    return flask.jsonify({
+            "message": f"Object deleted.",
+            "dataset": dataset_name,
+            "uuid": object_uuid,
+            "version": object_version,
         })
 
 @cli.command("run")
