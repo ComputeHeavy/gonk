@@ -92,12 +92,11 @@ lock = multiprocessing.Lock() # TODO: lock per dataset
 root_directory = pathlib.Path("root")
 datasets_directory = root_directory.joinpath("datasets")
 database_path = root_directory.joinpath("gonk.db")
-dataset_cache = {}
 
 app = flask.Flask(__name__)
 
-from werkzeug.middleware.profiler import ProfilerMiddleware
-app.wsgi_app = ProfilerMiddleware(app.wsgi_app)
+# from werkzeug.middleware.profiler import ProfilerMiddleware
+# app.wsgi_app = ProfilerMiddleware(app.wsgi_app)
 
 @click.group()
 def cli():
