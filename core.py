@@ -125,6 +125,17 @@ class SchemaInfo:
             "versions": self.versions,
         }
 
+class ObjectInfo:
+    def __init__(self, uuid_: str, versions: int):
+        self.uuid = uuid.UUID(uuid_)
+        self.versions = versions
+
+    def serialize(self):
+        return {
+            "uuid": str(self.uuid),
+            "versions": self.versions,
+        }
+
 class State(Validator, Consumer, abc.ABC):
     def validate(self, event: events.EventT):
         handler: dict[type[events.Event],

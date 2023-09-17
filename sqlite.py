@@ -141,6 +141,7 @@ class State(core.State):
             );
 
             CREATE TABLE IF NOT EXISTS objects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 uuid TEXT NOT NULL,
                 version INTEGER NOT NULL,
                 object JSON NOT NULL
@@ -165,6 +166,7 @@ class State(core.State):
             );
 
             CREATE TABLE IF NOT EXISTS annotations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 uuid TEXT NOT NULL,
                 version INTEGER NOT NULL,
                 annotation JSON NOT NULL
@@ -193,8 +195,65 @@ class State(core.State):
                 owner TEXT NOT NULL
             );
         """)
+
+        # SELECT name FROM sqlite_master WHERE type='index';
+        # CREATE INDEX idx_object_hash ON objects(object->>'$.hash');
+
         con.commit()
         con.close()
+
+    def objects(self, uuid_=None, after=None):
+        if uuid_ is not None and after is not None:
+            raise ValueError("only provide one of uuid_, after")
+
+        params = tuple()
+        where = ""
+        if uuid_ is not None:
+            where = " WHERE uuid = ?"
+            params = (uuid_,)
+        
+        if after is not None:
+            where = """ WHERE id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params = (after,)            
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT DISTINCT uuid, 
+                COUNT(version) OVER (PARTITION BY uuid),
+                FIRST_VALUE(id) OVER (PARTITION BY uuid)
+            FROM objects 
+            {where} 
+            ORDER BY id
+            LIMIT 25""", params)
+
+        return [core.ObjectInfo(uuid_, versions) 
+            for uuid_, versions, _ in cur.fetchall()]
+
+    def object(self, name, version):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT O.object
+                FROM schemas S
+                INNER JOIN objects O
+                    ON S.uuid = O.uuid AND S.version = O.version
+                WHERE S.name = ?
+                    AND S.version = ?""", 
+            (name, version))
+        res = cur.fetchone()
+        con.close()
+
+        if res is None:
+            return None
+
+        schema_json, = res
+        schema_data = json.loads(schema_json)
+
+        return events.Object.deserialize(schema_data)
 
     def schemas(self, name=None): 
         params = tuple()

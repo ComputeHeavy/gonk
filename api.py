@@ -642,6 +642,26 @@ def objects_create(dataset_name):
             "version": 0,
         })
 
+@app.get("/datasets/<dataset_name>/objects")
+@authorize
+def objects_list(dataset_name):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    after = None
+    if "after" in flask.request.args:
+        after = flask.request.args["after"]
+
+    dataset = Dataset(dataset_directory)
+    objects = [object_.serialize() 
+        for object_ in dataset.state.objects(after=after)]
+
+    return flask.jsonify({
+            "objects": objects,
+            "dataset": dataset_name,
+        })
+
 @cli.command("run")
 def run():
     if not database_path.exists():
