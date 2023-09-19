@@ -1,5 +1,6 @@
 import uuid
 import json
+import typing
 import pathlib
 import sqlite3
 
@@ -202,16 +203,16 @@ class State(core.State):
         con.commit()
         con.close()
 
-    def objects(self, uuid_=None, after=None):
-        if uuid_ is not None and after is not None:
+    def objects_all(self, uuid_=None, after=None):
+        if after is not None and uuid_ is not None:
             raise ValueError("only provide one of uuid_, after")
 
-        params = tuple()
+        params: tuple = tuple()
         where = "WHERE S.uuid IS NULL"
         if uuid_ is not None:
             where += " AND O.uuid = ?"
             params = (uuid_,)
-        
+
         if after is not None:
             where += """ AND O.id > (
                 SELECT id 
@@ -219,7 +220,7 @@ class State(core.State):
                 WHERE uuid = ?
                 ORDER BY id 
                 LIMIT 1)"""
-            params = (after,)            
+            params += (after,)
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
@@ -233,8 +234,145 @@ class State(core.State):
             ORDER BY O.id
             LIMIT 25""", params)
 
-        return [core.ObjectInfo(uuid_, versions) 
-            for uuid_, versions, _ in cur.fetchall()]
+        res = cur.fetchall()
+        con.close()
+
+        return [core.ObjectInfo(uuid_, versions) for uuid_, versions, _ in res]
+
+    def objects_by_status(self, status, after=None):
+        if status == "pending":
+            return self._objects_pending(after)
+        elif status == "accepted":
+            return self._objects_accepted(after)
+        elif status == "deleted":
+            return self._objects_deleted(after)
+        elif status == "rejected":
+            return self._objects_rejected(after)
+        else:
+            raise ValueError(f"invalid status")
+
+    def _objects_accepted(self, after=None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (after,)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT O.uuid, O.version
+            FROM objects O
+            LEFT JOIN schemas S
+                ON O.uuid = S.uuid AND O.version = S.version
+            LEFT JOIN object_status OS
+                ON O.uuid = OS.uuid AND O.version = OS.version 
+                    AND OS.status IN (
+                        'CREATE_PENDING', 
+                        'CREATE_REJECTED', 
+                        'DELETE_ACCEPTED')
+            WHERE OS.status IS NULL
+                AND S.uuid IS NULL
+                { where }
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid_, version) for uuid_, version, in res]
+
+    def _objects_pending(self, after=None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (after,)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT DISTINCT O.uuid, O.version
+            FROM objects O
+            LEFT JOIN schemas S
+                ON O.uuid = S.uuid AND O.version = S.version
+            INNER JOIN object_event_link OEL 
+                 ON O.uuid = OEL.object_uuid 
+                     AND O.version = OEL.object_version
+            LEFT JOIN event_review_link ERL 
+                 ON OEL.event_uuid = ERL.event_uuid
+            WHERE ERL.review_uuid IS NULL
+                AND S.uuid IS NULL
+                { where }
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid_, version) for uuid_, version, in res]
+
+    def _objects_deleted(self, after=None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (after,)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT O.uuid, O.version
+            FROM objects O
+            JOIN object_status OS 
+                ON O.uuid = OS.uuid 
+                    AND O.version = OS.version
+            WHERE OS.status = 'DELETE_ACCEPTED'
+                { where }
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid_, version) for uuid_, version, in res]
+
+    def _objects_rejected(self, after=None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (after,)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT O.uuid, O.version
+            FROM objects O
+            JOIN object_status OS 
+                ON O.uuid = OS.uuid 
+                    AND O.version = OS.version
+            WHERE OS.status = 'CREATE_REJECTED'
+                { where }
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid_, version) for uuid_, version, in res]
 
     def object(self, uuid_, version):
         con = sqlite3.connect(self.database_path)
@@ -258,8 +396,8 @@ class State(core.State):
 
         return events.Object.deserialize(object_data)
 
-    def schemas(self, name=None): 
-        params = tuple()
+    def schemas_all(self, name=None): 
+        params: tuple = tuple()
         where = ""
         if name is not None:
             where = " WHERE name = ?"

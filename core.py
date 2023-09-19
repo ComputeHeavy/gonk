@@ -158,7 +158,15 @@ class State(Validator, Consumer, abc.ABC):
         handler[type(event)](event)
 
     @abc.abstractmethod
-    def schemas(self) -> list[SchemaInfo]:
+    def objects_all(self, uuid_=None, after=None) -> list[ObjectInfo]:
+        raise NotImplementedError("unimplemented method")
+
+    @abc.abstractmethod
+    def objects_by_status(self, status, after=None) -> list[events.Identifier]:
+        raise NotImplementedError("unimplemented method")
+
+    @abc.abstractmethod
+    def schemas_all(self) -> list[SchemaInfo]:
         raise NotImplementedError("unimplemented method")
 
     @abc.abstractmethod

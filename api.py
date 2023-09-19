@@ -1,8 +1,97 @@
 '''
-DELETE   /datasets/{name}/objects/{uuid}/{version} - Delete
-    ObjectDeleteEvent
+Object V0
+    CREATE_PENDING
+    Does not exist
+
+Object V0
+    ACCEPTED
+    Exists
+
+Object V1
+    CREATE_PENDING
+    Object V0 still exists
+
+Object V1
+    ACCEPTED
+    Object V1 exists
+    Object V0 has been updated
+
+Object V1
+    DELETE_PENDING
+    Object V1 exists
+
+Object V1
+    DELETE_ACCEPTED
+    Object V0 exists
+
+Object V1 
+    CREATE_REJECTED
+    Object V0 exists
+
+Latest version, that is not 
+    create pending or create rejected or delete accepted.
+'''
+
+'''
+Existing objects.
+    The highest version of an object that is 
+        not create pending
+        not create_rejected
+        not delete_accepted
+
+    SELECT O.uuid, MAX(O.version) as max_version
+        FROM objects O
+        LEFT JOIN object_status OS
+        ON O.uuid = OS.uuid AND O.version = OS.version 
+            AND OS.status IN (
+                'CREATE_PENDING', 'CREATE_REJECTED', 'DELETE_ACCEPTED')
+        WHERE OS.status IS NULL
+        GROUP BY O.uuid;
+
+Objects with unreviewed events.
+    SELECT DISTINCT O.uuid, O.version
+        FROM objects O
+        INNER JOIN object_event_link OEL 
+             ON O.uuid = OEL.object_uuid 
+             AND O.version = OEL.object_version
+        LEFT JOIN event_review_link ERL 
+             ON OEL.event_uuid = ERL.event_uuid
+        WHERE ERL.review_uuid IS NULL;
+
+Deleted objects.
+    SELECT O.uuid, O.version
+        FROM objects O
+        JOIN object_status OS 
+             ON O.uuid = OS.uuid 
+             AND O.version = OS.version
+        WHERE OS.status = 'DELETE_ACCEPTED';
+
+Rejected objects.
+    SELECT O.uuid, O.version
+        FROM objects O
+        JOIN object_status OS 
+             ON O.uuid = OS.uuid 
+             AND O.version = OS.version
+        WHERE OS.status = 'CREATE_REJECTED';
+
+Objects with pending annotations.
+
+Existing annotations.
+Annotations with unreviewed events.
+Rejected annotations.
+Deleted annotations.
 
 EVENTS
+GET     /datasets/{name}/objects - List (All, Paged)
+GET     /datasets/{name}/objects/pending - List (Paged)
+GET     /datasets/{name}/objects/accepted - List (Paged)
+GET     /datasets/{name}/objects/deleted - List (Paged)
+GET     /datasets/{name}/objects/rejected - List (Paged)
+
+GET     /dataset/{dataset_name}/events - List events, paged
+GET     /dataset/{dataset_name}/events/pending - List pending events, paged
+
+EVENTS BY TYPE
 PENDING EVENTS
 
 PUT     /datasets/{name}/events/{uuid}/accept
@@ -63,6 +152,8 @@ GET     /datasets/{name}/objects/{uuid}/{version} - Details
 PATCH   /datasets/{name}/objects/{uuid} - Version
     ObjectUpdateEvent
     Object bytes
+DELETE   /datasets/{name}/objects/{uuid}/{version} - Delete
+    ObjectDeleteEvent
 '''
 
 import fs
@@ -383,7 +474,7 @@ def schemas_list(dataset_name):
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    schemas = [schema.serialize() for schema in dataset.state.schemas()]
+    schemas = [schema.serialize() for schema in dataset.state.schemas_all()]
 
     return flask.jsonify({
             "dataset": dataset_name,
@@ -399,7 +490,7 @@ def schemas_info(dataset_name, schema_name):
 
     dataset = Dataset(dataset_directory)
     schemas = [schema.serialize() 
-        for schema in dataset.state.schemas(name=schema_name)]
+        for schema in dataset.state.schemas_all(name=schema_name)]
 
     if len(schemas) != 1:
         return flask.jsonify({"error": "Schema not found."}), 404
@@ -457,7 +548,7 @@ def schemas_update(dataset_name, schema_name):
     dataset = Dataset(dataset_directory)
 
     with lock:
-        schema_info = dataset.state.schemas(name=schema_name)
+        schema_info = dataset.state.schemas_all(name=schema_name)
 
         if len(schema_info) != 1:
             return flask.jsonify({"error": "Schema not found."}), 404
@@ -505,8 +596,8 @@ def owners_list(dataset_name):
     owners = dataset.state.owners()
 
     return flask.jsonify({
-            "owners": owners,
             "dataset": dataset_name,
+            "owners": owners,
         })
 
 @app.put("/datasets/<dataset_name>/owners")
@@ -653,14 +744,66 @@ def objects_list(dataset_name):
 
     dataset = Dataset(dataset_directory)
     objects = [object_.serialize() 
-        for object_ in dataset.state.objects(after=after)]
+        for object_ in dataset.state.objects_all(after=after)]
+
+    return flask.jsonify({
+            "dataset": dataset_name,
+            "objects": objects,
+        })
+
+@app.get(
+    "/datasets/<dataset_name>/objects"
+    "/<regex('[0-9A-Fa-f-]{36}'):object_uuid>")
+@authorize
+def objects_info(dataset_name, object_uuid):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    objects = [object_.serialize() 
+        for object_ in dataset.state.objects_all(uuid_=object_uuid)]
+
+    if len(objects) != 1:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    object_, = objects
+
+    return flask.jsonify({
+            "dataset": dataset_name,
+            "object": object_uuid,
+            "info": object_,
+        })
+
+@app.get("/datasets/<dataset_name>/objects/<object_status>")
+@authorize
+def objects_status(dataset_name, object_status):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    after = None
+    if "after" in flask.request.args:
+        after = flask.request.args["after"]
+
+    if object_status not in {'accepted', 'pending', 'deleted', 'rejected'}:
+        return flask.jsonify({
+            "error": "Invalid status.",
+            "valid_statuses": ["accepted", "pending", "deleted", "rejected"],
+        }), 400
+
+    dataset = Dataset(dataset_directory)
+    objects = [object_.serialize() for object_ in 
+        dataset.state.objects_by_status(object_status, after=after)]
 
     return flask.jsonify({
             "objects": objects,
             "dataset": dataset_name,
         })
 
-@app.get("/datasets/<dataset_name>/objects/<object_uuid>/<int:object_version>")
+@app.get(
+    "/datasets/<dataset_name>/objects"
+    "/<regex('[0-9A-Fa-f-]{36}'):object_uuid>/<int:object_version>")
 @authorize
 def objects_get(dataset_name, object_uuid, object_version):
     dataset_directory = datasets_directory.joinpath(dataset_name)
@@ -678,7 +821,7 @@ def objects_get(dataset_name, object_uuid, object_version):
     return flask.jsonify({
             "dataset": dataset_name,
             "info": object_.serialize(),
-            "data": base64.b64encode(schema_buf).decode(),
+            "data": base64.b64encode(object_buf).decode(),
         })
 
 @app.patch("/datasets/<dataset_name>/objects/<object_uuid>")
@@ -713,7 +856,7 @@ def objects_update(dataset_name, object_uuid):
     dataset = Dataset(dataset_directory)
 
     with lock:
-        object_info = dataset.state.objects(uuid_=object_uuid)
+        object_info = dataset.state.objects_all(uuid_=object_uuid)
 
         if len(object_info) != 1:
             return flask.jsonify({"error": "Object not found."}), 404
