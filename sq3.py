@@ -136,6 +136,12 @@ class State(core.State):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.executescript("""
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uuid TEXT NOT NULL,
+                type TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS event_review_link (
                 event_uuid TEXT NOT NULL,
                 review_uuid TEXT NOT NULL
@@ -203,7 +209,9 @@ class State(core.State):
         con.commit()
         con.close()
 
-    def objects_all(self, uuid_=None, after=None):
+    def objects_all(self, 
+        uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
+
         if after is not None and uuid_ is not None:
             raise ValueError("only provide one of uuid_, after")
 
@@ -211,7 +219,7 @@ class State(core.State):
         where = "WHERE S.uuid IS NULL"
         if uuid_ is not None:
             where += " AND O.uuid = ?"
-            params = (uuid_,)
+            params = (str(uuid_),)
 
         if after is not None:
             where += """ AND O.id > (
@@ -220,7 +228,7 @@ class State(core.State):
                 WHERE uuid = ?
                 ORDER BY id 
                 LIMIT 1)"""
-            params += (after,)
+            params += (str(after),)
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
@@ -237,9 +245,9 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.ObjectInfo(uuid_, versions) for uuid_, versions, _ in res]
+        return [core.ObjectInfo(uuid.UUID(uu), ver) for uu, ver, _ in res]
 
-    def objects_by_status(self, status, after=None):
+    def objects_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
             return self._objects_pending(after)
         elif status == "accepted":
@@ -251,7 +259,7 @@ class State(core.State):
         else:
             raise ValueError(f"invalid status")
 
-    def _objects_accepted(self, after=None):
+    def _objects_accepted(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
         where = ""
         if after is not None:
@@ -261,7 +269,7 @@ class State(core.State):
                 WHERE uuid = ?
                 ORDER BY id 
                 LIMIT 1)"""
-            params += (after,)
+            params += (str(after),)
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
@@ -283,9 +291,10 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid_, version) for uuid_, version, in res]
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
 
-    def _objects_pending(self, after=None):
+    def _objects_pending(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
         where = ""
         if after is not None:
@@ -295,7 +304,7 @@ class State(core.State):
                 WHERE uuid = ?
                 ORDER BY id 
                 LIMIT 1)"""
-            params += (after,)
+            params += (str(after),)
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
@@ -316,9 +325,10 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid_, version) for uuid_, version, in res]
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
 
-    def _objects_deleted(self, after=None):
+    def _objects_deleted(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
         where = ""
         if after is not None:
@@ -328,7 +338,7 @@ class State(core.State):
                 WHERE uuid = ?
                 ORDER BY id 
                 LIMIT 1)"""
-            params += (after,)
+            params += (str(after),)
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
@@ -344,9 +354,10 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid_, version) for uuid_, version, in res]
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
 
-    def _objects_rejected(self, after=None):
+    def _objects_rejected(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
         where = ""
         if after is not None:
@@ -356,7 +367,7 @@ class State(core.State):
                 WHERE uuid = ?
                 ORDER BY id 
                 LIMIT 1)"""
-            params += (after,)
+            params += (str(after),)
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
@@ -372,9 +383,10 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid_, version) for uuid_, version, in res]
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
 
-    def object(self, uuid_, version):
+    def object(self, uuid_: uuid.UUID, version: int):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT O.object
@@ -384,7 +396,7 @@ class State(core.State):
                 WHERE O.uuid = ?
                     AND O.version = ?
                     AND S.uuid IS NULL""", 
-            (uuid_, version))
+            (str(uuid_), version))
         res = cur.fetchone()
         con.close()
 
@@ -396,7 +408,7 @@ class State(core.State):
 
         return events.Object.deserialize(object_data)
 
-    def schemas_all(self, name=None): 
+    def schemas_all(self, name: None|str =None): 
         params: tuple = tuple()
         where = ""
         if name is not None:
@@ -412,7 +424,7 @@ class State(core.State):
         return [core.SchemaInfo(name, uuid_, version) 
             for name, uuid_, version in cur.fetchall()]
 
-    def schema(self, name, version):
+    def schema(self, name: str, version: int):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT O.object
@@ -438,6 +450,17 @@ class State(core.State):
         cur = con.cursor()
         cur.execute("""SELECT owner FROM owners ORDER BY id""")
         return [owner for owner, in cur.fetchall()]
+
+    def consume(self, event: events.EventT):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(
+            "INSERT INTO events (uuid, type) VALUES (?, ?)",
+            (str(event.uuid), event.__class__.__name__))
+        con.commit()
+        con.close()
+
+        super().consume(event)
 
     def _consume_object_create(self, event: events.ObjectCreateEvent):
         con = sqlite3.connect(self.database_path)

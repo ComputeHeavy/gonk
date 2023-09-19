@@ -113,9 +113,9 @@ class Depot(abc.ABC):
 
 ### State ###
 class SchemaInfo:
-    def __init__(self, name: str, uuid_: str, versions: int):
+    def __init__(self, name: str, uuid_: uuid.UUID, versions: int):
         self.name = name
-        self.uuid = uuid.UUID(uuid_)
+        self.uuid = uuid_
         self.versions = versions
 
     def serialize(self):
@@ -126,8 +126,8 @@ class SchemaInfo:
         }
 
 class ObjectInfo:
-    def __init__(self, uuid_: str, versions: int):
-        self.uuid = uuid.UUID(uuid_)
+    def __init__(self, uuid_: uuid.UUID, versions: int):
+        self.uuid = uuid_
         self.versions = versions
 
     def serialize(self):

@@ -1,93 +1,5 @@
 '''
-Object V0
-    CREATE_PENDING
-    Does not exist
-
-Object V0
-    ACCEPTED
-    Exists
-
-Object V1
-    CREATE_PENDING
-    Object V0 still exists
-
-Object V1
-    ACCEPTED
-    Object V1 exists
-    Object V0 has been updated
-
-Object V1
-    DELETE_PENDING
-    Object V1 exists
-
-Object V1
-    DELETE_ACCEPTED
-    Object V0 exists
-
-Object V1 
-    CREATE_REJECTED
-    Object V0 exists
-
-Latest version, that is not 
-    create pending or create rejected or delete accepted.
-'''
-
-'''
-Existing objects.
-    The highest version of an object that is 
-        not create pending
-        not create_rejected
-        not delete_accepted
-
-    SELECT O.uuid, MAX(O.version) as max_version
-        FROM objects O
-        LEFT JOIN object_status OS
-        ON O.uuid = OS.uuid AND O.version = OS.version 
-            AND OS.status IN (
-                'CREATE_PENDING', 'CREATE_REJECTED', 'DELETE_ACCEPTED')
-        WHERE OS.status IS NULL
-        GROUP BY O.uuid;
-
-Objects with unreviewed events.
-    SELECT DISTINCT O.uuid, O.version
-        FROM objects O
-        INNER JOIN object_event_link OEL 
-             ON O.uuid = OEL.object_uuid 
-             AND O.version = OEL.object_version
-        LEFT JOIN event_review_link ERL 
-             ON OEL.event_uuid = ERL.event_uuid
-        WHERE ERL.review_uuid IS NULL;
-
-Deleted objects.
-    SELECT O.uuid, O.version
-        FROM objects O
-        JOIN object_status OS 
-             ON O.uuid = OS.uuid 
-             AND O.version = OS.version
-        WHERE OS.status = 'DELETE_ACCEPTED';
-
-Rejected objects.
-    SELECT O.uuid, O.version
-        FROM objects O
-        JOIN object_status OS 
-             ON O.uuid = OS.uuid 
-             AND O.version = OS.version
-        WHERE OS.status = 'CREATE_REJECTED';
-
-Objects with pending annotations.
-
-Existing annotations.
-Annotations with unreviewed events.
-Rejected annotations.
-Deleted annotations.
-
 EVENTS
-GET     /datasets/{name}/objects - List (All, Paged)
-GET     /datasets/{name}/objects/pending - List (Paged)
-GET     /datasets/{name}/objects/accepted - List (Paged)
-GET     /datasets/{name}/objects/deleted - List (Paged)
-GET     /datasets/{name}/objects/rejected - List (Paged)
-
 GET     /dataset/{dataset_name}/events - List events, paged
 GET     /dataset/{dataset_name}/events/pending - List pending events, paged
 
@@ -154,18 +66,21 @@ PATCH   /datasets/{name}/objects/{uuid} - Version
     Object bytes
 DELETE   /datasets/{name}/objects/{uuid}/{version} - Delete
     ObjectDeleteEvent
+GET     /datasets/{name}/objects - List (All, Paged)
+GET     /datasets/{name}/objects/{status} - List (Paged)
 '''
 
 import fs
 import core
-import base64
 import events
-import sqlite
+import sq3
 import integrity
 
 import sys
+import uuid
 import click
 import flask
+import base64
 import string
 import typing
 import sqlite3
@@ -348,7 +263,7 @@ class Dataset:
         self.linker = integrity.HashChainLinker(self.record_keeper)
         self.machine = core.Machine()
         self.depot = fs.Depot(dataset_directory)
-        self.state = sqlite.State(dataset_directory, self.record_keeper)
+        self.state = sq3.State(dataset_directory, self.record_keeper)
 
         self.machine.register(core.FieldValidator())
         self.machine.register(integrity.HashChainValidator(self.record_keeper))
@@ -740,7 +655,7 @@ def objects_list(dataset_name):
 
     after = None
     if "after" in flask.request.args:
-        after = flask.request.args["after"]
+        after = uuid.UUID(flask.request.args["after"])
 
     dataset = Dataset(dataset_directory)
     objects = [object_.serialize() 
@@ -759,6 +674,8 @@ def objects_info(dataset_name, object_uuid):
     dataset_directory = datasets_directory.joinpath(dataset_name)
     if not dataset_directory.exists():
         return flask.jsonify({"error": "Dataset not found."}), 404
+
+    object_uuid = uuid.UUID(object_uuid)
 
     dataset = Dataset(dataset_directory)
     objects = [object_.serialize() 
@@ -784,7 +701,7 @@ def objects_status(dataset_name, object_status):
 
     after = None
     if "after" in flask.request.args:
-        after = flask.request.args["after"]
+        after = uuid.UUID(flask.request.args["after"])
 
     if object_status not in {'accepted', 'pending', 'deleted', 'rejected'}:
         return flask.jsonify({

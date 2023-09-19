@@ -3,7 +3,7 @@ import core
 import uuid
 import integrity
 import json
-import sqlite
+import sq3
 import events
 import sqlite3
 import hashlib
@@ -23,14 +23,14 @@ def rmtree(p):
 
 class TestSqliteRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
-        record_keeper = sqlite.RecordKeeper(
+        record_keeper = sq3.RecordKeeper(
             self.test_directory)
 
         db_path = self.test_directory.joinpath("rk.db")
         self.assertTrue(db_path.exists())
 
     def test_add(self):
-        record_keeper = sqlite.RecordKeeper(self.test_directory)
+        record_keeper = sq3.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = integrity.Signer(sk1)
@@ -53,7 +53,7 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         self.assertEqual(json.dumps(event_data), event_json)
 
     def test_read(self):
-        record_keeper = sqlite.RecordKeeper(self.test_directory)
+        record_keeper = sq3.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = integrity.Signer(sk1)
@@ -66,7 +66,7 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         self.assertEqual(oae_in, oae_out)
 
     def test_exists(self):
-        record_keeper = sqlite.RecordKeeper(self.test_directory)
+        record_keeper = sq3.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = integrity.Signer(sk1)
@@ -80,7 +80,7 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         self.assertTrue(record_keeper.exists(oae1.uuid))
 
     def test_next(self):
-        record_keeper = sqlite.RecordKeeper(self.test_directory)
+        record_keeper = sq3.RecordKeeper(self.test_directory)
 
         sk1 = nacl.signing.SigningKey.generate()
         signer = integrity.Signer(sk1)
@@ -157,7 +157,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         self.assertEqual(len(machine.validators), 2)
@@ -173,7 +173,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -245,7 +245,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -303,7 +303,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -352,7 +352,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -432,7 +432,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -499,7 +499,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -557,7 +557,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -605,7 +605,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -656,7 +656,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -695,7 +695,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -738,7 +738,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -780,7 +780,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -828,7 +828,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -880,7 +880,7 @@ class TestSqliteState(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()

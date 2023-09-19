@@ -1,7 +1,7 @@
 import fs
 import core
 import integrity
-import sqlite
+import sq3
 import events
 import hashlib
 import unittest
@@ -27,7 +27,7 @@ class TestSigs(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -50,7 +50,7 @@ class TestSigs(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -76,7 +76,7 @@ class TestSigs(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         sk1 = nacl.signing.SigningKey.generate()
@@ -107,7 +107,7 @@ class TestHashChain(test_utils.GonkTest):
 
         machine.register(integrity.HashChainValidator(record_keeper))
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         author = "TACIXAT"
@@ -130,7 +130,7 @@ class TestHashChain(test_utils.GonkTest):
 
         machine.register(integrity.HashChainValidator(record_keeper))
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         author = "TACIXAT"
@@ -155,7 +155,7 @@ class TestHashChain(test_utils.GonkTest):
 
         machine.register(integrity.HashChainValidator(record_keeper))
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         author = "TACIXAT"

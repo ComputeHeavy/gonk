@@ -4,7 +4,7 @@ import nacl
 import uuid
 import integrity
 import events
-import sqlite
+import sq3
 import hashlib
 import test_utils
 import unittest
@@ -75,7 +75,7 @@ class TestSchemaValidation(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)
@@ -104,7 +104,7 @@ class TestSchemaValidation(test_utils.GonkTest):
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
 
-        state = sqlite.State(self.test_directory, record_keeper)
+        state = sq3.State(self.test_directory, record_keeper)
         machine.register(state)
 
         schema_validator = core.SchemaValidator(depot)
