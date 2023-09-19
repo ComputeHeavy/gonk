@@ -203,8 +203,44 @@ class State(core.State):
             );
         """)
 
-        # SELECT name FROM sqlite_master WHERE type='index';
-        # CREATE INDEX idx_object_hash ON objects(object->>'$.hash');
+        cur.execute("""SELECT name 
+            FROM sqlite_master 
+            WHERE type='index'""")
+
+        res = cur.fetchall()
+
+        indices = {idx for idx, in res}
+
+        statements = {
+            "idx_events_uuid": 
+                """CREATE INDEX idx_events_uuid 
+                    ON events(uuid)""",
+            "idx_objects_uuid": 
+                """CREATE INDEX idx_objects_uuid 
+                    ON objects(uuid)""",
+            "idx_objects_object_hash": 
+                """CREATE INDEX idx_objects_object_hash 
+                    ON objects(object->>'$.hash')""",
+            "idx_object_status_uuid": 
+                """CREATE INDEX idx_object_status_uuid 
+                    ON object_status(uuid)""",
+            "idx_object_event_link_object_uuid": 
+                """CREATE INDEX idx_object_event_link_object_uuid 
+                    ON object_event_link(object_uuid)""",
+            "idx_object_event_link_event_uuid": 
+                """CREATE INDEX idx_object_event_link_event_uuid 
+                    ON object_event_link(event_uuid)""",
+            "idx_annotations_uuid": 
+                """CREATE INDEX idx_annotations_uuid 
+                    ON annotations(uuid)""",
+            "idx_annotation_status_uuid": 
+                """CREATE INDEX idx_annotation_status_uuid 
+                    ON annotation_status(uuid)""",
+        }
+
+        for name, statement in statements.items():
+            if name not in indices:
+                cur.execute(statement)
 
         con.commit()
         con.close()
