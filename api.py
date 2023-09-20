@@ -1,7 +1,6 @@
 '''
 EVENTS
 GET     /dataset/{dataset_name}/events - List events, paged
-GET     /dataset/{dataset_name}/events/pending - List pending events, paged
 
 EVENTS BY TYPE
 PENDING EVENTS
@@ -36,6 +35,8 @@ GET     /datasets/{did}/readme - Latest
 GET     /datasets/{did}/readme/{version} - Details
 POST    /datasets/{did}/readme - Create
 PATCH   /datasets/{did}/readme - Update
+
+GET     /dataset/{dataset_name}/events/pending - List pending events, paged
 
 ==== DONE ====
 
@@ -91,13 +92,22 @@ import traceback
 import jsonschema
 import multiprocessing
 
+import werkzeug
+
 lock = multiprocessing.Lock() # TODO: lock per dataset 
 
 root_directory = pathlib.Path("root")
 datasets_directory = root_directory.joinpath("datasets")
 database_path = root_directory.joinpath("gonk.db")
 
+class RegexConverter(werkzeug.routing.BaseConverter):
+    def __init__(self, url_map, *items):
+        super().__init__(url_map)
+        self.regex = items[0]
+
 app = flask.Flask(__name__)
+
+app.url_map.converters['re'] = RegexConverter
 
 # from werkzeug.middleware.profiler import ProfilerMiddleware
 # app.wsgi_app = ProfilerMiddleware(app.wsgi_app)
@@ -668,7 +678,7 @@ def objects_list(dataset_name):
 
 @app.get(
     "/datasets/<dataset_name>/objects"
-    "/<regex('[0-9A-Fa-f-]{36}'):object_uuid>")
+    "/<re('[0-9A-Fa-f-]{36}'):object_uuid>")
 @authorize
 def objects_info(dataset_name, object_uuid):
     dataset_directory = datasets_directory.joinpath(dataset_name)
@@ -720,7 +730,7 @@ def objects_status(dataset_name, object_status):
 
 @app.get(
     "/datasets/<dataset_name>/objects"
-    "/<regex('[0-9A-Fa-f-]{36}'):object_uuid>/<int:object_version>")
+    "/<re('[0-9A-Fa-f-]{36}'):object_uuid>/<int:object_version>")
 @authorize
 def objects_get(dataset_name, object_uuid, object_version):
     dataset_directory = datasets_directory.joinpath(dataset_name)
@@ -834,6 +844,33 @@ def objects_delete(dataset_name, object_uuid, object_version):
             "dataset": dataset_name,
             "uuid": object_uuid,
             "version": object_version,
+        })
+
+@app.get("/datasets/<dataset_name>/events")
+@authorize
+def events_list(dataset_name):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    after = None
+    if "after" in flask.request.args:
+        after = uuid.UUID(flask.request.args["after"])
+
+    dataset = Dataset(dataset_directory)
+    
+    def serialize_type(item):
+        uuid_, type_ = item
+        event = dataset.record_keeper.read(uuid_)
+        data = event.serialize()
+        data["type"] = type_
+        return data
+
+    events = list(map(serialize_type, dataset.state.events_all(after=after)))
+
+    return flask.jsonify({
+            "dataset": dataset_name,
+            "events": events,
         })
 
 @cli.command("run")

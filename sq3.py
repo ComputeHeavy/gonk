@@ -245,6 +245,31 @@ class State(core.State):
         con.commit()
         con.close()
 
+    def events_all(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where += """ WHERE id > (
+                SELECT id 
+                FROM events 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT uuid, type
+            FROM events
+            {where} 
+            ORDER BY id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [(uuid.UUID(uu), type_) for uu, type_ in res]
+
     def objects_all(self, 
         uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
 
