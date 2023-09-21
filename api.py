@@ -1,10 +1,4 @@
 '''
-EVENTS
-GET     /dataset/{dataset_name}/events - List events, paged
-
-EVENTS BY TYPE
-PENDING EVENTS
-
 PUT     /datasets/{name}/events/{uuid}/accept
     ReviewAcceptEvent
 
@@ -69,6 +63,7 @@ DELETE   /datasets/{name}/objects/{uuid}/{version} - Delete
     ObjectDeleteEvent
 GET     /datasets/{name}/objects - List (All, Paged)
 GET     /datasets/{name}/objects/{status} - List (Paged)
+GET     /dataset/{dataset_name}/events - List events, paged
 '''
 
 import fs
@@ -745,10 +740,21 @@ def objects_get(dataset_name, object_uuid, object_version):
 
     object_buf = dataset.depot.read(object_.identifier(), 0, object_.size)
 
+    def serialize_type(item):
+        uuid_, type_ = item
+        event = dataset.record_keeper.read(uuid_)
+        data = event.serialize()
+        data["type"] = type_
+        return data
+
+    events = [event.serialize() for event in 
+        dataset.state.events_by_object(object_.uuid, object_.version)]
+
     return flask.jsonify({
             "dataset": dataset_name,
             "info": object_.serialize(),
             "data": base64.b64encode(object_buf).decode(),
+            "events": events,
         })
 
 @app.patch("/datasets/<dataset_name>/objects/<object_uuid>")
@@ -858,15 +864,18 @@ def events_list(dataset_name):
         after = uuid.UUID(flask.request.args["after"])
 
     dataset = Dataset(dataset_directory)
-    
-    def serialize_type(item):
-        uuid_, type_ = item
-        event = dataset.record_keeper.read(uuid_)
-        data = event.serialize()
-        data["type"] = type_
-        return data
 
-    events = list(map(serialize_type, dataset.state.events_all(after=after)))
+    def rk_event_type_serializer(dataset):
+        def fn(item):
+            uuid_, type_ = item
+            event = dataset.record_keeper.read(uuid_)
+            data = event.serialize()
+            data["type"] = type_
+            return data
+        return fn
+
+    events = list(map(rk_event_type_serializer(dataset), 
+        dataset.state.events_all(after=after)))
 
     return flask.jsonify({
             "dataset": dataset_name,

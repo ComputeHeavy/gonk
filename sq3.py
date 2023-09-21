@@ -245,6 +245,27 @@ class State(core.State):
         con.commit()
         con.close()
 
+    def events_by_object(self, uuid_: uuid.UUID, version: int):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT E.uuid, E.type, 
+                    ERL.review_uuid IS NULL AS PENDING
+                FROM events E
+                INNER JOIN object_event_link OEL
+                    ON E.uuid = OEL.event_uuid
+                LEFT JOIN event_review_link ERL
+                    ON E.uuid = ERL.event_uuid
+                WHERE OEL.object_uuid = ?
+                    AND OEL.object_version = ?
+                ORDER BY E.id""",
+            (str(uuid_), version))
+
+        res = cur.fetchall()
+        con.close()
+
+        return [core.EventInfo(uuid.UUID(uu), type_, bool(pending)) 
+            for uu, type_, pending in res]
+
     def events_all(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
         where = ""
@@ -482,7 +503,7 @@ class State(core.State):
                 COUNT(version) OVER (PARTITION BY uuid)
             FROM schemas""" + where, params)
 
-        return [core.SchemaInfo(name, uuid_, version) 
+        return [core.SchemaInfo(name, uuid.UUID(uuid_), version) 
             for name, uuid_, version in cur.fetchall()]
 
     def schema(self, name: str, version: int):

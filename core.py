@@ -136,6 +136,19 @@ class ObjectInfo:
             "versions": self.versions,
         }
 
+class EventInfo:
+    def __init__(self, uuid_: uuid.UUID, type_: str, pending: bool):
+        self.uuid = uuid_
+        self.type = type_
+        self.pending = pending
+
+    def serialize(self):
+        return {
+            "uuid": str(self.uuid),
+            "type": self.type,
+            "pending": self.pending,
+        }
+
 class State(Validator, Consumer, abc.ABC):
     def validate(self, event: events.EventT):
         handler: dict[type[events.Event],
