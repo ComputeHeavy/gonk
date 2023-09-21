@@ -1,10 +1,4 @@
 '''
-PUT     /datasets/{name}/events/{uuid}/accept
-    ReviewAcceptEvent
-
-PUT     /datasets/{name}/events/{uuid}/reject
-    ReviewRejectEvent
-
 POST    /datasets/{name}/objects/{uuid}/{version}/annotations - Create
     AnnotationCreateEvent
     Annotation bytes
@@ -18,19 +12,6 @@ PATCH   /datasets/{name}/objects/{uuid}/{version}/annotations/{uuid} - Version
 
 DELETE   /datasets/{name}/objects/{uuid}/{version}/annotations/{uuid}/{version} - Delete
     AnnotationDeleteEvent
-
-TAGS
-
-GET     /dataset/{did} - Details
-PATCH   /dataset/{did} - Rename
-DELETE  /dataset/{did} - Delete
-
-GET     /datasets/{did}/readme - Latest
-GET     /datasets/{did}/readme/{version} - Details
-POST    /datasets/{did}/readme - Create
-PATCH   /datasets/{did}/readme - Update
-
-GET     /dataset/{dataset_name}/events/pending - List pending events, paged
 
 ==== DONE ====
 
@@ -63,7 +44,12 @@ DELETE   /datasets/{name}/objects/{uuid}/{version} - Delete
     ObjectDeleteEvent
 GET     /datasets/{name}/objects - List (All, Paged)
 GET     /datasets/{name}/objects/{status} - List (Paged)
+
 GET     /dataset/{dataset_name}/events - List events, paged
+PUT     /datasets/{name}/events/{uuid}/accept
+    ReviewAcceptEvent
+PUT     /datasets/{name}/events/{uuid}/reject
+    ReviewRejectEvent
 '''
 
 import fs
@@ -880,6 +866,46 @@ def events_list(dataset_name):
     return flask.jsonify({
             "dataset": dataset_name,
             "events": events,
+        })
+
+@app.put("/datasets/<dataset_name>/events/<event_uuid>/accept")
+@authorize
+def events_accept(dataset_name, event_uuid):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    with lock:
+        rae = events.ReviewAcceptEvent(uuid.UUID(event_uuid))
+        rae = dataset.linker.link(rae, flask.g.username)
+        dataset.machine.process_event(rae)
+
+    return flask.jsonify({
+            "message": f"Event accepted.",
+            "dataset": dataset_name,
+            "event": event_uuid,
+        })
+
+@app.put("/datasets/<dataset_name>/events/<event_uuid>/reject")
+@authorize
+def events_reject(dataset_name, event_uuid):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    with lock:
+        rre = events.ReviewRejectEvent(uuid.UUID(event_uuid))
+        rre = dataset.linker.link(rre, flask.g.username)
+        dataset.machine.process_event(rre)
+
+    return flask.jsonify({
+            "message": f"Event rejected.",
+            "dataset": dataset_name,
+            "event": event_uuid,
         })
 
 @cli.command("run")

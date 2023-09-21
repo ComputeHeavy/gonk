@@ -368,6 +368,7 @@ class State(core.State):
             WHERE OS.status IS NULL
                 AND S.uuid IS NULL
                 { where }
+            ORDER BY O.id
             LIMIT 25""", params)
 
         res = cur.fetchall()
@@ -402,6 +403,7 @@ class State(core.State):
             WHERE ERL.review_uuid IS NULL
                 AND S.uuid IS NULL
                 { where }
+            ORDER BY O.id
             LIMIT 25""", params)
 
         res = cur.fetchall()
@@ -431,6 +433,7 @@ class State(core.State):
                     AND O.version = OS.version
             WHERE OS.status = 'DELETE_ACCEPTED'
                 { where }
+            ORDER BY O.id
             LIMIT 25""", params)
 
         res = cur.fetchall()
@@ -460,6 +463,7 @@ class State(core.State):
                     AND O.version = OS.version
             WHERE OS.status = 'CREATE_REJECTED'
                 { where }
+            ORDER BY O.id
             LIMIT 25""", params)
 
         res = cur.fetchall()
