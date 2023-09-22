@@ -249,7 +249,10 @@ class State(core.State):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT E.uuid, E.type, 
-                    ERL.review_uuid IS NULL AS PENDING
+                    ERL.review_uuid IS NULL AND E.type IN (
+                        'ObjectCreateEvent', 
+                        'ObjectUpdateEvent', 
+                        'ObjectDeleteEvent') AS PENDING
                 FROM events E
                 INNER JOIN object_event_link OEL
                     ON E.uuid = OEL.event_uuid
@@ -395,13 +398,12 @@ class State(core.State):
             FROM objects O
             LEFT JOIN schemas S
                 ON O.uuid = S.uuid AND O.version = S.version
-            INNER JOIN object_event_link OEL 
-                 ON O.uuid = OEL.object_uuid 
-                     AND O.version = OEL.object_version
-            LEFT JOIN event_review_link ERL 
-                 ON OEL.event_uuid = ERL.event_uuid
-            WHERE ERL.review_uuid IS NULL
-                AND S.uuid IS NULL
+            INNER JOIN object_status OS
+                ON O.uuid = OS.uuid AND O.version = OS.version 
+                    AND OS.status IN (
+                        'CREATE_PENDING', 
+                        'DELETE_PENDING')
+            WHERE S.uuid IS NULL
                 { where }
             ORDER BY O.id
             LIMIT 25""", params)

@@ -334,7 +334,7 @@ class FieldValidator(Validator):
         if annotation.size < 0:
             raise ValidationError("size must be a non-negative integer")
 
-        if not isinstance(annotation.schema, events.Identifier):
+        if not isinstance(annotation.schema_, events.Identifier):
             raise ValidationError("schema must be an identifier")
 
         if annotation.hash_type != events.HashTypeT.SHA256:
@@ -378,14 +378,14 @@ class SchemaValidator(Validator, Consumer):
             raise ValidationError("invalid JSON schema") from error
 
     def _validate_annotation(self, annotation):
-        if annotation.schema not in self.schemas:
+        if annotation.schema_ not in self.schemas:
             return
 
         schema_bs = bytes()
         off = 0
         chunk = 1024*5
         while True:
-            buf = self.depot.read(annotation.schema, off, chunk)
+            buf = self.depot.read(annotation.schema_, off, chunk)
             schema_bs += buf
             off += len(buf)
             if len(buf) < chunk:

@@ -921,11 +921,14 @@ def annotation_create(dataset_name):
     if "annotation" not in request_data:
         return flask.jsonify({"error": "Missing key 'annotation'."}), 400
 
-    if "schema_name" not in request_data:
+    if "schema" not in request_data:
         return flask.jsonify({"error": "Missing key 'schema_name'."}), 400
 
-    if "schema_version" not in request_data:
-        return flask.jsonify({"error": "Missing key 'schema_version'."}), 400
+    if "name" not in request_data["schema"]:
+        return flask.jsonify({"error": "Missing schema key 'name'."}), 400
+
+    if "version" not in request_data["schema"]:
+        return flask.jsonify({"error": "Missing schema key 'version'."}), 400
 
     if "object_identifiers" not in request_data:
         return flask.jsonify(
@@ -943,8 +946,8 @@ def annotation_create(dataset_name):
         object_identifiers.append(
             events.Identifier(uuid.UUID(obj_id["uuid"]), obj_id["version"])) 
 
-    schema_name = request_data["schema_name"]
-    schema_version = request_data["schema_version"]
+    schema_name = request_data["schema"]["name"]
+    schema_version = request_data["schema"]["version"]
 
     dataset_directory = datasets_directory.joinpath(dataset_name)
     if not dataset_directory.exists():
