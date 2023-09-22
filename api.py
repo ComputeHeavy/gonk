@@ -1,16 +1,18 @@
 '''
-POST    /datasets/{name}/objects/{uuid}/{version}/annotations - Create
+POST    /datasets/{name}/annotations - Create
     AnnotationCreateEvent
     Annotation bytes
 
-GET     /datasets/{name}/objects/{uuid}/{version}/annotations - List
-GET     /datasets/{name}/objects/{uuid}/{version}/annotations/{uuid}/{version} - Details
+GET     /datasets/{name}/annotations - List
+GET     /datasets/{name}/annotations/{uuid} - List all filtered
+GET     /datasets/{name}/annotations/{status} - List
+GET     /datasets/{name}/annotations/{uuid}/{version} - Details
     
-PATCH   /datasets/{name}/objects/{uuid}/{version}/annotations/{uuid} - Version
+PATCH   /datasets/{name}/annotations/{uuid} - Version
     AnnotationUpdateEvent
     Annotation bytes
 
-DELETE   /datasets/{name}/objects/{uuid}/{version}/annotations/{uuid}/{version} - Delete
+DELETE   /datasets/{name}/annotations/{uuid}/{version} - Delete
     AnnotationDeleteEvent
 
 ==== DONE ====
@@ -286,9 +288,9 @@ def datasets_create(dataset_name):
     dataset.machine.process_event(oae)
 
     return flask.jsonify({
-            "message": f"Dataset created.",
-            "dataset": dataset_name,
-        })
+        "message": f"Dataset created.",
+        "dataset": dataset_name,
+    })
 
 @app.get("/datasets")
 @authorize
@@ -366,11 +368,11 @@ def schemas_create(dataset_name):
             raise e
 
     return flask.jsonify({
-            "message": f"Schema created.",
-            "dataset": dataset_name,
-            "name": schema_name,
-            "version": 0,
-        })
+        "message": f"Schema created.",
+        "dataset": dataset_name,
+        "name": schema_name,
+        "version": 0,
+    })
 
 @app.get("/datasets/<dataset_name>/schemas")
 @authorize
@@ -383,9 +385,9 @@ def schemas_list(dataset_name):
     schemas = [schema.serialize() for schema in dataset.state.schemas_all()]
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "schemas": schemas,
-        })
+        "dataset": dataset_name,
+        "schemas": schemas,
+    })
 
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>")
 @authorize
@@ -404,10 +406,10 @@ def schemas_info(dataset_name, schema_name):
     schema, = schemas
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "schema": schema_name,
-            "info": schema,
-        })
+        "dataset": dataset_name,
+        "schema": schema_name,
+        "info": schema,
+    })
 
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:schema_version>")
 @authorize
@@ -425,10 +427,10 @@ def schemas_get(dataset_name, schema_name, schema_version):
     schema_buf = dataset.depot.read(schema.identifier(), 0, schema.size)
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "info": schema.serialize(),
-            "data": base64.b64encode(schema_buf).decode(),
-        })
+        "dataset": dataset_name,
+        "info": schema.serialize(),
+        "data": base64.b64encode(schema_buf).decode(),
+    })
 
 @app.patch("/datasets/<dataset_name>/schemas/<schema_name>")
 @accept_json
@@ -485,11 +487,11 @@ def schemas_update(dataset_name, schema_name):
             raise e
 
     return flask.jsonify({
-            "message": f"Schema updated.",
-            "dataset": dataset_name,
-            "name": schema_name,
-            "version": schema_info.versions,
-        })
+        "message": f"Schema updated.",
+        "dataset": dataset_name,
+        "name": schema_name,
+        "version": schema_info.versions,
+    })
 
 @app.get("/datasets/<dataset_name>/owners")
 @authorize
@@ -502,9 +504,9 @@ def owners_list(dataset_name):
     owners = dataset.state.owners()
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "owners": owners,
-        })
+        "dataset": dataset_name,
+        "owners": owners,
+    })
 
 @app.put("/datasets/<dataset_name>/owners")
 @accept_json
@@ -542,10 +544,10 @@ def owners_add(dataset_name):
         dataset.machine.process_event(oae)
 
     return flask.jsonify({
-            "message": f"Owner added.",
-            "dataset": dataset_name,
-            "username": username,
-        })
+        "message": f"Owner added.",
+        "dataset": dataset_name,
+        "username": username,
+    })
 
 @app.delete("/datasets/<dataset_name>/owners")
 @accept_json
@@ -572,10 +574,10 @@ def owners_remove(dataset_name):
         dataset.machine.process_event(oae)
 
     return flask.jsonify({
-            "message": f"Owner removed.",
-            "dataset": dataset_name,
-            "username": username,
-        })
+        "message": f"Owner removed.",
+        "dataset": dataset_name,
+        "username": username,
+    })
 
 @app.post("/datasets/<dataset_name>/objects")
 @accept_json
@@ -631,11 +633,11 @@ def objects_create(dataset_name):
             raise e
 
     return flask.jsonify({
-            "message": f"Object created.",
-            "dataset": dataset_name,
-            "uuid": oce.object.uuid,
-            "version": 0,
-        })
+        "message": f"Object created.",
+        "dataset": dataset_name,
+        "uuid": oce.object.uuid,
+        "version": 0,
+    })
 
 @app.get("/datasets/<dataset_name>/objects")
 @authorize
@@ -653,9 +655,9 @@ def objects_list(dataset_name):
         for object_ in dataset.state.objects_all(after=after)]
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "objects": objects,
-        })
+        "dataset": dataset_name,
+        "objects": objects,
+    })
 
 @app.get(
     "/datasets/<dataset_name>/objects"
@@ -678,10 +680,10 @@ def objects_info(dataset_name, object_uuid):
     object_, = objects
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "object": object_uuid,
-            "info": object_,
-        })
+        "dataset": dataset_name,
+        "object": object_uuid,
+        "info": object_,
+    })
 
 @app.get("/datasets/<dataset_name>/objects/<object_status>")
 @authorize
@@ -696,18 +698,18 @@ def objects_status(dataset_name, object_status):
 
     if object_status not in {'accepted', 'pending', 'deleted', 'rejected'}:
         return flask.jsonify({
-            "error": "Invalid status.",
-            "valid_statuses": ["accepted", "pending", "deleted", "rejected"],
-        }), 400
+        "error": "Invalid status.",
+        "valid_statuses": ["accepted", "pending", "deleted", "rejected"],
+    }), 400
 
     dataset = Dataset(dataset_directory)
     objects = [object_.serialize() for object_ in 
         dataset.state.objects_by_status(object_status, after=after)]
 
     return flask.jsonify({
-            "objects": objects,
-            "dataset": dataset_name,
-        })
+        "objects": objects,
+        "dataset": dataset_name,
+    })
 
 @app.get(
     "/datasets/<dataset_name>/objects"
@@ -737,11 +739,11 @@ def objects_get(dataset_name, object_uuid, object_version):
         dataset.state.events_by_object(object_.uuid, object_.version)]
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "info": object_.serialize(),
-            "data": base64.b64encode(object_buf).decode(),
-            "events": events,
-        })
+        "dataset": dataset_name,
+        "info": object_.serialize(),
+        "data": base64.b64encode(object_buf).decode(),
+        "events": events,
+    })
 
 @app.patch("/datasets/<dataset_name>/objects/<object_uuid>")
 @accept_json
@@ -806,11 +808,11 @@ def objects_update(dataset_name, object_uuid):
             raise e
 
     return flask.jsonify({
-            "message": f"Object updated.",
-            "dataset": dataset_name,
-            "uuid": oue.object.uuid,
-            "version": 0,
-        })
+        "message": f"Object updated.",
+        "dataset": dataset_name,
+        "uuid": oue.object.uuid,
+        "version": 0,
+    })
 
 @app.delete(
     "/datasets/<dataset_name>/objects/<object_uuid>/<int:object_version>")
@@ -832,11 +834,11 @@ def objects_delete(dataset_name, object_uuid, object_version):
         dataset.machine.process_event(ode)
 
     return flask.jsonify({
-            "message": f"Object deleted.",
-            "dataset": dataset_name,
-            "uuid": object_uuid,
-            "version": object_version,
-        })
+        "message": f"Object deleted.",
+        "dataset": dataset_name,
+        "uuid": object_uuid,
+        "version": object_version,
+    })
 
 @app.get("/datasets/<dataset_name>/events")
 @authorize
@@ -864,9 +866,9 @@ def events_list(dataset_name):
         dataset.state.events_all(after=after)))
 
     return flask.jsonify({
-            "dataset": dataset_name,
-            "events": events,
-        })
+        "dataset": dataset_name,
+        "events": events,
+    })
 
 @app.put("/datasets/<dataset_name>/events/<event_uuid>/accept")
 @authorize
@@ -883,10 +885,10 @@ def events_accept(dataset_name, event_uuid):
         dataset.machine.process_event(rae)
 
     return flask.jsonify({
-            "message": f"Event accepted.",
-            "dataset": dataset_name,
-            "event": event_uuid,
-        })
+        "message": f"Event accepted.",
+        "dataset": dataset_name,
+        "event": event_uuid,
+    })
 
 @app.put("/datasets/<dataset_name>/events/<event_uuid>/reject")
 @authorize
@@ -903,10 +905,87 @@ def events_reject(dataset_name, event_uuid):
         dataset.machine.process_event(rre)
 
     return flask.jsonify({
-            "message": f"Event rejected.",
-            "dataset": dataset_name,
-            "event": event_uuid,
-        })
+        "message": f"Event rejected.",
+        "dataset": dataset_name,
+        "event": event_uuid,
+    })
+
+@app.post("/datasets/<dataset_name>/annotations")
+@accept_json
+@authorize
+def annotation_create(dataset_name):
+    request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
+    if "annotation" not in request_data:
+        return flask.jsonify({"error": "Missing key 'annotation'."}), 400
+
+    if "schema_name" not in request_data:
+        return flask.jsonify({"error": "Missing key 'schema_name'."}), 400
+
+    if "schema_version" not in request_data:
+        return flask.jsonify({"error": "Missing key 'schema_version'."}), 400
+
+    if "object_identifiers" not in request_data:
+        return flask.jsonify(
+            {"error": "Missing key 'object_identifiers'."}), 400
+
+    if len(request_data["object_identifiers"]) < 1:
+        return flask.jsonify(
+            {"error": "Requires at least 1 object identifier."}), 400
+
+    object_identifiers = []
+    for obj_id in request_data["object_identifiers"]:
+        if "uuid" not in obj_id or "version" not in obj_id:
+            return flask.jsonify({"error": 
+                "Object identifiers require 'uuid' and 'version'."}), 400
+        object_identifiers.append(
+            events.Identifier(uuid.UUID(obj_id["uuid"]), obj_id["version"])) 
+
+    schema_name = request_data["schema_name"]
+    schema_version = request_data["schema_version"]
+
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    schema = dataset.state.schema(schema_name, schema_version)
+    if schema is None:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    annotation_buf = base64.b64decode(request_data["annotation"])
+
+    ace = dataset.linker.link(
+        events.AnnotationCreateEvent(
+            object_identifiers,
+            events.Annotation(
+                schema.identifier(),
+                len(annotation_buf), 
+                events.HashTypeT.SHA256, 
+                hashlib.sha256(annotation_buf).hexdigest())), 
+        flask.g.username)
+
+    with lock:
+        id_ = ace.annotation.identifier()
+        try:
+            dataset.depot.reserve(id_, ace.annotation.size)
+            dataset.depot.write(id_, 0, annotation_buf)
+            dataset.depot.finalize(id_)
+            dataset.machine.process_event(ace)
+        except Exception as e:
+            if dataset.depot.exists(id_):
+                dataset.depot.purge(id_)
+            raise e
+
+    return flask.jsonify({
+        "message": f"Annotaiton created.",
+        "dataset": dataset_name,
+        "uuid": ace.annotation.uuid,
+        "version": 0,
+    })
 
 @cli.command("run")
 def run():
