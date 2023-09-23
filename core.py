@@ -182,15 +182,59 @@ class State(Validator, Consumer, abc.ABC):
         handler[type(event)](event)
 
     @abc.abstractmethod
-    def objects_all(self, uuid_=None, after=None) -> list[ObjectInfo]:
+    def events_by_object(self, uuid_: uuid.UUID, version: int)
         raise NotImplementedError("unimplemented method")
-
+    
     @abc.abstractmethod
-    def objects_by_status(self, status, after=None) -> list[events.Identifier]:
+    def events_by_annotation(self, uuid_: uuid.UUID, version: int)
         raise NotImplementedError("unimplemented method")
-
+    
     @abc.abstractmethod
-    def schemas_all(self) -> list[SchemaInfo]:
+    def events_all(self, after: None|uuid.UUID = None)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def annotations_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def annotations_by_object(self, object_identifier: events.Identifier)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def annotations_by_status(self, status: str, after: None|uuid.UUID = None)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def annotation(self, uuid_: uuid.UUID, version: int)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def objects_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def objects_by_annotation(self, annotation_uuid: uuid.UUID)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def objects_by_status(self, status: str, after: None|uuid.UUID = None)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def object(self, uuid_: uuid.UUID, version: int)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def schemas_all(self, name: None|str =None):
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def schema(self, name: str, version: int)
+        raise NotImplementedError("unimplemented method")
+    
+    @abc.abstractmethod
+    def owners(self):
         raise NotImplementedError("unimplemented method")
 
     @abc.abstractmethod
