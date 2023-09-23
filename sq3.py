@@ -250,7 +250,10 @@ class State(core.State):
         reviewables = [
             "ObjectCreateEvent", 
             "ObjectUpdateEvent", 
-            "ObjectDeleteEvent"]
+            "ObjectDeleteEvent",
+            "AnnotationCreateEvent",
+            "AnnotationUpdateEvent",
+            "AnnotationDeleteEvent"]
 
         review = None
         if accepted is None:
@@ -264,7 +267,7 @@ class State(core.State):
 
         return review
 
-    def events_by_object(self, uuid_: uuid.UUID, version: int):
+    def events_by_object(self, identifier: events.Identifier):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT E.uuid, E.type, ERL.accepted 
@@ -276,7 +279,7 @@ class State(core.State):
                 WHERE OEL.object_uuid = ?
                     AND OEL.object_version = ?
                 ORDER BY E.id""",
-            (str(uuid_), version))
+            (str(identifier.uuid), identifier.version))
 
         res = cur.fetchall()
         con.close()
@@ -285,7 +288,7 @@ class State(core.State):
                 self._accepted_to_review(type_, accepted)) 
             for uu, type_, accepted in res]
 
-    def events_by_annotation(self, uuid_: uuid.UUID, version: int):
+    def events_by_annotation(self, identifier: events.Identifier):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT E.uuid, E.type, ERL.accepted
@@ -297,7 +300,7 @@ class State(core.State):
                 WHERE AEL.annotation_uuid = ?
                     AND AEL.annotation_version = ?
                 ORDER BY E.id""",
-            (str(uuid_), version))
+            (str(identifier.uuid), identifier.version))
 
         res = cur.fetchall()
         con.close()
@@ -310,7 +313,7 @@ class State(core.State):
         params: tuple = tuple()
         where = ""
         if after is not None:
-            where += """ WHERE id > (
+            where += """ WHERE E.id > (
                 SELECT id 
                 FROM events 
                 WHERE uuid = ?
@@ -320,16 +323,20 @@ class State(core.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT uuid, type
-            FROM events
+        cur.execute(f"""SELECT E.uuid, E.type, ERL.accepted
+            FROM events E
+            LEFT JOIN event_review_link ERL
+                ON E.uuid = ERL.event_uuid
             {where} 
-            ORDER BY id
+            ORDER BY E.id
             LIMIT 25""", params)
 
         res = cur.fetchall()
         con.close()
 
-        return [(uuid.UUID(uu), type_) for uu, type_ in res]
+        return [core.EventInfo(uuid.UUID(uu), type_, 
+                self._accepted_to_review(type_, accepted))
+            for uu, type_, accepted in res]
 
     def annotations_all(self, 
         uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
@@ -381,8 +388,6 @@ class State(core.State):
 
         res = cur.fetchall()
         con.close()
-
-        print(res)
 
         return [core.AnnotationInfo(uuid.UUID(uu), vers) for uu, vers in res]
 
@@ -522,14 +527,14 @@ class State(core.State):
         return [events.Identifier(uuid.UUID(uuid_), version) 
             for uuid_, version, in res]
 
-    def annotation(self, uuid_: uuid.UUID, version: int):
+    def annotation(self, identifier: events.Identifier):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT A.annotation
                 FROM annotations A
                 WHERE A.uuid = ?
                     AND A.version = ?""", 
-            (str(uuid_), version))
+            (str(identifier.uuid), identifier.version))
         res = cur.fetchone()
         con.close()
 
@@ -590,7 +595,7 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uu, ver) for uu, ver in res]
+        return [events.Identifier(uuid.UUID(uu), ver) for uu, ver in res]
 
     def objects_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
@@ -734,7 +739,7 @@ class State(core.State):
         return [events.Identifier(uuid.UUID(uuid_), version) 
             for uuid_, version, in res]
 
-    def object(self, uuid_: uuid.UUID, version: int):
+    def object(self, identifier: events.Identifier):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT O.object
@@ -744,7 +749,7 @@ class State(core.State):
                 WHERE O.uuid = ?
                     AND O.version = ?
                     AND S.uuid IS NULL""", 
-            (str(uuid_), version))
+            (str(identifier.uuid), identifier.version))
         res = cur.fetchone()
         con.close()
 
@@ -775,7 +780,7 @@ class State(core.State):
         return [core.SchemaInfo(name, uuid.UUID(uuid_), version) 
             for name, uuid_, version in res]
 
-    def schema(self, name: str, version: int) -> events.Object:
+    def schema(self, name: str, version: int) -> None|events.Object:
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT O.object

@@ -11,6 +11,8 @@ def rmtree(p):
     p.rmdir()
 
 class GonkTest(unittest.TestCase):
+    class_directory: pathlib.Path
+
     @classmethod
     def setUpClass(cls):
         cls.class_directory = pathlib.Path(f"testing-{secrets.token_hex(4)}")

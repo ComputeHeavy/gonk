@@ -668,15 +668,17 @@ def objects_get(dataset_name, object_uuid, object_version):
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    object_ = dataset.state.object(object_uuid, object_version)
+    object_ = dataset.state.object(
+        events.Identifier(object_uuid, object_version))
 
     if object_ is None:
         return flask.jsonify({"error": "Object not found."}), 404
 
     object_buf = dataset.depot.read(object_.identifier(), 0, object_.size)
 
-    events = [event.serialize() for event in 
-        dataset.state.events_by_object(object_.uuid, object_.version)]
+    events_ = [event.serialize() for event in 
+        dataset.state.events_by_object(
+            events.Identifier(object_.uuid, object_.version))]
 
     annotations = [annotation.serialize() for annotation in 
         dataset.state.annotations_by_object(object_.identifier())]
@@ -685,7 +687,7 @@ def objects_get(dataset_name, object_uuid, object_version):
         "dataset": dataset_name,
         "info": object_.serialize(),
         "data": base64.b64encode(object_buf).decode(),
-        "events": events,
+        "events": events_,
         "annotations": annotations,
     })
 
@@ -767,7 +769,8 @@ def objects_delete(dataset_name, object_uuid, object_version):
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    object_ = dataset.state.object(object_uuid, object_version)
+    object_ = dataset.state.object(
+        events.Identifier(object_uuid, object_version))
 
     if object_ is None:
         return flask.jsonify({"error": "Object not found."}), 404
@@ -1016,7 +1019,8 @@ def annotations_delete(dataset_name, annotation_uuid, annotation_version):
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    annotation = dataset.state.annotation(annotation_uuid, annotation_version)
+    annotation = dataset.state.annotation(
+        events.Identifier(annotation_uuid, annotation_version))
 
     if annotation is None:
         return flask.jsonify({"error": "Annotation not found."}), 404
@@ -1115,7 +1119,8 @@ def annotations_get(dataset_name, annotation_uuid, annotation_version):
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    annotation = dataset.state.annotation(annotation_uuid, annotation_version)
+    annotation = dataset.state.annotation(
+        events.Identifier(annotation_uuid, annotation_version))
 
     if annotation is None:
         return flask.jsonify({"error": "Annotation not found."}), 404
@@ -1123,8 +1128,9 @@ def annotations_get(dataset_name, annotation_uuid, annotation_version):
     annotation_buf = dataset.depot.read(
         annotation.identifier(), 0, annotation.size)
 
-    events = [event.serialize() for event in 
-        dataset.state.events_by_annotation(annotation.uuid, annotation.version)]
+    events_ = [event.serialize() for event in 
+        dataset.state.events_by_annotation(
+            events.Identifier(annotation.uuid, annotation.version))]
 
     objects = [object_.serialize() for object_ in 
         dataset.state.objects_by_annotation(annotation.uuid)]
@@ -1133,7 +1139,7 @@ def annotations_get(dataset_name, annotation_uuid, annotation_version):
         "dataset": dataset_name,
         "info": annotation.serialize(),
         "data": base64.b64encode(annotation_buf).decode(),
-        "events": events,
+        "events": events_,
         "objects": objects,
     })
 

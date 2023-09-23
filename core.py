@@ -160,6 +160,9 @@ class EventInfo:
             "review": self.review,
         }
 
+    def __repr__(self):
+        return f"EventInfo({self.uuid}, {self.type}, {self.review})"
+
 class State(Validator, Consumer, abc.ABC):
     def validate(self, event: events.EventT):
         handler: dict[type[events.Event],
@@ -182,11 +185,11 @@ class State(Validator, Consumer, abc.ABC):
         handler[type(event)](event)
 
     @abc.abstractmethod
-    def events_by_object(self, uuid_: uuid.UUID, version: int):
+    def events_by_object(self, identifier: events.Identifier):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def events_by_annotation(self, uuid_: uuid.UUID, version: int):
+    def events_by_annotation(self, identifier: events.Identifier):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
@@ -207,7 +210,7 @@ class State(Validator, Consumer, abc.ABC):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def annotation(self, uuid_: uuid.UUID, version: int):
+    def annotation(self, identifier: events.Identifier):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
@@ -224,7 +227,7 @@ class State(Validator, Consumer, abc.ABC):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def object(self, uuid_: uuid.UUID, version: int):
+    def object(self, identifier: events.Identifier):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
