@@ -1,5 +1,6 @@
 import fs
-import core
+import interfaces
+import validators
 import events
 import sq3
 import integrity
@@ -199,13 +200,13 @@ class Dataset:
         self.dataset_directory = dataset_directory
         self.record_keeper = fs.RecordKeeper(dataset_directory)
         self.linker = integrity.HashChainLinker(self.record_keeper)
-        self.machine = core.Machine()
+        self.machine = interfaces.Machine()
         self.depot = fs.Depot(dataset_directory)
         self.state = sq3.State(dataset_directory, self.record_keeper)
 
-        self.machine.register(core.FieldValidator())
+        self.machine.register(validators.FieldValidator())
         self.machine.register(integrity.HashChainValidator(self.record_keeper))
-        self.machine.register(core.SchemaValidator(self.depot))
+        self.machine.register(validators.SchemaValidator(self.depot))
         self.machine.register(self.record_keeper)
         self.machine.register(self.state)
 
@@ -282,7 +283,7 @@ def schemas_create(dataset_name):
     schema_name = request_data["name"]
     schema_buf = base64.b64decode(request_data["schema"])
 
-    if not core.is_schema(schema_name):
+    if not validators.is_schema(schema_name):
         return flask.jsonify(
             {"error": "Schema names must start with 'schema-'."}), 400
     
@@ -392,7 +393,7 @@ def schemas_update(dataset_name, schema_name):
 
     schema_buf = base64.b64decode(request_data["schema"])
 
-    if not core.is_schema(schema_name):
+    if not validators.is_schema(schema_name):
         return flask.jsonify(
             {"error": "Schema names must start with 'schema-'."}), 400
     
@@ -547,7 +548,7 @@ def objects_create(dataset_name):
     object_buf = base64.b64decode(request_data["object"])
     object_mime = request_data["mimetype"]
 
-    if core.is_schema(object_name):
+    if validators.is_schema(object_name):
         return flask.jsonify(
             {"error": "Object names may not start with 'schema-'."}), 400
     
@@ -712,7 +713,7 @@ def objects_update(dataset_name, object_uuid):
     object_buf = base64.b64decode(request_data["object"])
     object_mime = request_data["mimetype"]
 
-    if core.is_schema(object_name):
+    if validators.is_schema(object_name):
         return flask.jsonify(
             {"error": "Object names may not start with 'schema-'."}), 400
     

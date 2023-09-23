@@ -1,13 +1,14 @@
-import fs
-import core
 import uuid
-import integrity
-import events
 import unittest
 import test_utils
 
 import nacl
 from nacl import signing
+
+import fs
+import exceptions
+import integrity
+import events
 
 class TestFileSystemRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
@@ -150,7 +151,7 @@ class TestFileSystemDepot(test_utils.GonkTest):
         
         id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
-        with self.assertRaises(core.StorageError):
+        with self.assertRaises(exceptions.StorageError):
             depot.write(id_, 1, b"A"*16)
 
     def test_finalize(self):
@@ -190,14 +191,14 @@ class TestFileSystemDepot(test_utils.GonkTest):
         
         id_ = events.Identifier(uuid.uuid4(), 0)
         depot.reserve(id_, 16)
-        with self.assertRaises(core.StorageError):
+        with self.assertRaises(exceptions.StorageError):
             depot.read(id_, 1, 10)
 
     def test_read_not_exist(self):
         depot = fs.Depot(self.test_directory)
         
         id_ = events.Identifier(uuid.uuid4(), 0)
-        with self.assertRaises(core.StorageError):
+        with self.assertRaises(exceptions.StorageError):
             depot.read(id_, 1, 10)
 
     def test_read_chunk(self):

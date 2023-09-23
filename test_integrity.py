@@ -1,14 +1,16 @@
-import fs
-import core
-import integrity
-import sq3
-import events
 import hashlib
 import unittest
 import test_utils
 
 import nacl
 from nacl import signing
+
+import fs
+import interfaces
+import exceptions
+import integrity
+import sq3
+import events
 
 class TestSigs(test_utils.GonkTest):
     def standard_object(self):
@@ -20,7 +22,7 @@ class TestSigs(test_utils.GonkTest):
             hashlib.sha256(b"object contents").hexdigest())
 
     def test_signature_validation(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         machine.register(integrity.SignatureValidator())
 
@@ -43,7 +45,7 @@ class TestSigs(test_utils.GonkTest):
         machine.process_event(oce)
 
     def test_signature_validation_fails(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         machine.register(integrity.SignatureValidator())
 
@@ -65,11 +67,11 @@ class TestSigs(test_utils.GonkTest):
         oce = signer.sign(events.ObjectCreateEvent(o1v0))
         o1v0.name = "FORGERY"
 
-        with self.assertRaises(core.ValidationError):
+        with self.assertRaises(exceptions.ValidationError):
             machine.process_event(oce)
 
     def test_replay(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         machine.register(integrity.SignatureValidator())
 
@@ -87,7 +89,7 @@ class TestSigs(test_utils.GonkTest):
         wae1 = signer.sign(wae1)
         machine.process_event(wae1)
 
-        with self.assertRaises(core.ValidationError):
+        with self.assertRaises(exceptions.ValidationError):
             machine.process_event(wae1)
 
 class TestHashChain(test_utils.GonkTest):
@@ -100,7 +102,7 @@ class TestHashChain(test_utils.GonkTest):
             hashlib.sha256(b"object contents").hexdigest())
 
     def test_hash_chain_validation(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -123,7 +125,7 @@ class TestHashChain(test_utils.GonkTest):
         machine.process_event(oce)
 
     def test_hash_chain_validation_fails(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -144,11 +146,11 @@ class TestHashChain(test_utils.GonkTest):
         oce = linker.link(events.ObjectCreateEvent(o1v0), author)
         o1v0.name = "FORGERY"
 
-        with self.assertRaises(core.ValidationError):
+        with self.assertRaises(exceptions.ValidationError):
             machine.process_event(oce)
 
     def test_replay(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -165,7 +167,7 @@ class TestHashChain(test_utils.GonkTest):
         wae = linker.link(wae, author)
         machine.process_event(wae)
 
-        with self.assertRaises(core.ValidationError):
+        with self.assertRaises(exceptions.ValidationError):
             machine.process_event(wae)
 
 if __name__ == '__main__':

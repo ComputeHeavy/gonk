@@ -2,10 +2,8 @@ import typing
 import nacl
 import hashlib
 
-from nacl import signing
-from nacl import exceptions
-
-import core
+import interfaces
+import exceptions
 import events
 
 class KeyPair:
@@ -37,22 +35,22 @@ class Signer:
         event.author = self.verify_bytes.hex()
         return event
 
-class SignatureValidator(core.Validator):
+class SignatureValidator(interfaces.Validator):
     def __init__(self):
         super().__init__()
 
     def validate(self, event: events.EventT):
         if event.author is None:
-            raise core.ValidationError("event missing author")
+            raise exceptions.ValidationError("event missing author")
         verify_key = nacl.signing.VerifyKey(bytes.fromhex(event.author))
         try:
             verify_key.verify(event.signature_bytes(), event.integrity)
         except nacl.exceptions.BadSignatureError as error:
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 "event integrity failed to validate") from error
 
 class HashChainLinker:
-    def __init__(self, record_keeper: core.RecordKeeper):
+    def __init__(self, record_keeper: interfaces.RecordKeeper):
         self.record_keeper = record_keeper
 
     def link(self, event: events.EventT, author: str) -> events.EventT:
@@ -61,7 +59,7 @@ class HashChainLinker:
         if tail is not None:
             prev = self.record_keeper.read(tail)
             if prev.integrity is None:
-                raise core.ValidationError("tail event missing integrity")
+                raise exceptions.ValidationError("tail event missing integrity")
 
             prefix = prev.integrity
 
@@ -70,27 +68,28 @@ class HashChainLinker:
             prefix + event.signature_bytes()).digest()
         return event
 
-class HashChainValidator(core.Validator):
-    def __init__(self, record_keeper: core.RecordKeeper):
+class HashChainValidator(interfaces.Validator):
+    def __init__(self, record_keeper: interfaces.RecordKeeper):
         self.record_keeper = record_keeper
 
     def validate(self, event: events.EventT):
         if event.author is None:
-            raise core.ValidationError("event missing author")
+            raise exceptions.ValidationError("event missing author")
 
         if event.integrity is None:
-            raise core.ValidationError("event missing integrity")
+            raise exceptions.ValidationError("event missing integrity")
         
         tail = self.record_keeper.tail()
         prefix = b""
         if tail is not None:
             prev = self.record_keeper.read(tail)
             if prev.integrity is None:
-                raise core.ValidationError("previous event missing integrity")
+                raise exceptions.ValidationError(
+                    "previous event missing integrity")
 
             prefix = prev.integrity
 
         hash_ = hashlib.sha256(prefix + event.signature_bytes()).digest()
         if hash_ != event.integrity:
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 "event integrity failed to validate")

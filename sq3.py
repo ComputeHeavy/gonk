@@ -4,10 +4,12 @@ import typing
 import pathlib
 import sqlite3
 
-import core
+import interfaces
+import exceptions
+import validators
 import events
 
-class RecordKeeper(core.RecordKeeper):
+class RecordKeeper(interfaces.RecordKeeper):
     def __init__(self, parent_directory: pathlib.Path):
         super().__init__()
         if not parent_directory.exists():
@@ -120,10 +122,10 @@ class RecordKeeper(core.RecordKeeper):
         con.close()
         return uuid.UUID(tail)
 
-class State(core.State):
+class State(interfaces.State):
     def __init__(self,
         parent_directory: pathlib.Path,
-        record_keeper: core.RecordKeeper):
+        record_keeper: interfaces.RecordKeeper):
 
         super().__init__()
         if not parent_directory.exists():
@@ -284,7 +286,7 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.EventInfo(uuid.UUID(uu), type_, 
+        return [interfaces.EventInfo(uuid.UUID(uu), type_, 
                 self._accepted_to_review(type_, accepted)) 
             for uu, type_, accepted in res]
 
@@ -305,7 +307,7 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.EventInfo(uuid.UUID(uu), type_, 
+        return [interfaces.EventInfo(uuid.UUID(uu), type_, 
                 self._accepted_to_review(type_, accepted)) 
             for uu, type_, accepted in res]
 
@@ -334,7 +336,7 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.EventInfo(uuid.UUID(uu), type_, 
+        return [interfaces.EventInfo(uuid.UUID(uu), type_, 
                 self._accepted_to_review(type_, accepted))
             for uu, type_, accepted in res]
 
@@ -372,7 +374,8 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.AnnotationInfo(uuid.UUID(uu), vers) for uu, vers, _ in res]
+        return [interfaces.AnnotationInfo(
+            uuid.UUID(uu), vers) for uu, vers, _ in res]
 
     def annotations_by_object(self, object_identifier: events.Identifier):
         con = sqlite3.connect(self.database_path)
@@ -389,7 +392,8 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.AnnotationInfo(uuid.UUID(uu), vers) for uu, vers in res]
+        return [interfaces.AnnotationInfo(
+            uuid.UUID(uu), vers) for uu, vers in res]
 
     def annotations_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
@@ -582,7 +586,7 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.ObjectInfo(uuid.UUID(uu), ver) for uu, ver, _ in res]
+        return [interfaces.ObjectInfo(uuid.UUID(uu), ver) for uu, ver, _ in res]
 
     def objects_by_annotation(self, annotation_uuid: uuid.UUID):
         con = sqlite3.connect(self.database_path)
@@ -777,7 +781,7 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.SchemaInfo(name, uuid.UUID(uuid_), version) 
+        return [interfaces.SchemaInfo(name, uuid.UUID(uuid_), version) 
             for name, uuid_, version in res]
 
     def schema(self, name: str, version: int) -> None|events.Object:
@@ -831,7 +835,7 @@ class State(core.State):
                 event.object.version,
                 json.dumps(event.object.serialize())))
 
-        if core.is_schema(event.object.name):
+        if validators.is_schema(event.object.name):
             cur.execute("""INSERT INTO schemas
                     (name, uuid, version)
                     VALUES (?, ?, ?)""",
@@ -864,7 +868,7 @@ class State(core.State):
                 event.object.version,
                 json.dumps(event.object.serialize())))
 
-        if core.is_schema(event.object.name):
+        if validators.is_schema(event.object.name):
             cur.execute("""INSERT INTO schemas
                     (name, uuid, version)
                     VALUES (?, ?, ?)""",
@@ -1200,13 +1204,13 @@ class State(core.State):
     def _validate_object_create(self, event: events.ObjectCreateEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        if core.is_schema(event.object.name):
+        if validators.is_schema(event.object.name):
             cur.execute("""SELECT COUNT(*) FROM schemas WHERE name = ?""",
                 (event.object.name,))
             count, = cur.fetchone()
             if count != 0:
                 con.close()
-                raise core.ValidationError("schema name already in use")
+                raise exceptions.ValidationError("schema name already in use")
 
         cur.execute("""SELECT COUNT(*)
                 FROM objects
@@ -1216,7 +1220,7 @@ class State(core.State):
         count, = cur.fetchone()
         if count != 0:
             con.close()
-            raise core.ValidationError("object with UUID already exists")
+            raise exceptions.ValidationError("object with UUID already exists")
 
         cur.execute("""SELECT uuid, version
                 FROM objects
@@ -1228,11 +1232,11 @@ class State(core.State):
 
         if res is not None:
             dup_uuid, dup_version = res
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 f"duplicate hash detected in object {dup_uuid}:{dup_version}")
 
         if event.object.version != 0:
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 "object version must be zero in create event")
 
     def _validate_object_update(self, event: events.ObjectCreateEvent):
@@ -1248,7 +1252,7 @@ class State(core.State):
         if res is not None:
             con.close()
             dup_uuid, dup_version = res
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 f"duplicate hash detected in object {dup_uuid}:{dup_version}")
 
         cur.execute("""SELECT object
@@ -1259,24 +1263,24 @@ class State(core.State):
         versions_json = cur.fetchall()
         con.close()
         if len(versions_json) == 0:
-            raise core.ValidationError("no objects with UUID found")
+            raise exceptions.ValidationError("no objects with UUID found")
 
         versions_data = [json.loads(ea) for ea, in versions_json]
 
         versions = [events.Object.deserialize(ea) for ea in versions_data]
 
-        if core.is_schema(versions[-1].name):
+        if validators.is_schema(versions[-1].name):
             if versions[-1].name != event.object.name:
-                raise core.ValidationError("schema names may not change")
+                raise exceptions.ValidationError("schema names may not change")
         else:
-            if core.is_schema(event.object.name):
-                raise core.ValidationError("object may not become schema")
+            if validators.is_schema(event.object.name):
+                raise exceptions.ValidationError("object may not become schema")
 
         if versions[-1].hash == event.object.hash:
-            raise core.ValidationError("object hash unchanged")
+            raise exceptions.ValidationError("object hash unchanged")
 
         if event.object.version != len(versions):
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 f"object version should be {len(versions)}")
 
     def _validate_object_delete(self, event: events.ObjectDeleteEvent):
@@ -1288,7 +1292,7 @@ class State(core.State):
         count, = cur.fetchone()
         if count != 0:
             con.close()
-            raise core.ValidationError("schemas can not be deleted")
+            raise exceptions.ValidationError("schemas can not be deleted")
 
         cur.execute("""SELECT COUNT(*)
                 FROM objects
@@ -1300,7 +1304,7 @@ class State(core.State):
         count, = cur.fetchone()
         if count == 0:
             con.close()
-            raise core.ValidationError("object identifier not found")
+            raise exceptions.ValidationError("object identifier not found")
 
         cur.execute("""SELECT status
                 FROM object_status
@@ -1312,13 +1316,13 @@ class State(core.State):
         status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
         con.close()
         if events.StatusT.CREATE_REJECTED in status:
-            raise core.ValidationError("cannot delete a rejected object")
+            raise exceptions.ValidationError("cannot delete a rejected object")
 
         if events.StatusT.DELETE_PENDING in status:
-            raise core.ValidationError("object version pending deletion")
+            raise exceptions.ValidationError("object version pending deletion")
 
         if events.StatusT.DELETE_ACCEPTED in status:
-            raise core.ValidationError("object version already deleted")
+            raise exceptions.ValidationError("object version already deleted")
 
     def _validate_annotation_create(self, event: events.AnnotationCreateEvent):
         con = sqlite3.connect(self.database_path)
@@ -1331,11 +1335,12 @@ class State(core.State):
         count, = cur.fetchone()
         if count != 0:
             con.close()
-            raise core.ValidationError("annotation with UUID already exists")
+            raise exceptions.ValidationError(
+                "annotation with UUID already exists")
 
         if event.annotation.version != 0:
             con.close()
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 "annotation version must be zero in create event")
 
         for identifier in event.object_identifiers:
@@ -1347,7 +1352,7 @@ class State(core.State):
             count, = cur.fetchone()
             if count == 0:
                 con.close()
-                raise core.ValidationError("object identifier not found")
+                raise exceptions.ValidationError("object identifier not found")
 
             cur.execute("""SELECT status
                 FROM object_status
@@ -1358,12 +1363,12 @@ class State(core.State):
             status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
             if events.StatusT.CREATE_REJECTED in status:
                 con.close()
-                raise core.ValidationError(
+                raise exceptions.ValidationError(
                     "rejected objects cannot be annotated")
 
             if events.StatusT.DELETE_ACCEPTED in status:
                 con.close()
-                raise core.ValidationError(
+                raise exceptions.ValidationError(
                     "deleted objects cannot be annotated")
 
             cur.execute("""SELECT COUNT(*) FROM schemas WHERE uuid = ?""",
@@ -1371,7 +1376,7 @@ class State(core.State):
             count, = cur.fetchone()
             con.close()
             if count != 0:
-                raise core.ValidationError("schemas can not be deleted")
+                raise exceptions.ValidationError("schemas can not be deleted")
 
     def _validate_annotation_update(self, event: events.AnnotationUpdateEvent):
         con = sqlite3.connect(self.database_path)
@@ -1384,10 +1389,10 @@ class State(core.State):
         version_ids = cur.fetchall()
         con.close()
         if len(version_ids) == 0:
-            raise core.ValidationError("no annotations with UUID found")
+            raise exceptions.ValidationError("no annotations with UUID found")
 
         if event.annotation.version != len(version_ids):
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 f"annotation version should be {len(version_ids)}.")
 
     def _validate_annotation_delete(self, event: events.AnnotationDeleteEvent):
@@ -1403,7 +1408,7 @@ class State(core.State):
         count, = cur.fetchone()
         if count == 0:
             con.close()
-            raise core.ValidationError("annotation identifier not found")
+            raise exceptions.ValidationError("annotation identifier not found")
 
         cur.execute("""SELECT status
                 FROM annotation_status
@@ -1415,13 +1420,15 @@ class State(core.State):
         status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
         con.close()
         if events.StatusT.CREATE_REJECTED in status:
-            raise core.ValidationError("cannot delete a rejected annotation")
+            raise exceptions.ValidationError(
+                "cannot delete a rejected annotation")
 
         if events.StatusT.DELETE_PENDING in status:
-            raise core.ValidationError("annotation already pending deletion")
+            raise exceptions.ValidationError(
+                "annotation already pending deletion")
 
         if events.StatusT.DELETE_ACCEPTED in status:
-            raise core.ValidationError("annotation already deleted")
+            raise exceptions.ValidationError("annotation already deleted")
 
     def _validate_review(self,
         event: events.ReviewAcceptEvent|events.ReviewRejectEvent):
@@ -1436,22 +1443,22 @@ class State(core.State):
         count, = cur.fetchone()
         if count != 0:
             con.close()            
-            raise core.ValidationError("event already reviewed")
+            raise exceptions.ValidationError("event already reviewed")
 
         if not self.record_keeper.exists(event.event_uuid):
             con.close()            
-            raise core.ValidationError("no events with event UUID found")
+            raise exceptions.ValidationError("no events with event UUID found")
 
         target_event = self.record_keeper.read(event.event_uuid)
         if not isinstance(target_event,
             (events.AnnotationEvent, events.ObjectEvent)):
             con.close()        
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 "review on non object or annotation event")
 
         if event.author is None:
             con.close()            
-            raise core.ValidationError("author is empty")
+            raise exceptions.ValidationError("author is empty")
 
         cur.execute("""SELECT COUNT(*)
             FROM owners
@@ -1460,7 +1467,7 @@ class State(core.State):
         count, = cur.fetchone()
         con.close()
         if count == 0:
-            raise core.ValidationError("review event from non-owner")
+            raise exceptions.ValidationError("review event from non-owner")
 
     def _validate_review_accept(self, event: events.ReviewAcceptEvent):
         self._validate_review(event)
@@ -1477,13 +1484,13 @@ class State(core.State):
         con.close()
         if len(owners) > 0:
             if event.owner in owners:
-                raise core.ValidationError("owner already present")
+                raise exceptions.ValidationError("owner already present")
 
             if event.author not in owners:
-                raise core.ValidationError("only owners can add owners")
+                raise exceptions.ValidationError("only owners can add owners")
         else:
             if event.owner != event.author:
-                raise core.ValidationError(
+                raise exceptions.ValidationError(
                     "first owner add event must be self signed")
 
     def _validate_owner_remove(self, event: events.OwnerRemoveEvent):
@@ -1494,22 +1501,23 @@ class State(core.State):
         owners = cur.fetchall()
         con.close()
         if len(owners) == 0:
-            raise core.ValidationError("dataset has no owners to remove")
+            raise exceptions.ValidationError("dataset has no owners to remove")
 
         ranks = {owner: id_ for id_, owner in owners}
 
         if event.author not in ranks:
-            raise core.ValidationError("only owners may remove owners")
+            raise exceptions.ValidationError("only owners may remove owners")
 
         if event.owner not in ranks:
-            raise core.ValidationError("target key is not an owner")
+            raise exceptions.ValidationError("target key is not an owner")
 
         if len(ranks) == 1:
-            raise core.ValidationError(
+            raise exceptions.ValidationError(
                 "removing owner would leave the dataset ownerless")
 
         target_rank = ranks[event.owner]
         signer_rank = ranks[event.author]
 
         if signer_rank > target_rank:
-            raise core.ValidationError("cannot remove a higher ranking owner")
+            raise exceptions.ValidationError(
+                "cannot remove a higher ranking owner")

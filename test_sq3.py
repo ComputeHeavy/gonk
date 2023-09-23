@@ -1,10 +1,5 @@
-import fs
-import core
 import uuid
-import integrity
 import json
-import sq3
-import events
 import sqlite3
 import hashlib
 import unittest
@@ -12,6 +7,14 @@ import test_utils
 
 import nacl
 from nacl import signing
+
+import fs
+import interfaces
+import exceptions
+import validators
+import integrity
+import sq3
+import events
 
 def rmtree(p):
     for ea in p.iterdir():
@@ -114,11 +117,11 @@ class TestSqliteRecordKeeper(test_utils.GonkTest):
         self.assertEqual(record_keeper.tail(), oae2.uuid)
 
 class TestSqliteStateAPIInterface(test_utils.GonkTest):
-    record_keeper: core.RecordKeeper
+    record_keeper: interfaces.RecordKeeper
     linker: integrity.HashChainLinker
-    machine: core.Machine
-    depot: core.Depot
-    state: core.State
+    machine: interfaces.Machine
+    depot: interfaces.Depot
+    state: interfaces.State
     username: str
     schema_buf: bytes
     schema_object: events.Object
@@ -132,13 +135,13 @@ class TestSqliteStateAPIInterface(test_utils.GonkTest):
         super().setUpClass()
         cls.record_keeper = fs.RecordKeeper(cls.class_directory)
         cls.linker = integrity.HashChainLinker(cls.record_keeper)
-        cls.machine = core.Machine()
+        cls.machine = interfaces.Machine()
         cls.depot = fs.Depot(cls.class_directory)
         cls.state = sq3.State(cls.class_directory, cls.record_keeper)
 
-        cls.machine.register(core.FieldValidator())
+        cls.machine.register(validators.FieldValidator())
         cls.machine.register(integrity.HashChainValidator(cls.record_keeper))
-        cls.machine.register(core.SchemaValidator(cls.depot))
+        cls.machine.register(validators.SchemaValidator(cls.depot))
         cls.machine.register(cls.record_keeper)
         cls.machine.register(cls.state)
 
@@ -345,7 +348,7 @@ class TestSqliteState(test_utils.GonkTest):
         return anno
 
     def test_machine_register(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -361,7 +364,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertEqual(machine.consumers[1], state)
 
     def test_object_create_accept(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -433,7 +436,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertEqual(len(status), 0)
 
     def test_object_update_accept(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -491,7 +494,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertEqual(len(status), 0)
 
     def test_object_delete_accept(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -540,7 +543,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertTrue(events.StatusT.DELETE_ACCEPTED in status)
 
     def test_annotation_create_accept(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -620,7 +623,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertEqual(len(status), 0)
 
     def test_annotation_update_accept(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -687,7 +690,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertEqual(len(status), 0)
 
     def test_annotation_delete_accept(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -745,7 +748,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertTrue(events.StatusT.DELETE_ACCEPTED in status)
 
     def test_owner_add(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -780,7 +783,7 @@ class TestSqliteState(test_utils.GonkTest):
         signer2 = integrity.Signer(sk2)
         oae2 = events.OwnerAddEvent(signer2.verify_bytes.hex())
 
-        with self.assertRaises(core.ValidationError):
+        with self.assertRaises(exceptions.ValidationError):
             oae2 = signer2.sign(oae2)
             machine.process_event(oae2)    
 
@@ -793,7 +796,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertEqual(count, 2)
 
     def test_owner_remove(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -818,7 +821,7 @@ class TestSqliteState(test_utils.GonkTest):
         oae2 = signer1.sign(oae2)
         machine.process_event(oae2)
 
-        with self.assertRaises(core.ValidationError):
+        with self.assertRaises(exceptions.ValidationError):
             ore0 = signer2.sign(events.OwnerRemoveEvent(vk1.hex()))
             machine.process_event(ore0)
 
@@ -839,12 +842,12 @@ class TestSqliteState(test_utils.GonkTest):
 
         self.assertEqual(count, 1)
 
-        with self.assertRaises(core.ValidationError):
+        with self.assertRaises(exceptions.ValidationError):
             ore2 = signer1.sign(events.OwnerRemoveEvent(vk1.hex()))
             machine.process_event(ore2)
 
     def test_object_create_reject(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -883,7 +886,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertTrue(events.StatusT.CREATE_REJECTED in status)
 
     def test_object_update_reject(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -926,7 +929,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertTrue(events.StatusT.CREATE_REJECTED in status)
 
     def test_object_delete_reject(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -968,7 +971,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertEqual(len(status), 1)
 
     def test_annotation_create_reject(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -1016,7 +1019,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertTrue(events.StatusT.CREATE_REJECTED in status)
 
     def test_annotation_update_reject(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)
@@ -1068,7 +1071,7 @@ class TestSqliteState(test_utils.GonkTest):
         self.assertTrue(events.StatusT.CREATE_REJECTED in status)
 
     def test_annotation_delete_reject(self):
-        machine = core.Machine()
+        machine = interfaces.Machine()
 
         record_keeper = fs.RecordKeeper(self.test_directory)
         machine.register(record_keeper)

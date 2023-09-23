@@ -3,10 +3,11 @@ import uuid
 import json
 import pathlib
 
-import core
+import interfaces
+import exceptions
 import events
 
-class RecordKeeper(core.RecordKeeper):
+class RecordKeeper(interfaces.RecordKeeper):
     def __init__(self, parent_directory: pathlib.Path):
         super().__init__()
         if not parent_directory.exists():
@@ -127,7 +128,7 @@ class ObjectStateT(enum.Enum):
     READABLE = 1<<1
     WRITABLE = 1<<2
 
-class Depot(core.Depot):
+class Depot(interfaces.Depot):
     def __init__(self, parent_directory: pathlib.Path):
         super().__init__()
         if not parent_directory.exists():
@@ -160,7 +161,7 @@ class Depot(core.Depot):
 
     def reserve(self, identifier: events.Identifier, size: int):
         if self._state(identifier) != ObjectStateT.NONEXISTENT:
-            raise core.StorageError('identifier already exists in storage')
+            raise exceptions.StorageError('identifier already exists in storage')
 
         key = f"{identifier.uuid}.{identifier.version}"
 
@@ -174,10 +175,10 @@ class Depot(core.Depot):
     def write(self, identifier: events.Identifier, offset: int, buf: bytes):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
-            raise core.StorageError('identifier not found in storage')
+            raise exceptions.StorageError('identifier not found in storage')
 
         if state == ObjectStateT.READABLE:
-            raise core.StorageError('identifier already finalized')
+            raise exceptions.StorageError('identifier already finalized')
 
         key = f"{identifier.uuid}.{identifier.version}"
         object_path = self.root_directory.joinpath(
@@ -186,7 +187,7 @@ class Depot(core.Depot):
         info = object_path.stat()
 
         if offset + len(buf) > info.st_size:
-            raise core.StorageError('write outside of reserved boundary')
+            raise exceptions.StorageError('write outside of reserved boundary')
 
         with object_path.open(mode="rb+") as f:
             f.seek(offset, 0)
@@ -195,10 +196,10 @@ class Depot(core.Depot):
     def finalize(self, identifier: events.Identifier):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
-            raise core.StorageError('identifier not found in storage')
+            raise exceptions.StorageError('identifier not found in storage')
 
         if state == ObjectStateT.READABLE:
-            raise core.StorageError('identifier already finalized')
+            raise exceptions.StorageError('identifier already finalized')
 
         key = f"{identifier.uuid}.{identifier.version}"
         writable_path = self.root_directory.joinpath(
@@ -212,10 +213,10 @@ class Depot(core.Depot):
     def read(self, identifier: events.Identifier, offset: int, size: int):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
-            raise core.StorageError('identifier not found in storage')
+            raise exceptions.StorageError('identifier not found in storage')
 
         if state == ObjectStateT.WRITABLE:
-            raise core.StorageError('identifier not finalized')
+            raise exceptions.StorageError('identifier not finalized')
 
         key = f"{identifier.uuid}.{identifier.version}"
         object_path = self.root_directory.joinpath(
@@ -230,7 +231,7 @@ class Depot(core.Depot):
     def purge(self, identifier: events.Identifier):
         state = self._state(identifier)
         if state == ObjectStateT.NONEXISTENT:
-            raise core.StorageError('identifier not found in storage')
+            raise exceptions.StorageError('identifier not found in storage')
 
         key = f"{identifier.uuid}.{identifier.version}"
 
