@@ -136,17 +136,28 @@ class ObjectInfo:
             "versions": self.versions,
         }
 
+class AnnotationInfo:
+    def __init__(self, uuid_: uuid.UUID, versions: int):
+        self.uuid = uuid_
+        self.versions = versions
+
+    def serialize(self):
+        return {
+            "uuid": str(self.uuid),
+            "versions": self.versions,
+        }
+
 class EventInfo:
-    def __init__(self, uuid_: uuid.UUID, type_: str, pending: bool):
+    def __init__(self, uuid_: uuid.UUID, type_: str, review: None|str):
         self.uuid = uuid_
         self.type = type_
-        self.pending = pending
+        self.review = review
 
     def serialize(self):
         return {
             "uuid": str(self.uuid),
             "type": self.type,
-            "pending": self.pending,
+            "review": self.review,
         }
 
 class State(Validator, Consumer, abc.ABC):

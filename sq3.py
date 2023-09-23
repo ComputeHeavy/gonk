@@ -144,7 +144,8 @@ class State(core.State):
 
             CREATE TABLE IF NOT EXISTS event_review_link (
                 event_uuid TEXT NOT NULL,
-                review_uuid TEXT NOT NULL
+                review_uuid TEXT NOT NULL,
+                accepted BOOL NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS objects (
@@ -245,14 +246,28 @@ class State(core.State):
         con.commit()
         con.close()
 
+    def _accepted_to_review(self, type_, accepted):
+        reviewables = [
+            "ObjectCreateEvent", 
+            "ObjectUpdateEvent", 
+            "ObjectDeleteEvent"]
+
+        review = None
+        if accepted is None:
+            if type_ in reviewables:
+                review = "PENDING"
+        else:
+            if bool(accepted):
+                review = "ACCEPTED"
+            else:
+                review = "REJECTED"
+
+        return review
+
     def events_by_object(self, uuid_: uuid.UUID, version: int):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""SELECT E.uuid, E.type, 
-                    ERL.review_uuid IS NULL AND E.type IN (
-                        'ObjectCreateEvent', 
-                        'ObjectUpdateEvent', 
-                        'ObjectDeleteEvent') AS PENDING
+        cur.execute("""SELECT E.uuid, E.type, ERL.accepted 
                 FROM events E
                 INNER JOIN object_event_link OEL
                     ON E.uuid = OEL.event_uuid
@@ -266,8 +281,30 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.EventInfo(uuid.UUID(uu), type_, bool(pending)) 
-            for uu, type_, pending in res]
+        return [core.EventInfo(uuid.UUID(uu), type_, 
+                self._accepted_to_review(type_, accepted)) 
+            for uu, type_, accepted in res]
+
+    def events_by_annotation(self, uuid_: uuid.UUID, version: int):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT E.uuid, E.type, ERL.accepted
+                FROM events E
+                INNER JOIN annotation_event_link AEL
+                    ON E.uuid = AEL.event_uuid
+                LEFT JOIN event_review_link ERL
+                    ON E.uuid = ERL.event_uuid
+                WHERE AEL.annotation_uuid = ?
+                    AND AEL.annotation_version = ?
+                ORDER BY E.id""",
+            (str(uuid_), version))
+
+        res = cur.fetchall()
+        con.close()
+
+        return [core.EventInfo(uuid.UUID(uu), type_, 
+                self._accepted_to_review(type_, accepted)) 
+            for uu, type_, accepted in res]
 
     def events_all(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
@@ -293,6 +330,197 @@ class State(core.State):
         con.close()
 
         return [(uuid.UUID(uu), type_) for uu, type_ in res]
+
+    def annotations_all(self, 
+        uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
+
+        if after is not None and uuid_ is not None:
+            raise ValueError("only provide one of uuid_, after")
+
+        params: tuple = tuple()
+        where = ""
+        if uuid_ is not None:
+            where += "WHERE A.uuid = ?"
+            params = (str(uuid_),)
+
+        if after is not None:
+            where += """WHERE A.id > (
+                SELECT id 
+                FROM annotations 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT DISTINCT A.uuid, 
+                COUNT(A.version) OVER (PARTITION BY A.uuid),
+                FIRST_VALUE(A.id) OVER (PARTITION BY A.uuid)
+            FROM annotations A
+            {where} 
+            ORDER BY A.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [core.AnnotationInfo(uuid.UUID(uu), ver) for uu, ver, _ in res]
+
+    def annotations_by_status(self, status: str, after: None|uuid.UUID = None):
+        if status == "pending":
+            return self._annotations_pending(after)
+        elif status == "accepted":
+            return self._annotations_accepted(after)
+        elif status == "deleted":
+            return self._annotations_deleted(after)
+        elif status == "rejected":
+            return self._annotations_rejected(after)
+        else:
+            raise ValueError(f"invalid status")
+
+    def _annotations_accepted(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND A.id > (
+                SELECT id 
+                FROM annotations 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT A.uuid, A.version
+            FROM annotations A
+            LEFT JOIN annotation_status AST
+                ON A.uuid = AST.uuid AND A.version = AST.version 
+                    AND AST.status IN (
+                        'CREATE_PENDING', 
+                        'CREATE_REJECTED', 
+                        'DELETE_ACCEPTED')
+            WHERE AST.status IS NULL
+                { where }
+            ORDER BY A.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
+    def _annotations_pending(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """WHERE A.id > (
+                SELECT id 
+                FROM annotations 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT DISTINCT A.uuid, A.version
+            FROM annotations A
+            INNER JOIN annotation_status AST
+                ON A.uuid = AST.uuid AND A.version = AST.version 
+                    AND AST.status IN (
+                        'CREATE_PENDING', 
+                        'DELETE_PENDING')
+            { where }
+            ORDER BY A.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
+    def _annotations_deleted(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND A.id > (
+                SELECT id 
+                FROM annotations 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT A.uuid, A.version
+            FROM annotations A
+            JOIN annotation_status AST 
+                ON A.uuid = AST.uuid 
+                    AND A.version = AST.version
+            WHERE AST.status = 'DELETE_ACCEPTED'
+                { where }
+            ORDER BY A.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
+    def _annotations_rejected(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND A.id > (
+                SELECT id 
+                FROM annotations 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT A.uuid, A.version
+            FROM annotations A
+            JOIN annotation_status AST 
+                ON A.uuid = AST.uuid 
+                    AND A.version = AST.version
+            WHERE AS.status = 'CREATE_REJECTED'
+                { where }
+            ORDER BY A.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
+    def annotation(self, uuid_: uuid.UUID, version: int):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT A.annotation
+                FROM annotations A
+                WHERE A.uuid = ?
+                    AND A.version = ?""", 
+            (str(uuid_), version))
+        res = cur.fetchone()
+        con.close()
+
+        if res is None:
+            return None
+
+        annotation_json, = res
+        annotation_data = json.loads(annotation_json)
+
+        return events.Annotation.deserialize(annotation_data)
 
     def objects_all(self, 
         uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
@@ -722,9 +950,9 @@ class State(core.State):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""INSERT INTO event_review_link
-                (event_uuid, review_uuid)
-                VALUES (?, ?)""",
-            (str(event.event_uuid), str(event.uuid)))
+                (event_uuid, review_uuid, accepted)
+                VALUES (?, ?, ?)""",
+            (str(event.event_uuid), str(event.uuid), True))
 
         target = self.record_keeper.read(event.event_uuid)
         if isinstance(target, events.ObjectEvent):
@@ -817,9 +1045,9 @@ class State(core.State):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""INSERT INTO event_review_link
-            (event_uuid, review_uuid)
-            VALUES (?, ?)""",
-            (str(event.event_uuid), str(event.uuid)))
+            (event_uuid, review_uuid, accepted)
+            VALUES (?, ?, ?)""",
+            (str(event.event_uuid), str(event.uuid), False))
 
         target = self.record_keeper.read(event.event_uuid)
         if isinstance(target, events.ObjectEvent):

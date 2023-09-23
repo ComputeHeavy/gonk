@@ -1,21 +1,5 @@
 '''
-POST    /datasets/{name}/annotations - Create
-    AnnotationCreateEvent
-    Annotation bytes
-
-GET     /datasets/{name}/annotations - List
-GET     /datasets/{name}/annotations/{uuid} - List all filtered
-GET     /datasets/{name}/annotations/{status} - List
-GET     /datasets/{name}/annotations/{uuid}/{version} - Details
-    
-PATCH   /datasets/{name}/annotations/{uuid} - Version
-    AnnotationUpdateEvent
-    Annotation bytes
-
-DELETE   /datasets/{name}/annotations/{uuid}/{version} - Delete
-    AnnotationDeleteEvent
-
-==== DONE ====
+===== DONE ====
 
 POST    /datasets/{name} - Create
 GET     /datasets - List
@@ -52,6 +36,19 @@ PUT     /datasets/{name}/events/{uuid}/accept
     ReviewAcceptEvent
 PUT     /datasets/{name}/events/{uuid}/reject
     ReviewRejectEvent
+
+POST    /datasets/{name}/annotations - Create
+    AnnotationCreateEvent
+    Annotation bytes
+PATCH   /datasets/{name}/annotations/{uuid} - Version
+    AnnotationUpdateEvent
+    Annotation bytes
+DELETE   /datasets/{name}/annotations/{uuid}/{version} - Delete
+    AnnotationDeleteEvent
+GET     /datasets/{name}/annotations - List
+GET     /datasets/{name}/annotations/{uuid} - List all filtered
+GET     /datasets/{name}/annotations/{status} - List
+GET     /datasets/{name}/annotations/{uuid}/{version} - Details
 '''
 
 import fs
@@ -728,13 +725,6 @@ def objects_get(dataset_name, object_uuid, object_version):
 
     object_buf = dataset.depot.read(object_.identifier(), 0, object_.size)
 
-    def serialize_type(item):
-        uuid_, type_ = item
-        event = dataset.record_keeper.read(uuid_)
-        data = event.serialize()
-        data["type"] = type_
-        return data
-
     events = [event.serialize() for event in 
         dataset.state.events_by_object(object_.uuid, object_.version)]
 
@@ -913,7 +903,7 @@ def events_reject(dataset_name, event_uuid):
 @app.post("/datasets/<dataset_name>/annotations")
 @accept_json
 @authorize
-def annotation_create(dataset_name):
+def annotations_create(dataset_name):
     request_data = flask.request.json
     if request_data is None:
         return flask.jsonify({"error": "Request JSON is None."}), 500
@@ -988,6 +978,205 @@ def annotation_create(dataset_name):
         "dataset": dataset_name,
         "uuid": ace.annotation.uuid,
         "version": 0,
+    })
+
+@app.patch("/datasets/<dataset_name>/annotations/<annotation_uuid>")
+@accept_json
+@authorize
+def annotations_update(dataset_name, annotation_uuid):
+    request_data = flask.request.json
+    if request_data is None:
+        return flask.jsonify({"error": "Request JSON is None."}), 500
+
+    if "annotation" not in request_data:
+        return flask.jsonify({"error": "Missing key 'annotation'."}), 400
+
+    if "schema" not in request_data:
+        return flask.jsonify({"error": "Missing key 'schema_name'."}), 400
+
+    if "name" not in request_data["schema"]:
+        return flask.jsonify({"error": "Missing schema key 'name'."}), 400
+
+    if "version" not in request_data["schema"]:
+        return flask.jsonify({"error": "Missing schema key 'version'."}), 400
+
+    schema_name = request_data["schema"]["name"]
+    schema_version = request_data["schema"]["version"]
+
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+
+    schema = dataset.state.schema(schema_name, schema_version)
+    if schema is None:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    annotation_buf = base64.b64decode(request_data["annotation"])
+
+    with lock:
+        annotation_info = dataset.state.annotations_all(uuid_=annotation_uuid)
+
+        if len(annotation_info) != 1:
+            return flask.jsonify({"error": "Annotation not found."}), 404
+
+        annotation_info, = annotation_info
+
+        aue = dataset.linker.link(
+        events.AnnotationUpdateEvent(
+            events.Annotation(
+                schema.identifier(),
+                len(annotation_buf), 
+                events.HashTypeT.SHA256, 
+                hashlib.sha256(annotation_buf).hexdigest(),
+                annotation_info.uuid,
+                annotation_info.versions)), 
+        flask.g.username)
+
+        id_ = aue.annotation.identifier()
+        try:
+            dataset.depot.reserve(id_, aue.annotation.size)
+            dataset.depot.write(id_, 0, annotation_buf)
+            dataset.depot.finalize(id_)
+            dataset.machine.process_event(aue)
+        except Exception as e:
+            if dataset.depot.exists(id_):
+                dataset.depot.purge(id_)
+            raise e
+
+    return flask.jsonify({
+        "message": f"Annotaiton updated.",
+        "dataset": dataset_name,
+        "uuid": aue.annotation.uuid,
+        "version": aue.annotation.version,
+    })
+
+@app.delete(
+    "/datasets/<dataset_name>/annotations"
+    "/<annotation_uuid>/<int:annotation_version>")
+@authorize
+def annotations_delete(dataset_name, annotation_uuid, annotation_version):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    annotation = dataset.state.annotation(annotation_uuid, annotation_version)
+
+    if annotation is None:
+        return flask.jsonify({"error": "Annotation not found."}), 404
+
+    with lock:
+        ade = events.AnnotationDeleteEvent(annotation.identifier())
+        ade = dataset.linker.link(ade, flask.g.username)
+        dataset.machine.process_event(ade)
+
+    return flask.jsonify({
+        "message": f"Annotation deleted.",
+        "dataset": dataset_name,
+        "uuid": annotation_uuid,
+        "version": annotation_version,
+    })
+
+@app.get("/datasets/<dataset_name>/annotations")
+@authorize
+def annotations_list(dataset_name):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    after = None
+    if "after" in flask.request.args:
+        after = uuid.UUID(flask.request.args["after"])
+
+    dataset = Dataset(dataset_directory)
+    annotations = [annotation.serialize() 
+        for annotation in dataset.state.annotations_all(after=after)]
+
+    return flask.jsonify({
+        "dataset": dataset_name,
+        "annotations": annotations,
+    })
+
+@app.get(
+    "/datasets/<dataset_name>/annotations"
+    "/<re('[0-9A-Fa-f-]{36}'):annotation_uuid>")
+@authorize
+def annotations_info(dataset_name, annotation_uuid):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    annotation_uuid = uuid.UUID(annotation_uuid)
+
+    dataset = Dataset(dataset_directory)
+    annotations = [annotation.serialize() 
+        for annotation in dataset.state.annotations_all(uuid_=annotation_uuid)]
+
+    if len(annotations) != 1:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    annotation, = annotations
+
+    return flask.jsonify({
+        "dataset": dataset_name,
+        "annotation": annotation_uuid,
+        "info": annotation,
+    })
+
+@app.get("/datasets/<dataset_name>/annotations/<annotation_status>")
+@authorize
+def annotations_status(dataset_name, annotation_status):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    after = None
+    if "after" in flask.request.args:
+        after = uuid.UUID(flask.request.args["after"])
+
+    if annotation_status not in {'accepted', 'pending', 'deleted', 'rejected'}:
+        return flask.jsonify({
+        "error": "Invalid status.",
+        "valid_statuses": ["accepted", "pending", "deleted", "rejected"],
+    }), 400
+
+    dataset = Dataset(dataset_directory)
+    annotations = [annotation.serialize() for annotation in 
+        dataset.state.annotations_by_status(annotation_status, after=after)]
+
+    return flask.jsonify({
+        "annotations": annotations,
+        "dataset": dataset_name,
+    })
+
+@app.get(
+    "/datasets/<dataset_name>/annotations"
+    "/<re('[0-9A-Fa-f-]{36}'):annotation_uuid>/<int:annotation_version>")
+@authorize
+def annotations_get(dataset_name, annotation_uuid, annotation_version):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    annotation = dataset.state.annotation(annotation_uuid, annotation_version)
+
+    if annotation is None:
+        return flask.jsonify({"error": "Annotation not found."}), 404
+
+    annotation_buf = dataset.depot.read(
+        annotation.identifier(), 0, annotation.size)
+
+    events = [event.serialize() for event in 
+        dataset.state.events_by_annotation(annotation.uuid, annotation.version)]
+
+    return flask.jsonify({
+        "dataset": dataset_name,
+        "info": annotation.serialize(),
+        "data": base64.b64encode(annotation_buf).decode(),
+        "events": events,
     })
 
 @cli.command("run")
