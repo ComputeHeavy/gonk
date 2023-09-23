@@ -1,56 +1,3 @@
-'''
-===== DONE ====
-
-POST    /datasets/{name} - Create
-GET     /datasets - List
-
-POST    /datasets/{name}/schemas - Create
-GET     /datasets/{name}/schemas - List
-GET     /datasets/{name}/schemas/{name} - Latest
-GET     /datasets/{name}/schemas/{name}/{version} - Details
-PATCH   /datasets/{name}/schemas/{name} - Update
-
-GET     /datasets/{name}/owners - List
-    State get owners
-    Link to usernames in app
-PUT     /datasets/{name}/owners - Add
-    OwnerAddEvent
-DELETE  /datasets/{name}/owners - Delete
-    OwnerRemoveEvent
-
-POST    /datasets/{name}/objects - Create
-    ObjectCreateEvent (signed)
-    Object bytes
-GET     /datasets/{name}/objects - List (All, Paged)
-GET     /datasets/{name}/objects/{uuid}/{version} - Details
-PATCH   /datasets/{name}/objects/{uuid} - Version
-    ObjectUpdateEvent
-    Object bytes
-DELETE   /datasets/{name}/objects/{uuid}/{version} - Delete
-    ObjectDeleteEvent
-GET     /datasets/{name}/objects - List (All, Paged)
-GET     /datasets/{name}/objects/{status} - List (Paged)
-
-GET     /dataset/{dataset_name}/events - List events, paged
-PUT     /datasets/{name}/events/{uuid}/accept
-    ReviewAcceptEvent
-PUT     /datasets/{name}/events/{uuid}/reject
-    ReviewRejectEvent
-
-POST    /datasets/{name}/annotations - Create
-    AnnotationCreateEvent
-    Annotation bytes
-PATCH   /datasets/{name}/annotations/{uuid} - Version
-    AnnotationUpdateEvent
-    Annotation bytes
-DELETE   /datasets/{name}/annotations/{uuid}/{version} - Delete
-    AnnotationDeleteEvent
-GET     /datasets/{name}/annotations - List
-GET     /datasets/{name}/annotations/{uuid} - List all filtered
-GET     /datasets/{name}/annotations/{status} - List
-GET     /datasets/{name}/annotations/{uuid}/{version} - Details
-'''
-
 import fs
 import core
 import events
@@ -728,11 +675,15 @@ def objects_get(dataset_name, object_uuid, object_version):
     events = [event.serialize() for event in 
         dataset.state.events_by_object(object_.uuid, object_.version)]
 
+    annotations = [annotation.serialize() for annotation in 
+        dataset.state.annotations_by_object(object_.identifier())]
+
     return flask.jsonify({
         "dataset": dataset_name,
         "info": object_.serialize(),
         "data": base64.b64encode(object_buf).decode(),
         "events": events,
+        "annotations": annotations,
     })
 
 @app.patch("/datasets/<dataset_name>/objects/<object_uuid>")
@@ -1172,11 +1123,15 @@ def annotations_get(dataset_name, annotation_uuid, annotation_version):
     events = [event.serialize() for event in 
         dataset.state.events_by_annotation(annotation.uuid, annotation.version)]
 
+    objects = [object_.serialize() for object_ in 
+        dataset.state.objects_by_annotation(annotation.uuid)]
+
     return flask.jsonify({
         "dataset": dataset_name,
         "info": annotation.serialize(),
         "data": base64.b64encode(annotation_buf).decode(),
         "events": events,
+        "objects": objects,
     })
 
 @cli.command("run")

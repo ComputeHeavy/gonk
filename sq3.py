@@ -365,7 +365,26 @@ class State(core.State):
         res = cur.fetchall()
         con.close()
 
-        return [core.AnnotationInfo(uuid.UUID(uu), ver) for uu, ver, _ in res]
+        return [core.AnnotationInfo(uuid.UUID(uu), vers) for uu, vers, _ in res]
+
+    def annotations_by_object(self, object_identifier: events.Identifier):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT DISTINCT OAL.annotation_uuid,
+                    COUNT(A.version) OVER (PARTITION BY A.uuid)
+                FROM object_annotation_link OAL
+                INNER JOIN annotations A
+                    ON A.uuid = OAL.annotation_uuid
+                WHERE OAL.object_uuid = ?
+                    AND OAL.object_version = ?""", 
+            (str(object_identifier.uuid), object_identifier.version))
+
+        res = cur.fetchall()
+        con.close()
+
+        print(res)
+
+        return [core.AnnotationInfo(uuid.UUID(uu), vers) for uu, vers in res]
 
     def annotations_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
@@ -559,6 +578,19 @@ class State(core.State):
         con.close()
 
         return [core.ObjectInfo(uuid.UUID(uu), ver) for uu, ver, _ in res]
+
+    def objects_by_annotation(self, annotation_uuid: uuid.UUID):
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute("""SELECT object_uuid, object_version 
+                FROM object_annotation_link
+                WHERE annotation_uuid = ?""", 
+            (str(annotation_uuid),))
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uu, ver) for uu, ver in res]
 
     def objects_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
