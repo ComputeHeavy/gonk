@@ -182,47 +182,47 @@ class State(Validator, Consumer, abc.ABC):
         handler[type(event)](event)
 
     @abc.abstractmethod
-    def events_by_object(self, uuid_: uuid.UUID, version: int)
+    def events_by_object(self, uuid_: uuid.UUID, version: int):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def events_by_annotation(self, uuid_: uuid.UUID, version: int)
+    def events_by_annotation(self, uuid_: uuid.UUID, version: int):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def events_all(self, after: None|uuid.UUID = None)
+    def events_all(self, after: None|uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def annotations_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None)
+    def annotations_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def annotations_by_object(self, object_identifier: events.Identifier)
+    def annotations_by_object(self, object_identifier: events.Identifier):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def annotations_by_status(self, status: str, after: None|uuid.UUID = None)
+    def annotations_by_status(self, status: str, after: None|uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def annotation(self, uuid_: uuid.UUID, version: int)
+    def annotation(self, uuid_: uuid.UUID, version: int):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def objects_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None)
+    def objects_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def objects_by_annotation(self, annotation_uuid: uuid.UUID)
+    def objects_by_annotation(self, annotation_uuid: uuid.UUID):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def objects_by_status(self, status: str, after: None|uuid.UUID = None)
+    def objects_by_status(self, status: str, after: None|uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def object(self, uuid_: uuid.UUID, version: int)
+    def object(self, uuid_: uuid.UUID, version: int):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
@@ -230,7 +230,7 @@ class State(Validator, Consumer, abc.ABC):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def schema(self, name: str, version: int)
+    def schema(self, name: str, version: int):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
