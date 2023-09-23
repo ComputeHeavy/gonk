@@ -236,7 +236,7 @@ class State(Validator, Consumer, abc.ABC):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def owners(self):
+    def owners(self) -> list[str]:
         raise NotImplementedError("unimplemented method")
 
     @abc.abstractmethod

@@ -15,6 +15,7 @@ import sqlite3
 import hashlib
 import pathlib
 import secrets
+import werkzeug
 import traceback 
 import jsonschema
 import multiprocessing
@@ -257,6 +258,8 @@ def exception_handler(error):
         if etype == jsonschema.exceptions.ValidationError:
             msg = " ".join(
                 str(exc).replace("\n\n", " - ").replace("\n", " ").split())
+        elif isinstance(exc, werkzeug.exceptions.HTTPException):
+            msg = str(exc)
         elif len(exc.args) > 0 and type(exc.args[0]) == str:
             msg = exc.args[0]
 

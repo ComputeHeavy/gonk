@@ -769,10 +769,13 @@ class State(core.State):
                 COUNT(version) OVER (PARTITION BY uuid)
             FROM schemas""" + where, params)
 
-        return [core.SchemaInfo(name, uuid.UUID(uuid_), version) 
-            for name, uuid_, version in cur.fetchall()]
+        res = cur.fetchall()
+        con.close()
 
-    def schema(self, name: str, version: int):
+        return [core.SchemaInfo(name, uuid.UUID(uuid_), version) 
+            for name, uuid_, version in res]
+
+    def schema(self, name: str, version: int) -> events.Object:
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT O.object
@@ -797,7 +800,10 @@ class State(core.State):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
         cur.execute("""SELECT owner FROM owners ORDER BY id""")
-        return [owner for owner, in cur.fetchall()]
+        res = cur.fetchall()
+        con.close()
+
+        return [owner for owner, in res]
 
     def consume(self, event: events.EventT):
         con = sqlite3.connect(self.database_path)
