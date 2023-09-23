@@ -194,7 +194,8 @@ class State(Validator, Consumer, abc.ABC):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def annotations_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
+    def annotations_all(self, 
+        uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
@@ -210,7 +211,8 @@ class State(Validator, Consumer, abc.ABC):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
-    def objects_all(self, uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
+    def objects_all(self, 
+        uuid_: None|uuid.UUID = None, after: None|uuid.UUID = None):
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
