@@ -10,22 +10,27 @@ def tsnow() -> str:
 
 ### Enums ###
 class ActionT(enum.Enum):
+    """Enum for object and annotation event actions."""
     CREATE = 1<<0
     UPDATE = 1<<1
     DELETE = 1<<2
 
 class DecisionT(enum.Enum):
+    """Enum for review event decisions."""
     ACCEPT = 1<<0
     REJECT = 1<<1
 
 class OwnerActionT(enum.Enum):
+    """Enum for owner event actions."""
     ADD = 1<<0
     REMOVE = 1<<1
 
 class HashTypeT(enum.Enum):
+    """Enum for object and annotation hash types."""
     SHA256 = 1<<0
 
 class StatusT(enum.Enum):
+    """Enum for tracking object and annotation status in state."""
     CREATE_PENDING = 1<<0
     CREATE_REJECTED = 1<<1
     DELETE_PENDING = 1<<2
@@ -38,27 +43,12 @@ class Identifier:
         self.uuid = uuid_
         self.version = version
 
-    def __hash__(self):
-        return hash((self.uuid, self.version))
-
-    def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            return False
-
-        return self.uuid == other.uuid and self.version == other.version
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
     def signature_bytes(self) -> bytes:
         """Return a byte-based representation for signing or hashing."""
         return b"".join([
             self.uuid.bytes,
             struct.pack("<Q", self.version),
         ])
-
-    def __repr__(self):
-        return f"Identifier({self.uuid}, {self.version})"
 
     def serialize(self) -> dict:
         """Serialize instance to dictionary."""
@@ -75,7 +65,7 @@ class Identifier:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Return the JSON Schema for identifiers."""
+        """Returns the JSON Schema for validating the class."""
         return {
             "type": "object",
             "properties": {
@@ -94,6 +84,21 @@ class Identifier:
             ],
         }
 
+    def __hash__(self):
+        return hash((self.uuid, self.version))
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+
+        return self.uuid == other.uuid and self.version == other.version
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return f"Identifier({self.uuid}, {self.version})"
+
 class Object:
     """The Object class contains metadata about an object in the depot."""
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT,
@@ -109,10 +114,12 @@ class Object:
         self.hash_type = hash_type
         self.hash = hash_
 
-    def identifier(self):
+    def identifier(self) -> Identifier:
+        """Return the object identifier."""
         return Identifier(self.uuid, self.version)
 
     def signature_bytes(self) -> bytes:
+        """Return a byte-based representation for signing or hashing."""
         return b"".join([
             self.uuid.bytes,
             struct.pack("<Q", self.version),
@@ -123,23 +130,8 @@ class Object:
             bytes.fromhex(self.hash),
         ])
 
-    def __copy__(self):
-        return Object(self.name, self.format, self.size, self.hash_type,
-          self.hash, self.uuid, self.version)
-
-    def __eq__(self, other):
-        return self.uuid == other.uuid and \
-            self.version == other.version and \
-            self.name == other.name and \
-            self.format == other.format and \
-            self.size == other.size and \
-            self.hash_type == other.hash_type and \
-            self.hash == other.hash
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
+        """Serialize instance to dictionary."""
         return {
             "uuid": str(self.uuid),
             "version": self.version,
@@ -151,7 +143,8 @@ class Object:
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
+        """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
         return Object(
             data["name"],
@@ -163,7 +156,8 @@ class Object:
             data["version"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
+        """Returns the JSON Schema for validating the class."""
         return {
             "type": "object",
             "properties": {
@@ -206,27 +200,48 @@ class Object:
             ],
         }
 
+    def __copy__(self):
+        return Object(self.name, self.format, self.size, self.hash_type,
+          self.hash, self.uuid, self.version)
+
+    def __eq__(self, other):
+        return self.uuid == other.uuid and \
+            self.version == other.version and \
+            self.name == other.name and \
+            self.format == other.format and \
+            self.size == other.size and \
+            self.hash_type == other.hash_type and \
+            self.hash == other.hash
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class Annotation:
+    """Annotation stores metadata about an annotation in the depot."""
     def __init__(self, schema_: Identifier, size: int, hash_type: HashTypeT,
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
             uuid_ = uuid.uuid4()
 
-        self.uuid = uuid_
-        self.version = version
-        self.schema_ = schema_
-        self.size = size
-        self.hash_type = hash_type
-        self.hash = hash_
+        self.uuid: uuid.UUID = uuid_ 
+        """Annotation's UUID."""
+        self.version: int = version
+        """Annotation's version."""
+        self.schema_: Identifier = schema_
+        """Schema identifier."""
+        self.size: int = size
+        """Annotation size in bytes."""
+        self.hash_type: HashTypeT = hash_type
+        """Annotation's hash type."""
+        self.hash: str = hash_
+        """Hex encoded hash."""
 
-    def __copy__(self):
-        return Annotation(self.schema_, self.size, self.hash_type, self.hash,
-            self.uuid, self.version)
-
-    def identifier(self):
+    def identifier(self) -> Identifier:
+        """Return the identifier for this annotation."""
         return Identifier(self.uuid, self.version)
 
     def signature_bytes(self) -> bytes:
+        """Return a byte-based representation for signing or hashing."""
         return b"".join([
             self.uuid.bytes,
             struct.pack("<Q", self.version),
@@ -236,18 +251,8 @@ class Annotation:
             bytes.fromhex(self.hash),
         ])
 
-    def __eq__(self, other):
-        return self.uuid == other.uuid and \
-            self.version == other.version and \
-            self.schema_ == other.schema_ and \
-            self.size == other.size and \
-            self.hash_type == other.hash_type and \
-            self.hash == other.hash
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
+        """Serialize instance to dictionary."""
         return {
             "uuid": str(self.uuid),
             "version": self.version,
@@ -258,7 +263,8 @@ class Annotation:
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
+        """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
         return Annotation(
             Identifier.deserialize(data["schema"]),
@@ -269,7 +275,8 @@ class Annotation:
             data["version"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
+        """Returns the JSON Schema for validating the class."""
         return {
             "type": "object",
             "definitions": {
@@ -310,6 +317,21 @@ class Annotation:
                 "hash_type",
             ],
         }
+
+    def __eq__(self, other):
+        return self.uuid == other.uuid and \
+            self.version == other.version and \
+            self.schema_ == other.schema_ and \
+            self.size == other.size and \
+            self.hash_type == other.hash_type and \
+            self.hash == other.hash
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __copy__(self):
+        return Annotation(self.schema_, self.size, self.hash_type, self.hash,
+            self.uuid, self.version)
 
 ### Events ###
 class Event:

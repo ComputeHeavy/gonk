@@ -1,11 +1,7 @@
 Welcome to Gonk's documentation!
 ================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Modules:
-
-   gonk.core.events <modules/events>
+Hello, world!
 
 Indices and tables
 ==================
@@ -14,6 +10,10 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-Module
-======
+Core Modules
+============
 
+.. toctree::
+   :maxdepth: 2
+
+   gonk.core.events <modules/events>
