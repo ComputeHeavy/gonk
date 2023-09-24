@@ -18,3 +18,5 @@ Core Modules
 
    gonk.core.interfaces <modules/interfaces>
    gonk.core.events <modules/events>
+   gonk.core.integrity <modules/integrity>
+   gonk.core.validators <modules/validators>

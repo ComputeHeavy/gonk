@@ -11,6 +11,8 @@ def is_schema(name: str) -> bool:
     return name.startswith("schema-")
 
 class FieldValidator(interfaces.Validator):
+    """Validator for the fields of :class:`gonk.core.events.Object` and 
+        :class:`gonk.core.events.Annotation`."""
     def validate(self, event: events.EventT):
         handler: dict[typing.Type[events.Event],
             typing.Callable[[typing.Any], None]] = {
@@ -78,6 +80,7 @@ class FieldValidator(interfaces.Validator):
                 "hash should be a hex encoded SHA256")
 
 class SchemaValidator(interfaces.Validator, interfaces.Consumer):
+    """JSON Schema validator for schemas and annotations."""
     def __init__(self, depot: interfaces.Depot):
         super().__init__()
         self.depot: interfaces.Depot = depot
