@@ -1,10 +1,12 @@
-import typing
 import nacl
+import typing
 import hashlib
 
-import interfaces
-import exceptions
-import events
+from nacl import signing
+
+from gonk.core import interfaces
+from gonk.core import exceptions
+from gonk.core import events
 
 class KeyPair:
     def __init__(self, signing_key: bytes|None=None):

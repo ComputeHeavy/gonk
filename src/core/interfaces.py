@@ -5,8 +5,8 @@ import typing
 import jsonschema
 import multiprocessing
 
-import events
-import exceptions
+from gonk.core import events
+from gonk.core import exceptions
 
 ### Machine ###
 class Machine:

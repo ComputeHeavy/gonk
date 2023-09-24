@@ -1,11 +1,11 @@
-import events
-import interfaces
-import exceptions
-
 import json
 import uuid
 import typing
 import jsonschema
+
+from gonk.core import interfaces
+from gonk.core import exceptions
+from gonk.core import events
 
 def is_schema(name: str) -> bool:
     return name.startswith("schema-")

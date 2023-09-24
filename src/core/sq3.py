@@ -4,10 +4,10 @@ import typing
 import pathlib
 import sqlite3
 
-import interfaces
-import exceptions
-import validators
-import events
+from gonk.core import interfaces
+from gonk.core import exceptions
+from gonk.core import validators
+from gonk.core import events
 
 class RecordKeeper(interfaces.RecordKeeper):
     def __init__(self, parent_directory: pathlib.Path):

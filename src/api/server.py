@@ -1,10 +1,3 @@
-import fs
-import interfaces
-import validators
-import events
-import sq3
-import integrity
-
 import sys
 import uuid
 import click
@@ -21,7 +14,12 @@ import traceback
 import jsonschema
 import multiprocessing
 
-import werkzeug
+from gonk.core import fs
+from gonk.core import sq3
+from gonk.core import events
+from gonk.core import integrity
+from gonk.core import interfaces
+from gonk.core import validators
 
 lock = multiprocessing.Lock() # TODO: lock per dataset 
 
@@ -802,11 +800,10 @@ def events_list(dataset_name):
     dataset = Dataset(dataset_directory)
 
     def rk_event_type_serializer(dataset):
-        def fn(item):
-            uuid_, type_ = item
-            event = dataset.record_keeper.read(uuid_)
+        def fn(info):
+            event = dataset.record_keeper.read(info.uuid)
             data = event.serialize()
-            data["type"] = type_
+            data["type"] = type
             return data
         return fn
 

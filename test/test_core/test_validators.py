@@ -1,4 +1,3 @@
-import fs
 import nacl
 import uuid
 import hashlib
@@ -8,11 +7,12 @@ import jsonschema
 
 from nacl import signing
 
-import sq3
-import interfaces
-import validators
-import integrity
-import events
+from gonk.core import integrity
+from gonk.core import validators
+from gonk.core import interfaces
+from gonk.core import events
+from gonk.core import sq3
+from gonk.core import fs
 
 schema_buf = b'''{
   "$schema": "http://json-schema.org/draft-04/schema#",

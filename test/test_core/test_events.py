@@ -3,8 +3,8 @@ import unittest
 import nacl
 import uuid
 
-import events
-import integrity
+from gonk.core import integrity
+from gonk.core import events
 
 class TestEventSerde(unittest.TestCase):
     def standard_object(self):

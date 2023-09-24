@@ -8,13 +8,13 @@ import test_utils
 import nacl
 from nacl import signing
 
-import fs
-import interfaces
-import exceptions
-import validators
-import integrity
-import sq3
-import events
+from gonk.core import validators
+from gonk.core import exceptions
+from gonk.core import interfaces
+from gonk.core import integrity
+from gonk.core import events
+from gonk.core import sq3
+from gonk.core import fs
 
 def rmtree(p):
     for ea in p.iterdir():
