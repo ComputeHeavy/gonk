@@ -1,8 +1,8 @@
+import nacl
 import hashlib
 import unittest
 import test_utils
 
-import nacl
 from nacl import signing
 
 from gonk.core import exceptions

@@ -1,7 +1,7 @@
-import hashlib
-import unittest
 import nacl
 import uuid
+import hashlib
+import unittest
 
 from gonk.core import integrity
 from gonk.core import events

@@ -1,3 +1,4 @@
+import nacl
 import uuid
 import json
 import sqlite3
@@ -5,7 +6,6 @@ import hashlib
 import unittest
 import test_utils
 
-import nacl
 from nacl import signing
 
 from gonk.core import validators
