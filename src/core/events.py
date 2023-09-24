@@ -40,8 +40,10 @@ class StatusT(enum.Enum):
 class Identifier:
     """Identifies objects and annotations with a UUID and version number."""
     def __init__(self, uuid_: uuid.UUID, version: int) -> typing.Self:
-        self.uuid = uuid_
-        self.version = version
+        self.uuid: uuid.UUID = uuid_
+        """Object or annotation's UUID."""
+        self.version: int = version
+        """Object or annotation's version."""
 
     def signature_bytes(self) -> bytes:
         """Return a byte-based representation for signing or hashing."""
@@ -65,7 +67,7 @@ class Identifier:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Returns the JSON Schema for validating the class."""
+        """Returns the JSON Schema for validating the serialized class."""
         return {
             "type": "object",
             "properties": {
@@ -100,19 +102,26 @@ class Identifier:
         return f"Identifier({self.uuid}, {self.version})"
 
 class Object:
-    """The Object class contains metadata about an object in the depot."""
+    """Metadata container for an object in the :class:`Depot`."""
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT,
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
             uuid_ = uuid.uuid4()
 
-        self.uuid = uuid_
-        self.version = version
-        self.name = name
-        self.format = format_
-        self.size = size
-        self.hash_type = hash_type
-        self.hash = hash_
+        self.uuid: uuid.UUID = uuid_
+        """Object's UUID."""
+        self.version: int = version
+        """Object's version."""
+        self.name: str = name
+        """Object's filename."""
+        self.format: str = format_
+        """Object's mimetype."""
+        self.size: int = size
+        """Object size in bytes."""
+        self.hash_type: HashTypeT = hash_type
+        """HashTypeT of the hash."""
+        self.hash: str = hash_
+        """Hex encoded hash of the object."""
 
     def identifier(self) -> Identifier:
         """Return the object identifier."""
@@ -157,7 +166,7 @@ class Object:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Returns the JSON Schema for validating the class."""
+        """Returns the JSON Schema for validating the serialized class."""
         return {
             "type": "object",
             "properties": {
@@ -217,7 +226,7 @@ class Object:
         return not self.__eq__(other)
 
 class Annotation:
-    """Annotation stores metadata about an annotation in the depot."""
+    """Metadata container for an annotation in the :class:`Depot`."""
     def __init__(self, schema_: Identifier, size: int, hash_type: HashTypeT,
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
@@ -276,7 +285,7 @@ class Annotation:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Returns the JSON Schema for validating the class."""
+        """Returns the JSON Schema for validating the serialized class."""
         return {
             "type": "object",
             "definitions": {
@@ -335,6 +344,7 @@ class Annotation:
 
 ### Events ###
 class Event:
+    """Parent class for all event types."""
     def __init__(self,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
@@ -348,29 +358,22 @@ class Event:
             timestamp = tsnow()
 
         self.uuid: uuid.UUID = uuid_
+        """Event's UUID."""
         self.timestamp: str = timestamp
+        """Event's timestamp."""
         self.integrity: typing.Optional[bytes] = integrity
+        """Byte field for hashes or signatures."""
         self.author: typing.Optional[str] = author
-
+        """String field for the event's author."""
     def signature_bytes(self) -> bytes:
-        raise NotImplementedError("unimplemented method")
-
-    def _signature_bytes(self) -> bytes:
+        """Return a byte-based representation for signing or hashing."""
         return b"".join([
             self.uuid.bytes,
             self.timestamp.encode(),
         ])
 
-    def __eq__(self, other):
-        return self.uuid == other.uuid and \
-            self.timestamp == other.timestamp and \
-            self.integrity == other.integrity and \
-            self.author == other.author
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
+        """Serialize instance to dictionary."""
         integrity = None
         if self.integrity is not None:
             integrity = self.integrity.hex()
@@ -383,7 +386,8 @@ class Event:
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
+        """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
         return Event(uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -391,7 +395,8 @@ class Event:
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
+        """Returns the JSON Schema for validating the serialized class."""
         return {
             "type": "object",
             "properties": {
@@ -422,39 +427,44 @@ class Event:
             ],
         }
 
+    def __eq__(self, other):
+        return self.uuid == other.uuid and \
+            self.timestamp == other.timestamp and \
+            self.integrity == other.integrity and \
+            self.author == other.author
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 EventT = typing.TypeVar("EventT", bound=Event)
 
 ### Object Events ###
 class ObjectEvent(Event):
+    """Parent class for object-specific events (create, delete, update)."""
     def __init__(self,
         action: ActionT,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(uuid_, timestamp, integrity, author)
-        self.action = action
+        self.action: ActionT = action
+        """The event action."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
-            super()._signature_bytes(),
+            super().signature_bytes(),
             struct.pack("<B", self.action.value),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.action == other.action
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "action": self.action.value,
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return ObjectEvent(ActionT(data["action"]),
             uuid.UUID(data["uuid"]),
@@ -463,7 +473,7 @@ class ObjectEvent(Event):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -482,7 +492,15 @@ class ObjectEvent(Event):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.action == other.action
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class ObjectCreateEvent(ObjectEvent):
+    """Event used for object creation."""
     def __init__(self,
         object_: Object,
         uuid_: typing.Optional[uuid.UUID] = None,
@@ -490,7 +508,9 @@ class ObjectCreateEvent(ObjectEvent):
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
         super().__init__(ActionT.CREATE, uuid_, timestamp, integrity, author)
-        self.object = object_
+
+        self.object: Object = object_
+        """The :class:`Object` being created."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
@@ -498,20 +518,13 @@ class ObjectCreateEvent(ObjectEvent):
             self.object.signature_bytes(),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.object == other.object
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "object": self.object.serialize(),
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return ObjectCreateEvent(Object.deserialize(data["object"]),
             uuid.UUID(data["uuid"]),
@@ -520,7 +533,7 @@ class ObjectCreateEvent(ObjectEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -539,22 +552,6 @@ class ObjectCreateEvent(ObjectEvent):
                 "object",
             ],
         }
-
-class ObjectUpdateEvent(ObjectEvent):
-    def __init__(self,
-        object_: Object,
-        uuid_: typing.Optional[uuid.UUID] = None,
-        timestamp: typing.Optional[str] = None,
-        integrity: typing.Optional[bytes] = None,
-        author: typing.Optional[str] = None):
-        super().__init__(ActionT.UPDATE, uuid_, timestamp, integrity, author)
-        self.object = object_
-
-    def signature_bytes(self) -> bytes:
-        return b"".join([
-            super().signature_bytes(),
-            self.object.signature_bytes(),
-        ])
 
     def __eq__(self, other):
         return super().__eq__(other) and \
@@ -563,13 +560,32 @@ class ObjectUpdateEvent(ObjectEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def serialize(self):
+class ObjectUpdateEvent(ObjectEvent):
+    """Event used for object updates."""
+    def __init__(self,
+        object_: Object,
+        uuid_: typing.Optional[uuid.UUID] = None,
+        timestamp: typing.Optional[str] = None,
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+        
+        super().__init__(ActionT.UPDATE, uuid_, timestamp, integrity, author)
+        self.object: Object = object_
+        """The updated version of the :class:`Object`."""
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.object.signature_bytes(),
+        ])
+
+    def serialize(self) -> dict:
         return super().serialize() | {
             "object": self.object.serialize(),
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return ObjectUpdateEvent(Object.deserialize(data["object"]),
             uuid.UUID(data["uuid"]),
@@ -578,7 +594,7 @@ class ObjectUpdateEvent(ObjectEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -598,15 +614,25 @@ class ObjectUpdateEvent(ObjectEvent):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.object == other.object
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class ObjectDeleteEvent(ObjectEvent):
+    """Event used for object deletion."""
     def __init__(self,
         object_identifier: Identifier,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(ActionT.DELETE, uuid_, timestamp, integrity, author)
-        self.object_identifier = object_identifier
+        self.object_identifier: Identifier = object_identifier
+        """The deleted :class:`Object`'s :class:`Identifier`."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
@@ -614,20 +640,13 @@ class ObjectDeleteEvent(ObjectEvent):
             self.object_identifier.signature_bytes(),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.object_identifier == other.object_identifier
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "object_identifier": self.object_identifier.serialize(),
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return ObjectDeleteEvent(
             Identifier.deserialize(data["object_identifier"]),
@@ -637,7 +656,7 @@ class ObjectDeleteEvent(ObjectEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -657,37 +676,40 @@ class ObjectDeleteEvent(ObjectEvent):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.object_identifier == other.object_identifier
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 ### Annotation Events ###
 class AnnotationEvent(Event):
+    """Parent class for annotation-specific events (create, update, delete)."""
     def __init__(self,
         action: ActionT,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(uuid_, timestamp, integrity, author)
-        self.action = action
+        self.action: ActionT = action
+        """The event action."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
-            super()._signature_bytes(),
+            super().signature_bytes(),
             struct.pack("<B", self.action.value),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.action == other.action
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "action": self.action.value,
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return AnnotationEvent(ActionT(data["action"]),
             uuid.UUID(data["uuid"]),
@@ -696,7 +718,7 @@ class AnnotationEvent(Event):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -715,7 +737,15 @@ class AnnotationEvent(Event):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.action == other.action
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class AnnotationCreateEvent(AnnotationEvent):
+    """Event used for creating an annotation."""
     def __init__(self,
         object_identifiers: list[Identifier],
         annotation: Annotation,
@@ -723,9 +753,12 @@ class AnnotationCreateEvent(AnnotationEvent):
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(ActionT.CREATE, uuid_, timestamp, integrity, author)
-        self.object_identifiers = object_identifiers
-        self.annotation = annotation
+        self.object_identifiers: list[Identifier] = object_identifiers
+        """Object :class:`Identifier`\s that this annotation references."""
+        self.annotation: Annotation = annotation
+        """The :class:`Annotation` being created."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
@@ -734,15 +767,7 @@ class AnnotationCreateEvent(AnnotationEvent):
             self.annotation.signature_bytes(),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.object_identifiers == other.object_identifiers and \
-            self.annotation == other.annotation
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "annotation": self.annotation.serialize(),
             "object_identifiers": [ea.serialize() 
@@ -750,7 +775,7 @@ class AnnotationCreateEvent(AnnotationEvent):
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return AnnotationCreateEvent(
             [Identifier.deserialize(ea) for ea in data["object_identifiers"]],
@@ -761,7 +786,7 @@ class AnnotationCreateEvent(AnnotationEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -790,15 +815,26 @@ class AnnotationCreateEvent(AnnotationEvent):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.object_identifiers == other.object_identifiers and \
+            self.annotation == other.annotation
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class AnnotationUpdateEvent(AnnotationEvent):
+    """Event used for updating an annotation."""
     def __init__(self,
         annotation: Annotation,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(ActionT.UPDATE, uuid_, timestamp, integrity, author)
         self.annotation = annotation
+        """The :class:`Annotation` being updated."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
@@ -806,20 +842,13 @@ class AnnotationUpdateEvent(AnnotationEvent):
             self.annotation.signature_bytes(),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.annotation == other.annotation
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "annotation": self.annotation.serialize(),
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return AnnotationUpdateEvent(
             Annotation.deserialize(data["annotation"]),
@@ -829,7 +858,7 @@ class AnnotationUpdateEvent(AnnotationEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -850,15 +879,25 @@ class AnnotationUpdateEvent(AnnotationEvent):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.annotation == other.annotation
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class AnnotationDeleteEvent(AnnotationEvent):
+    """Event used for deleting an annotation."""
     def __init__(self,
         annotation_identifier: Identifier,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(ActionT.DELETE, uuid_, timestamp, integrity, author)
-        self.annotation_identifier = annotation_identifier
+        self.annotation_identifier: Identifier = annotation_identifier
+        """The :class:`Identifier` of the annotation being deleted."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
@@ -866,20 +905,13 @@ class AnnotationDeleteEvent(AnnotationEvent):
             self.annotation_identifier.signature_bytes(),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.annotation_identifier == other.annotation_identifier
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "annotation_identifier": self.annotation_identifier.serialize(),
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return AnnotationDeleteEvent(
             Identifier.deserialize(data["annotation_identifier"]),
@@ -889,7 +921,7 @@ class AnnotationDeleteEvent(AnnotationEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -910,37 +942,40 @@ class AnnotationDeleteEvent(AnnotationEvent):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.annotation_identifier == other.annotation_identifier
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 ### Review Events ###
 class ReviewEvent(Event):
+    """Parent class for review events."""
     def __init__(self,
         decision: DecisionT,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(uuid_, timestamp, integrity, author)
-        self.decision = decision
+        self.decision: DecisionT = decision
+        """The decision of the review (accept, reject)."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
-            super()._signature_bytes(),
+            super().signature_bytes(),
             struct.pack("<B", self.decision.value),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.decision == other.decision
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "decision": self.decision.value,
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return ReviewEvent(
             DecisionT(data["decision"]),
@@ -950,7 +985,7 @@ class ReviewEvent(Event):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -969,15 +1004,25 @@ class ReviewEvent(Event):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.decision == other.decision
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class ReviewAcceptEvent(ReviewEvent):
+    """Event used for accepting pending object and annotation events."""
     def __init__(self,
         event_uuid: uuid.UUID,
         uuid_: typing.Optional[uuid.UUID] = None,
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(DecisionT.ACCEPT, uuid_, timestamp, integrity, author)
-        self.event_uuid = event_uuid
+        self.event_uuid: uuid.UUID = event_uuid
+        """The change being accepted."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
@@ -985,20 +1030,13 @@ class ReviewAcceptEvent(ReviewEvent):
             self.event_uuid.bytes,
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.event_uuid == other.event_uuid
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "event_uuid": str(self.event_uuid),
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return ReviewAcceptEvent(
             uuid.UUID(data["event_uuid"]),
@@ -1008,7 +1046,7 @@ class ReviewAcceptEvent(ReviewEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -1028,22 +1066,6 @@ class ReviewAcceptEvent(ReviewEvent):
             ],
         }
 
-class ReviewRejectEvent(ReviewEvent):
-    def __init__(self,
-        event_uuid: uuid.UUID,
-        uuid_: typing.Optional[uuid.UUID] = None,
-        timestamp: typing.Optional[str] = None,
-        integrity: typing.Optional[bytes] = None,
-        author: typing.Optional[str] = None):
-        super().__init__(DecisionT.REJECT, uuid_, timestamp, integrity, author)
-        self.event_uuid = event_uuid
-
-    def signature_bytes(self) -> bytes:
-        return b"".join([
-            super().signature_bytes(),
-            self.event_uuid.bytes,
-        ])
-
     def __eq__(self, other):
         return super().__eq__(other) and \
             self.event_uuid == other.event_uuid
@@ -1051,13 +1073,32 @@ class ReviewRejectEvent(ReviewEvent):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def serialize(self):
+class ReviewRejectEvent(ReviewEvent):
+    """Event used for rejecting pending object and annotation events."""
+    def __init__(self,
+        event_uuid: uuid.UUID,
+        uuid_: typing.Optional[uuid.UUID] = None,
+        timestamp: typing.Optional[str] = None,
+        integrity: typing.Optional[bytes] = None,
+        author: typing.Optional[str] = None):
+    
+        super().__init__(DecisionT.REJECT, uuid_, timestamp, integrity, author)
+        self.event_uuid: uuid.UUID = event_uuid
+        """The change being rejected."""
+
+    def signature_bytes(self) -> bytes:
+        return b"".join([
+            super().signature_bytes(),
+            self.event_uuid.bytes,
+        ])
+
+    def serialize(self) -> dict:
         return super().serialize() | {
             "event_uuid": str(self.event_uuid),
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return ReviewRejectEvent(
             uuid.UUID(data["event_uuid"]),
@@ -1067,7 +1108,7 @@ class ReviewRejectEvent(ReviewEvent):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -1087,9 +1128,16 @@ class ReviewRejectEvent(ReviewEvent):
             ],
         }
 
-### Ownership Events ###
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.event_uuid == other.event_uuid
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+### Ownership Events ###
 class OwnerEvent(Event):
+    """Parent class for owner events."""
     def __init__(self,
         owner: str,
         owner_action: OwnerActionT,
@@ -1097,33 +1145,28 @@ class OwnerEvent(Event):
         timestamp: typing.Optional[str] = None,
         integrity: typing.Optional[bytes] = None,
         author: typing.Optional[str] = None):
+
         super().__init__(uuid_, timestamp, integrity, author)
-        self.owner = owner
-        self.owner_action = owner_action
+        self.owner: str = owner
+        """The owner affected."""
+        self.owner_action: OwnerActionT = owner_action
+        """Whether the owner is being added or removed."""
 
     def signature_bytes(self) -> bytes:
         return b"".join([
-            super()._signature_bytes(),
+            super().signature_bytes(),
             self.owner.encode(),
             struct.pack("<B", self.owner_action.value),
         ])
 
-    def __eq__(self, other):
-        return super().__eq__(other) and \
-            self.owner == other.owner and \
-            self.owner_action == other.owner_action
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def serialize(self):
+    def serialize(self) -> dict:
         return super().serialize() | {
             "owner": self.owner,
             "owner_action": self.owner_action.value,
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return OwnerEvent(
             data["owner"],
@@ -1134,7 +1177,7 @@ class OwnerEvent(Event):
             data["author"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
         return {
             "type": "object",
             "definitions": {
@@ -1159,7 +1202,16 @@ class OwnerEvent(Event):
             ],
         }
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            self.owner == other.owner and \
+            self.owner_action == other.owner_action
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class OwnerAddEvent(OwnerEvent):
+    """Event used for adding an owner."""
     def __init__(self,
         owner: str,
         uuid_: typing.Optional[uuid.UUID] = None,
@@ -1175,7 +1227,7 @@ class OwnerAddEvent(OwnerEvent):
             author)
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return OwnerAddEvent(
             data["owner"],
@@ -1185,6 +1237,7 @@ class OwnerAddEvent(OwnerEvent):
             data["author"])
 
 class OwnerRemoveEvent(OwnerEvent):
+    """Event used for removing an owner."""
     def __init__(self,
         owner: str,
         uuid_: typing.Optional[uuid.UUID] = None,
@@ -1200,7 +1253,7 @@ class OwnerRemoveEvent(OwnerEvent):
             author)
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
         return OwnerRemoveEvent(
             data["owner"],
