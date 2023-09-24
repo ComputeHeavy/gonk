@@ -408,9 +408,9 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v0.uuid), o1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
-        self.assertTrue(events.StatusT.CREATE_PENDING in status)
+        self.assertTrue(sq3.StatusT.CREATE_PENDING in status)
 
         rae = events.ReviewAcceptEvent(oce.uuid)
         rae = signer.sign(rae)
@@ -431,7 +431,7 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v0.uuid), o1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
         self.assertEqual(len(status), 0)
 
@@ -477,8 +477,8 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v1.uuid), o1v1.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
-        self.assertTrue(events.StatusT.CREATE_PENDING in status)
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
+        self.assertTrue(sq3.StatusT.CREATE_PENDING in status)
 
         rae = events.ReviewAcceptEvent(oue.uuid)
         rae = signer.sign(rae)
@@ -490,7 +490,7 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v1.uuid), o1v1.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
         self.assertEqual(len(status), 0)
 
     def test_object_delete_accept(self):
@@ -526,8 +526,8 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v0.uuid), o1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
-        self.assertTrue(events.StatusT.DELETE_PENDING in status)
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
+        self.assertTrue(sq3.StatusT.DELETE_PENDING in status)
 
         rae = events.ReviewAcceptEvent(ode.uuid)
         rae = signer.sign(rae)
@@ -539,8 +539,8 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v0.uuid), o1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
-        self.assertTrue(events.StatusT.DELETE_ACCEPTED in status)
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
+        self.assertTrue(sq3.StatusT.DELETE_ACCEPTED in status)
 
     def test_annotation_create_accept(self):
         machine = interfaces.Machine()
@@ -596,8 +596,8 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v0.uuid), a1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
-        self.assertTrue(events.StatusT.CREATE_PENDING in status)
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
+        self.assertTrue(sq3.StatusT.CREATE_PENDING in status)
 
         cur.execute("""SELECT COUNT(*)
                 FROM object_annotation_link
@@ -619,7 +619,7 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v0.uuid), a1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
         self.assertEqual(len(status), 0)
 
     def test_annotation_update_accept(self):
@@ -673,8 +673,8 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v1.uuid), a1v1.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
-        self.assertTrue(events.StatusT.CREATE_PENDING in status)
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
+        self.assertTrue(sq3.StatusT.CREATE_PENDING in status)
 
         rae = events.ReviewAcceptEvent(aue.uuid)
         rae = signer.sign(rae)
@@ -686,7 +686,7 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v1.uuid), a1v1.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
         self.assertEqual(len(status), 0)
 
     def test_annotation_delete_accept(self):
@@ -731,8 +731,8 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v0.uuid), a1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
-        self.assertTrue(events.StatusT.DELETE_PENDING in status)
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
+        self.assertTrue(sq3.StatusT.DELETE_PENDING in status)
 
         rae = events.ReviewAcceptEvent(ade.uuid)
         rae = signer.sign(rae)
@@ -744,8 +744,8 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v0.uuid), a1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
-        self.assertTrue(events.StatusT.DELETE_ACCEPTED in status)
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
+        self.assertTrue(sq3.StatusT.DELETE_ACCEPTED in status)
 
     def test_owner_add(self):
         machine = interfaces.Machine()
@@ -880,10 +880,10 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v0.uuid), o1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
         self.assertEqual(len(status), 1)
-        self.assertTrue(events.StatusT.CREATE_REJECTED in status)
+        self.assertTrue(sq3.StatusT.CREATE_REJECTED in status)
 
     def test_object_update_reject(self):
         machine = interfaces.Machine()
@@ -923,10 +923,10 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v1.uuid), o1v1.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
         self.assertEqual(len(status), 1)
-        self.assertTrue(events.StatusT.CREATE_REJECTED in status)
+        self.assertTrue(sq3.StatusT.CREATE_REJECTED in status)
 
     def test_object_delete_reject(self):
         machine = interfaces.Machine()
@@ -965,9 +965,9 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(o1v0.uuid), o1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
-        self.assertTrue(events.StatusT.CREATE_PENDING in status)
+        self.assertTrue(sq3.StatusT.CREATE_PENDING in status)
         self.assertEqual(len(status), 1)
 
     def test_annotation_create_reject(self):
@@ -1013,10 +1013,10 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v0.uuid), a1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
         self.assertEqual(len(status), 1)
-        self.assertTrue(events.StatusT.CREATE_REJECTED in status)
+        self.assertTrue(sq3.StatusT.CREATE_REJECTED in status)
 
     def test_annotation_update_reject(self):
         machine = interfaces.Machine()
@@ -1065,10 +1065,10 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v1.uuid), a1v1.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
         self.assertEqual(len(status), 1)
-        self.assertTrue(events.StatusT.CREATE_REJECTED in status)
+        self.assertTrue(sq3.StatusT.CREATE_REJECTED in status)
 
     def test_annotation_delete_reject(self):
         machine = interfaces.Machine()
@@ -1116,9 +1116,9 @@ class TestSqliteState(test_utils.GonkTest):
                     AND version = ?""",
             (str(a1v0.uuid), a1v0.version))
 
-        status = set([getattr(events.StatusT, ea) for ea, in cur.fetchall()])
+        status = set([getattr(sq3.StatusT, ea) for ea, in cur.fetchall()])
 
-        self.assertTrue(events.StatusT.CREATE_PENDING in status)
+        self.assertTrue(sq3.StatusT.CREATE_PENDING in status)
         self.assertEqual(len(status), 1)
 
 if __name__ == '__main__':

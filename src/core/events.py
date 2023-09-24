@@ -29,13 +29,6 @@ class HashTypeT(enum.Enum):
     """Enum for object and annotation hash types."""
     SHA256 = 1<<0
 
-class StatusT(enum.Enum):
-    """Enum for tracking object and annotation status in state."""
-    CREATE_PENDING = 1<<0
-    CREATE_REJECTED = 1<<1
-    DELETE_PENDING = 1<<2
-    DELETE_ACCEPTED = 1<<3
-
 ### Data Containers ###
 class Identifier:
     """Identifies objects and annotations with a UUID and version number."""
@@ -67,7 +60,11 @@ class Identifier:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Returns the JSON Schema for validating the serialized class."""
+        """Returns the JSON Schema for validating the serialized class.
+
+        Args:
+            relative: A base path for nested references.
+        """
         return {
             "type": "object",
             "properties": {
@@ -102,7 +99,8 @@ class Identifier:
         return f"Identifier({self.uuid}, {self.version})"
 
 class Object:
-    """Metadata container for an object in the :class:`Depot`."""
+    """Metadata container for an object in the 
+        :class:`gonk.core.interfaces.Depot`."""
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT,
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
@@ -166,7 +164,11 @@ class Object:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Returns the JSON Schema for validating the serialized class."""
+        """Returns the JSON Schema for validating the serialized class.
+
+        Args:
+            relative: A base path for nested references.
+        """
         return {
             "type": "object",
             "properties": {
@@ -226,7 +228,8 @@ class Object:
         return not self.__eq__(other)
 
 class Annotation:
-    """Metadata container for an annotation in the :class:`Depot`."""
+    """Metadata container for an annotation in the 
+        :class:`gonk.core.interfaces.Depot`."""
     def __init__(self, schema_: Identifier, size: int, hash_type: HashTypeT,
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
@@ -285,7 +288,11 @@ class Annotation:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Returns the JSON Schema for validating the serialized class."""
+        """Returns the JSON Schema for validating the serialized class.
+
+        Args:
+            relative: A base path for nested references.
+        """
         return {
             "type": "object",
             "definitions": {
@@ -396,7 +403,11 @@ class Event:
 
     @staticmethod
     def schema(relative="") -> dict:
-        """Returns the JSON Schema for validating the serialized class."""
+        """Returns the JSON Schema for validating the serialized class.
+
+        Args:
+            relative: A base path for nested references.
+        """
         return {
             "type": "object",
             "properties": {

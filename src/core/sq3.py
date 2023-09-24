@@ -1,5 +1,6 @@
 import uuid
 import json
+import enum
 import typing
 import pathlib
 import sqlite3
@@ -121,6 +122,13 @@ class RecordKeeper(interfaces.RecordKeeper):
         tail, = res
         con.close()
         return uuid.UUID(tail)
+
+class StatusT(enum.Enum):
+    """Enum for tracking object and annotation status in state."""
+    CREATE_PENDING = 1<<0
+    CREATE_REJECTED = 1<<1
+    DELETE_PENDING = 1<<2
+    DELETE_ACCEPTED = 1<<3
 
 class State(interfaces.State):
     def __init__(self,
@@ -853,7 +861,7 @@ class State(interfaces.State):
                 VALUES (?, ?, ?)""",
             (str(event.object.uuid),
                 event.object.version,
-                events.StatusT.CREATE_PENDING.name))
+                StatusT.CREATE_PENDING.name))
 
         con.commit()
         con.close()
@@ -886,7 +894,7 @@ class State(interfaces.State):
                 VALUES (?, ?, ?)""",
             (str(event.object.uuid),
                 event.object.version,
-                events.StatusT.CREATE_PENDING.name))
+                StatusT.CREATE_PENDING.name))
 
         con.commit()
         con.close()
@@ -906,7 +914,7 @@ class State(interfaces.State):
                 VALUES (?, ?, ?)""",
             (str(event.object_identifier.uuid),
                 event.object_identifier.version,
-                events.StatusT.DELETE_PENDING.name))
+                StatusT.DELETE_PENDING.name))
 
         con.commit()
         con.close()
@@ -941,7 +949,7 @@ class State(interfaces.State):
                 VALUES (?, ?, ?)""",
             (str(event.annotation.uuid),
                 event.annotation.version,
-                events.StatusT.CREATE_PENDING.name))
+                StatusT.CREATE_PENDING.name))
 
         con.commit()
         con.close()
@@ -968,7 +976,7 @@ class State(interfaces.State):
             VALUES (?, ?, ?)""",
             (str(event.annotation.uuid),
                 event.annotation.version,
-                events.StatusT.CREATE_PENDING.name))
+                StatusT.CREATE_PENDING.name))
 
         con.commit()
         con.close()
@@ -988,7 +996,7 @@ class State(interfaces.State):
             VALUES (?, ?, ?)""",
             (str(event.annotation_identifier.uuid),
                 event.annotation_identifier.version,
-                events.StatusT.DELETE_PENDING.name))
+                StatusT.DELETE_PENDING.name))
 
         con.commit()
         con.close()
@@ -1016,7 +1024,7 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.object.uuid),
                         target.object.version,
-                        events.StatusT.CREATE_PENDING.name))
+                        StatusT.CREATE_PENDING.name))
             elif isinstance(target, events.ObjectDeleteEvent):
                 link_params = (str(target.object_identifier.uuid),
                     target.object_identifier.version,
@@ -1028,14 +1036,14 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.object_identifier.uuid),
                         target.object_identifier.version,
-                        events.StatusT.DELETE_PENDING.name))
+                        StatusT.DELETE_PENDING.name))
 
                 cur.execute("""INSERT INTO object_status
                     (uuid, version, status)
                     VALUES (?, ?, ?)""",
                     (str(target.object_identifier.uuid),
                         target.object_identifier.version,
-                        events.StatusT.DELETE_ACCEPTED.name))
+                        StatusT.DELETE_ACCEPTED.name))
             else:
                 raise ValueError("unexpected object event type in accept")
 
@@ -1056,7 +1064,7 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.annotation.uuid),
                         target.annotation.version,
-                        events.StatusT.CREATE_PENDING.name))
+                        StatusT.CREATE_PENDING.name))
             elif isinstance(target, events.AnnotationDeleteEvent):
                 link_params = (str(target.annotation_identifier.uuid),
                     target.annotation_identifier.version,
@@ -1068,14 +1076,14 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.annotation_identifier.uuid),
                         target.annotation_identifier.version,
-                        events.StatusT.DELETE_PENDING.name))
+                        StatusT.DELETE_PENDING.name))
 
                 cur.execute("""INSERT INTO annotation_status
                     (uuid, version, status)
                     VALUES (?, ?, ?)""",
                     (str(target.annotation_identifier.uuid),
                         target.annotation_identifier.version,
-                        events.StatusT.DELETE_ACCEPTED.name))
+                        StatusT.DELETE_ACCEPTED.name))
             else:
                 raise ValueError("unexpected annotation event type in accept")
 
@@ -1111,14 +1119,14 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.object.uuid),
                         target.object.version,
-                        events.StatusT.CREATE_PENDING.name))
+                        StatusT.CREATE_PENDING.name))
 
                 cur.execute("""INSERT INTO object_status
                     (uuid, version, status)
                     VALUES (?, ?, ?)""",
                     (str(target.object.uuid),
                         target.object.version,
-                        events.StatusT.CREATE_REJECTED.name))
+                        StatusT.CREATE_REJECTED.name))
             elif isinstance(target, events.ObjectDeleteEvent):
                 link_params = (str(target.object_identifier.uuid),
                     target.object_identifier.version,
@@ -1130,7 +1138,7 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.object_identifier.uuid),
                         target.object_identifier.version,
-                        events.StatusT.DELETE_PENDING.name))
+                        StatusT.DELETE_PENDING.name))
             else:
                 raise ValueError("unexpected object event type in reject")
 
@@ -1151,14 +1159,14 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.annotation.uuid),
                         target.annotation.version,
-                        events.StatusT.CREATE_PENDING.name))
+                        StatusT.CREATE_PENDING.name))
 
                 cur.execute("""INSERT INTO annotation_status
                     (uuid, version, status)
                     VALUES (?, ?, ?)""",
                     (str(target.annotation.uuid),
                         target.annotation.version,
-                        events.StatusT.CREATE_REJECTED.name))
+                        StatusT.CREATE_REJECTED.name))
             elif isinstance(target, events.AnnotationDeleteEvent):
                 link_params = (str(target.annotation_identifier.uuid),
                     target.annotation_identifier.version,
@@ -1170,7 +1178,7 @@ class State(interfaces.State):
                         AND status = ?""",
                     (str(target.annotation_identifier.uuid),
                         target.annotation_identifier.version,
-                        events.StatusT.DELETE_PENDING.name))
+                        StatusT.DELETE_PENDING.name))
             else:
                 raise ValueError("unexpected annotation event type in reject")
 
@@ -1313,15 +1321,15 @@ class State(interfaces.State):
             (str(event.object_identifier.uuid),
                 event.object_identifier.version))
 
-        status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
+        status = {getattr(StatusT, ea) for ea, in cur.fetchall()}
         con.close()
-        if events.StatusT.CREATE_REJECTED in status:
+        if StatusT.CREATE_REJECTED in status:
             raise exceptions.ValidationError("cannot delete a rejected object")
 
-        if events.StatusT.DELETE_PENDING in status:
+        if StatusT.DELETE_PENDING in status:
             raise exceptions.ValidationError("object version pending deletion")
 
-        if events.StatusT.DELETE_ACCEPTED in status:
+        if StatusT.DELETE_ACCEPTED in status:
             raise exceptions.ValidationError("object version already deleted")
 
     def _validate_annotation_create(self, event: events.AnnotationCreateEvent):
@@ -1360,13 +1368,13 @@ class State(interfaces.State):
                     AND version = ?""",
                 (str(identifier.uuid), identifier.version))
 
-            status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
-            if events.StatusT.CREATE_REJECTED in status:
+            status = {getattr(StatusT, ea) for ea, in cur.fetchall()}
+            if StatusT.CREATE_REJECTED in status:
                 con.close()
                 raise exceptions.ValidationError(
                     "rejected objects cannot be annotated")
 
-            if events.StatusT.DELETE_ACCEPTED in status:
+            if StatusT.DELETE_ACCEPTED in status:
                 con.close()
                 raise exceptions.ValidationError(
                     "deleted objects cannot be annotated")
@@ -1417,17 +1425,17 @@ class State(interfaces.State):
             (str(event.annotation_identifier.uuid),
                 event.annotation_identifier.version))
 
-        status = {getattr(events.StatusT, ea) for ea, in cur.fetchall()}
+        status = {getattr(StatusT, ea) for ea, in cur.fetchall()}
         con.close()
-        if events.StatusT.CREATE_REJECTED in status:
+        if StatusT.CREATE_REJECTED in status:
             raise exceptions.ValidationError(
                 "cannot delete a rejected annotation")
 
-        if events.StatusT.DELETE_PENDING in status:
+        if StatusT.DELETE_PENDING in status:
             raise exceptions.ValidationError(
                 "annotation already pending deletion")
 
-        if events.StatusT.DELETE_ACCEPTED in status:
+        if StatusT.DELETE_ACCEPTED in status:
             raise exceptions.ValidationError("annotation already deleted")
 
     def _validate_review(self,

@@ -161,7 +161,8 @@ class Depot(interfaces.Depot):
 
     def reserve(self, identifier: events.Identifier, size: int):
         if self._state(identifier) != ObjectStateT.NONEXISTENT:
-            raise exceptions.StorageError('identifier already exists in storage')
+            raise exceptions.StorageError(
+                'identifier already exists in storage')
 
         key = f"{identifier.uuid}.{identifier.version}"
 

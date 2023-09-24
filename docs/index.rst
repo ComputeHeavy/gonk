@@ -16,4 +16,5 @@ Core Modules
 .. toctree::
    :maxdepth: 2
 
+   gonk.core.interfaces <modules/interfaces>
    gonk.core.events <modules/events>
