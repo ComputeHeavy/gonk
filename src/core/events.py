@@ -33,7 +33,8 @@ class StatusT(enum.Enum):
 
 ### Data Containers ###
 class Identifier:
-    def __init__(self, uuid_: uuid.UUID, version: int):
+    """Identifies objects and annotations with a UUID and version number."""
+    def __init__(self, uuid_: uuid.UUID, version: int) -> typing.Self:
         self.uuid = uuid_
         self.version = version
 
@@ -50,6 +51,7 @@ class Identifier:
         return not self.__eq__(other)
 
     def signature_bytes(self) -> bytes:
+        """Return a byte-based representation for signing or hashing."""
         return b"".join([
             self.uuid.bytes,
             struct.pack("<Q", self.version),
@@ -58,19 +60,22 @@ class Identifier:
     def __repr__(self):
         return f"Identifier({self.uuid}, {self.version})"
 
-    def serialize(self):
+    def serialize(self) -> dict:
+        """Serialize instance to dictionary."""
         return {
             "uuid": str(self.uuid),
             "version": self.version,
         }
 
     @classmethod
-    def deserialize(cls, data: dict):
+    def deserialize(cls, data: dict) -> typing.Self:
+        """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
         return Identifier(uuid.UUID(data["uuid"]), data["version"])
 
     @staticmethod
-    def schema(relative=""):
+    def schema(relative="") -> dict:
+        """Return the JSON Schema for identifiers."""
         return {
             "type": "object",
             "properties": {
@@ -90,6 +95,7 @@ class Identifier:
         }
 
 class Object:
+    """The Object class contains metadata about an object in the depot."""
     def __init__(self, name: str, format_: str, size: int, hash_type: HashTypeT,
         hash_: str, uuid_: typing.Optional[uuid.UUID] = None, version: int = 0):
         if uuid_ is None:
@@ -601,7 +607,8 @@ class ObjectDeleteEvent(ObjectEvent):
     @classmethod
     def deserialize(cls, data: dict):
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ObjectDeleteEvent(Identifier.deserialize(data["object_identifier"]),
+        return ObjectDeleteEvent(
+            Identifier.deserialize(data["object_identifier"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
             bytes.fromhex(data["integrity"]),
@@ -716,7 +723,8 @@ class AnnotationCreateEvent(AnnotationEvent):
     def serialize(self):
         return super().serialize() | {
             "annotation": self.annotation.serialize(),
-            "object_identifiers": [ea.serialize() for ea in self.object_identifiers],
+            "object_identifiers": [ea.serialize() 
+                for ea in self.object_identifiers],
         }
 
     @classmethod
