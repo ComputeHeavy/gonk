@@ -34,37 +34,6 @@ API Endpoints
     :local:
     :depth: 2
 
-``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~
-
-**METHOD**
-^^^^^^^^^^
-
-    Arguments:
-        **arg:** A description of arg.
-
-    Query String Parameters:
-        **param:** A description of param.
-
-    Request Body
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
-
-    Response
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
-
-    Code Example
-        .. code-block:: python
-
-            request.get()
-
 ``/datasets``
 ~~~~~~~~~~~~~
 
@@ -123,12 +92,11 @@ API Endpoints
 
 ``/datasets/<dataset_name>/schemas``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Arguments:
+        **dataset_name:** Dataset name.
 
 **POST** - Schema Create
 ^^^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to which the schema will be added.
-
     Request Body
         .. code-block:: json
 
@@ -185,9 +153,6 @@ API Endpoints
 
 **GET** - Schemas List
 ^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to list schemas for.
-
     Response
         .. code-block:: json
 
@@ -213,14 +178,13 @@ API Endpoints
 
 ``/datasets/<dataset_name>/schemas/<schema_name>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Arguments:
+        **dataset_name:** Dataset name.
+
+        **schema_name:** Schema name.
 
 **GET** - Schema Info
 ^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset from which to retrieve schema info.
-
-        **schema_name:** The schema to retrieve info for.
-
     Response
         .. code-block:: json
 
@@ -246,11 +210,6 @@ API Endpoints
 
 **PATCH** - Schema Update
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to update a schema in.
-
-        **schema_name:** The schema to update.
-
     Request Body
         .. code-block:: json
 
@@ -328,15 +287,15 @@ API Endpoints
 
 ``/datasets/<dataset_name>/schemas/<schema_name>/<schema_version>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**GET** - Schema Load
-^^^^^^^^^^^^^^^^^^^^^
     Arguments:
         **dataset_name:** The dataset from which to retrieve a schema.
 
         **schema_name:** The name of the schema to retrieve.
 
         **schema_version:** The specific version of that schema to retrieve.
+
+**GET** - Schema Load
+^^^^^^^^^^^^^^^^^^^^^
 
     Response
         .. code-block:: json
@@ -368,12 +327,11 @@ API Endpoints
 
 ``/datasets/<dataset_name>/owners``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**GET** - Owners List
-^^^^^^^^^^^^^^^^^^^^^
     Arguments:
         **dataset_name:** The dataset to list owners for.
 
+**GET** - Owners List
+^^^^^^^^^^^^^^^^^^^^^
     Response
         .. code-block:: json
 
@@ -394,13 +352,13 @@ API Endpoints
                 print(resp.status_code, resp_data)
 
 ``/datasets/<dataset_name>/owners/<user>``
+    Arguments:
+        **dataset_name:** Dataset name.
+
+        **user:** The username or other identifier.
 
 **PUT** - Owner Add
 ^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to add an owner to.
-        **user:** The username or other identifier to add.
-
     Response
         .. code-block:: json
 
@@ -423,11 +381,6 @@ API Endpoints
 
 **DELETE** - Owner Remove
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to remove an owner from.
-
-        **user:** The username or other identifier to add.
-
     Response
         .. code-block:: json
 
@@ -450,12 +403,11 @@ API Endpoints
 
 ``/datasets/<dataset_name>/objects``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Arguments:
+        **dataset_name:** Dataset name.
 
 **POST** - Object Create
 ^^^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to create an object in.
-
     Request Body
         .. code-block:: json
 
@@ -500,9 +452,6 @@ API Endpoints
 
 **GET** - Objects List
 ^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to list objects in.
-
     Query String Parameters:
         **after:** Object UUID after which to list more objects (pagination).
 
@@ -533,14 +482,13 @@ API Endpoints
 
 ``/datasets/<dataset_name>/objects/<object_uuid>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Arguments:
+        **dataset_name:** Dataset name.
+
+        **object_uuid:** Object UUID.
 
 **GET** - Object Info
 ^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to get an object info from.
-
-        **object_uuid:** The object UUID to get info about.
-
     Response
         .. code-block:: json
 
@@ -566,11 +514,6 @@ API Endpoints
 
 **PATCH** - Object Update
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset to update an object in.
-
-        **object_uuid:** The object UUID to update.
-
     Request Body
         .. code-block:: json
 
@@ -615,9 +558,6 @@ API Endpoints
 
 ``/datasets/<dataset_name>/objects/<object_status>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**GET** - Objects List by Status
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     Arguments:
         **dataset_name:** The dataset to list objects in.
 
@@ -625,6 +565,8 @@ API Endpoints
 
             Valid statuses are ``accepted``, ``pending``, ``deleted``, ``rejected``.
 
+**GET** - Objects List by Status
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     Query String Parameters:
         **after:** Object UUID after which to list more objects (pagination).
 
@@ -659,16 +601,16 @@ API Endpoints
 
 ``/datasets/<dataset_name>/objects/<object_uuid>/<object_version>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Arguments:
+        **dataset_name:** Dataset name.
+
+        **object_uuid:** Object UUID.
+
+        **object_version:** Object version.
+
 
 **GET** - Object Load
 ^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset from which to retrieve an object.
-
-        **object_uuid:** The UUID of the object to retrieve.
-
-        **object_version:** The specific version of the object to retrieve.
-
     Response
         .. code-block:: json
 
@@ -708,13 +650,6 @@ API Endpoints
 
 **DELETE** - Object Delete
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Arguments:
-        **dataset_name:** The dataset from which to delete the object.
-
-        **object_uuid:** The UUID of the object to delete.
-
-        **object_version:** The specific version of the object to delete.
-
     Response
         .. code-block:: json
 
@@ -726,7 +661,7 @@ API Endpoints
     Code Example
         .. code-block:: python
 
-            def owner_remove(host, dataset_name, object_uuid, object_version):
+            def object_delete(host, dataset_name, object_uuid, object_version):
                 resp = requests.delete(
                     f"http://{host}/datasets/{dataset_name}/objects/{object_uuid}/{object_version}", 
                     headers={
@@ -737,12 +672,11 @@ API Endpoints
 
 ``/datasets/<dataset_name>/events``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**GET** - Events List
-^^^^^^^^^^^^^^^^^^^^^
     Arguments:
         **dataset_name:** The dataset to list events in.
 
+**GET** - Events List
+^^^^^^^^^^^^^^^^^^^^^
     Query String Parameters:
         **after:** Event UUID after which to list more events (pagination).
 
@@ -795,13 +729,13 @@ API Endpoints
 
 ``/datasets/<dataset_name>/events/<event_uuid>/accept``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**PUT** - Event Accept
-^^^^^^^^^^^^^^^^^^^^^^
     Arguments:
         **dataset_name:** The dataset to accept an event in.
 
         **event_uuid:** The UUID of the event.
+
+**PUT** - Event Accept
+^^^^^^^^^^^^^^^^^^^^^^
 
     Response
         .. code-block:: json
@@ -819,20 +753,19 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
-                    
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
 ``/datasets/<dataset_name>/events/<event_uuid>/reject``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**PUT** - Event Reject
-^^^^^^^^^^^^^^^^^^^^^^
     Arguments:
         **dataset_name:** The dataset to reject an event in.
 
         **event_uuid:** The UUID of the event.
 
+**PUT** - Event Reject
+^^^^^^^^^^^^^^^^^^^^^^
     Response
         .. code-block:: json
 
@@ -853,208 +786,340 @@ API Endpoints
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+``/datasets/<dataset_name>/annotations``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Arguments:
-        **arg:** A description of arg.
+        **dataset_name:** Dataset name.
 
-    Query String Parameters:
-        **param:** A description of param.
+**POST** - Annotation Create
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     Request Body
         .. code-block:: json
 
             {
-                "key": "value"
+                "schema": {
+                    "name": "schema-example", 
+                    "version": 2
+                },
+                "object_identifiers": [
+                    {
+                        "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
+                        "version": 1
+                    },
+                ],
+                "annotation": "cHJldGVuZCB0aGF0IHRoZSBhbm5vdGF0aW9uIGlzIGVuY29kZWQgaGVyZQ=="
             }
 
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be",
+                "version": 0,
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def annotation_create(host, dataset_name, object_uuid, object_version):
+                annotation = {
+                    "label": "bird",
+                    "points": [
+                        {"x": 1, "y": 0},
+                        {"x": 7, "y": 5},
+                    ]
+                }
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                annotation_buf = json.dumps(annotation).encode()
 
-    Arguments:
-        **arg:** A description of arg.
+                resp = requests.post(
+                    f"http://{host}/datasets/{dataset_name}/annotations", 
+                    headers={
+                        "x-api-key": key,
+                    },
+                    json={
+                        "schema": {
+                            "name": "schema-example", 
+                            "version": 1
+                        },
+                        "object_identifiers": [
+                            {
+                                "uuid": object_uuid, 
+                                "version": object_version
+                            },
+                        ],
+                        "annotation": base64.b64encode(annotation_buf).decode(),
+                    })
 
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
+
+**GET** - Annotations List
+^^^^^^^^^^^^^^^^^^^^^^^^^^
     Query String Parameters:
-        **param:** A description of param.
+        **after:** Annotations UUID after which to list more annotations (pagination).
 
+    Response
+        .. code-block:: json
+
+            {
+                "annotation_infos": [
+                    {
+                        "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                        "versions": 1
+                    }
+                ]
+            }
+
+    Code Example
+        .. code-block:: python
+
+            def annotations_list(host, dataset_name):
+                resp = requests.get(
+                    f"http://{host}/datasets/{dataset_name}/annotations", 
+                    headers={
+                        "x-api-key": key,
+                    })
+
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)]
+
+``/datasets/<dataset_name>/annotations/<annotation_uuid>``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Arguments:
+        **dataset_name:** Dataset name.
+
+        **annotation_uuid:** Annotation UUID.
+
+**GET** - Annotation Info
+^^^^^^^^^^^^^^^^^^^^^^^^^
+    Response
+        .. code-block:: json
+
+            {
+                "annotation_info": {
+                    "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                    "versions": 1
+                }
+            }
+
+    Code Example
+        .. code-block:: python
+
+            def annotation_info(host, dataset_name, annotation_uuid):
+                resp = requests.get(
+                    f"http://{host}/datasets/{dataset_name}/annotations/{annotation_uuid}",
+                    headers={
+                        "x-api-key": key,
+                    })
+
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
+
+**PATCH** - Annotation Update
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     Request Body
         .. code-block:: json
 
             {
-                "key": "value"
+                "schema": {
+                    "name": "schema-example", 
+                    "version": 2
+                },
+                "annotation": "cHJldGVuZCB0aGF0IHRoZSBhbm5vdGF0aW9uIGlzIGVuY29kZWQgaGVyZQ=="
             }
 
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be",
+                "version": 1,
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def annotation_update(host, dataset_name, annotation_uuid):
+                annotation = {
+                    "label": "bird",
+                    "points": [
+                        {"x": 8, "y": 0},
+                        {"x": 15, "y": 5},
+                    ]
+                }
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                annotation_buf = json.dumps(annotation).encode()
 
+                resp = requests.patch(
+                    f"http://{host}/datasets/{dataset_name}/annotations/{annotation_uuid}", 
+                    headers={
+                        "x-api-key": key,
+                    },
+                    json={
+                        "schema": {
+                            "name": "schema-example", 
+                            "version": 1
+                        },
+                        "annotation": base64.b64encode(annotation_buf).decode(),
+                    })
+
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
+
+``/datasets/<dataset_name>/annotations/<annotation_status>``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Arguments:
-        **arg:** A description of arg.
+        **dataset_name:** The dataset to list annotations in.
 
+        **annotation_status:** The status of annotations to list.
+
+            Valid statuses are ``accepted``, ``pending``, ``deleted``, ``rejected``.
+
+**GET** - Annotation List by Status
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     Query String Parameters:
-        **param:** A description of param.
-
-    Request Body
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
+        **after:** Annotation UUID after which to list more annotations (pagination).
 
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "identifiers": [
+                    {
+                        "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                        "version": 0
+                    },
+                    {
+                        "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                        "version": 1
+                    }
+                ]
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def objects_list_status(host, dataset_name, annotation_status):
+                resp = requests.get(
+                    f"http://{host}/datasets/{dataset_name}/annotations/{annotation_status}", 
+                    headers={
+                        "x-api-key": key,
+                    })
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)]
 
+``/datasets/<dataset_name>/annotations/<annotation_uuid>/<annotation_version>``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Arguments:
-        **arg:** A description of arg.
+        **dataset_name:** Dataset name.
 
-    Query String Parameters:
-        **param:** A description of param.
+        **annotation_uuid:** Annotation UUID.
 
-    Request Body
-        .. code-block:: json
+        **annotation_version:** Annotation version.
 
-            {
-                "key": "value"
-            }
-
+**GET** - Annotation Load
+^^^^^^^^^^^^^^^^^^^^^^^^^
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "annotation": {
+                    "hash": "154b716261fa69284dabac3d6a3a28b93e1c2b6596f60245da8cbaa12b8db2dd",
+                    "hash_type": 1,
+                    "schema": {
+                        "uuid": "82512635-040d-415c-934d-c8af96f25545",
+                        "version": 1
+                    },
+                    "size": 65,
+                    "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be",
+                    "version": 0
+                },
+                "bytes": "eyJsYWJlbCI6ICJiaXJkIiwgInBvaW50cyI6IFt7IngiOiAxLCAieSI6IDJ9LCB7IngiOiAzLCAieSI6IDR9XX0=",
+                "events": [
+                    {
+                        "review": "PENDING",
+                        "type": "AnnotationCreateEvent",
+                        "uuid": "040573d5-6008-4cca-b25a-97d4e5976bf8"
+                    },
+                    {
+                        "review": "PENDING",
+                        "type": "AnnotationDeleteEvent",
+                        "uuid": "7f3229d1-27ce-4af4-9bcc-95869550e53e"
+                    }
+                ],
+                "objects": [
+                    {
+                        "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116",
+                        "version": 0
+                    }
+                ]
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def annotation_details(host, dataset_name, annotation_uuid, annotation_version):
+                resp = requests.get(
+                    f"http://{host}/datasets/{dataset_name}/annotations/{annotation_uuid}/{annotation_version}", 
+                    headers={
+                        "x-api-key": key,
+                    })
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
 
-    Arguments:
-        **arg:** A description of arg.
-
-    Query String Parameters:
-        **param:** A description of param.
-
-    Request Body
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
-
+**DELETE** - Annotation Delete
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be",
+                "version": 1,
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def annotation_delete(host, dataset_name, annotation_uuid, annotation_version):
+                resp = requests.delete(
+                    f"http://{host}/datasets/{dataset_name}/annotations/{annotation_uuid}/{annotation_version}", 
+                    headers={
+                        "x-api-key": key,
+                    })
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
 
-    Arguments:
-        **arg:** A description of arg.
+.. 
+    ``/endpoint/<arg>``
+    ~~~~~~~~~~~~~~~~~~~
+        Arguments:
+            **arg:** A description of arg.
 
-    Query String Parameters:
-        **param:** A description of param.
+    **METHOD**
+    ^^^^^^^^^^
+        Query String Parameters:
+            **param:** A description of param.
 
-    Request Body
-        .. code-block:: json
+        Request Body
+            .. code-block:: json
 
-            {
-                "key": "value"
-            }
+                {
+                    "key": "value"
+                }
 
-    Response
-        .. code-block:: json
+        Response
+            .. code-block:: json
 
-            {
-                "key": "value"
-            }
+                {
+                    "key": "value"
+                }
 
-    Code Example
-        .. code-block:: python
+        Code Example
+            .. code-block:: python
 
-            request.get()
-
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    Arguments:
-        **arg:** A description of arg.
-
-    Query String Parameters:
-        **param:** A description of param.
-
-    Request Body
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
-
-    Response
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
-
-    Code Example
-        .. code-block:: python
-
-            request.get()
-
-
-
-..
-    URL with arguments
-    Argument descriptions
-    Query string parameters
-    JSON body
-    Reponse
-    Sample code
+                request.get()
