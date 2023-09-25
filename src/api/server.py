@@ -781,15 +781,16 @@ def events_list(dataset_name):
         def fn(info):
             event = dataset.record_keeper.read(info.uuid)
             data = event.serialize()
-            data["type"] = type
+            data["type"] = info.type
             return data
         return fn
 
     events = list(map(rk_event_type_serializer(dataset), 
         dataset.state.events_all(after=after)))
 
+    print(events)
+
     return flask.jsonify({
-        "dataset": dataset_name,
         "events": events,
     })
 
@@ -808,9 +809,7 @@ def events_accept(dataset_name, event_uuid):
         dataset.machine.process_event(rae)
 
     return flask.jsonify({
-        "message": f"Event accepted.",
-        "dataset": dataset_name,
-        "event": event_uuid,
+        "uuid": event_uuid,
     })
 
 @app.put("/datasets/<dataset_name>/events/<event_uuid>/reject")
@@ -828,9 +827,7 @@ def events_reject(dataset_name, event_uuid):
         dataset.machine.process_event(rre)
 
     return flask.jsonify({
-        "message": f"Event rejected.",
-        "dataset": dataset_name,
-        "event": event_uuid,
+        "uuid": event_uuid,
     })
 
 @app.post("/datasets/<dataset_name>/annotations")

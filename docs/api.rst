@@ -444,7 +444,7 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
-                    
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -504,7 +504,7 @@ API Endpoints
         **dataset_name:** The dataset to list objects in.
 
     Query String Parameters:
-        **after:** Object UUID after which to list objects (pagination).
+        **after:** Object UUID after which to list more objects (pagination).
 
     Response
         .. code-block:: json
@@ -569,7 +569,7 @@ API Endpoints
     Arguments:
         **dataset_name:** The dataset to update an object in.
 
-        **object_uuid:** The object UUID to get info about.
+        **object_uuid:** The object UUID to update.
 
     Request Body
         .. code-block:: json
@@ -621,18 +621,18 @@ API Endpoints
     Arguments:
         **dataset_name:** The dataset to list objects in.
 
-        **object_status:** The status to list.
+        **object_status:** The status of objects to list.
 
             Valid statuses are ``accepted``, ``pending``, ``deleted``, ``rejected``.
 
     Query String Parameters:
-        **after:** Object UUID after which to list objects (pagination).
+        **after:** Object UUID after which to list more objects (pagination).
 
     Response
         .. code-block:: json
 
             {
-                "object_identifiers": [
+                "identifiers": [
                     {
                         "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
                         "version": 0
@@ -735,89 +735,123 @@ API Endpoints
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``/datasets/<dataset_name>/events``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+**GET** - Events List
+^^^^^^^^^^^^^^^^^^^^^
     Arguments:
-        **arg:** A description of arg.
+        **dataset_name:** The dataset to list events in.
 
     Query String Parameters:
-        **param:** A description of param.
-
-    Request Body
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
+        **after:** Event UUID after which to list more events (pagination).
 
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "events": [
+                    {
+                        "author": "user-one",
+                        "integrity": "6d4e3364c396240fe6d4274fe0e9e2872872a30a0c061e727379e5e66e7c8044",
+                        "owner": "user-one",
+                        "owner_action": 1,
+                        "timestamp": "2001-09-11T03:44:37.229078Z",
+                        "type": "OwnerAddEvent",
+                        "uuid": "3fcfcfd4-09c7-4b57-92f0-6390a94152ee"
+                    },
+                    {
+                        "action": 1,
+                        "author": "user-one",
+                        "integrity": "fa8703478a5b3fb29dd7c49b7442ac7046954a08a36d02d86d02e978e1fea7f4",
+                        "object": {
+                            "format": "application/schema+json",
+                            "hash": "3cc74a17c988639b288637004d86a2334cf1d50a6b0e7edc827449c7918bcf1c",
+                            "hash_type": 1,
+                            "name": "schema-bounding-box",
+                            "size": 47,
+                            "uuid": "82512635-040d-415c-934d-c8af96f25545",
+                            "version": 0
+                        },
+                        "timestamp": "2001-09-11T03:44:37.245083Z",
+                        "type": "ObjectCreateEvent",
+                        "uuid": "998cc56b-ce12-448b-afa4-9e72379e1958"
+                    }
+                ]
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def events_list(host, dataset_name):
+                resp = requests.get(
+                    f"http://{host}/datasets/{dataset_name}/events", 
+                    headers={
+                        "x-api-key": key,
+                    })
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                resp_data = resp.json()
+                print(resp.status_code, json.dumps(resp_data, indent=4))
 
+``/datasets/<dataset_name>/events/<event_uuid>/accept``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**PUT** - Event Accept
+^^^^^^^^^^^^^^^^^^^^^^
     Arguments:
-        **arg:** A description of arg.
+        **dataset_name:** The dataset to accept an event in.
 
-    Query String Parameters:
-        **param:** A description of param.
-
-    Request Body
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
+        **event_uuid:** The UUID of the event.
 
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "uuid": "998cc56b-ce12-448b-afa4-9e72379e1958",
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def event_accept(host, dataset_name, event_uuid):
+                resp = requests.put(
+                    f"http://{host}/datasets/{dataset_name}/events/{event_uuid}/accept", 
+                    headers={
+                        "x-api-key": key,
+                    })
+                    
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
 
-**METHOD** ``/endpoint/<arg>``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``/datasets/<dataset_name>/events/<event_uuid>/reject``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+**PUT** - Event Reject
+^^^^^^^^^^^^^^^^^^^^^^
     Arguments:
-        **arg:** A description of arg.
+        **dataset_name:** The dataset to reject an event in.
 
-    Query String Parameters:
-        **param:** A description of param.
-
-    Request Body
-        .. code-block:: json
-
-            {
-                "key": "value"
-            }
+        **event_uuid:** The UUID of the event.
 
     Response
         .. code-block:: json
 
             {
-                "key": "value"
+                "uuid": "998cc56b-ce12-448b-afa4-9e72379e1958",
             }
 
     Code Example
         .. code-block:: python
 
-            request.get()
+            def event_accept(host, dataset_name, event_uuid):
+                resp = requests.put(
+                    f"http://{host}/datasets/{dataset_name}/events/{event_uuid}/reject", 
+                    headers={
+                        "x-api-key": key,
+                    })
+
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
 
 **METHOD** ``/endpoint/<arg>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
