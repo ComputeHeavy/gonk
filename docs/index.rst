@@ -1,25 +1,37 @@
 Welcome to Gonk's documentation!
 ================================
 
-Hello, world!
+.. toctree::
+   :maxdepth: 1
 
-Indices and tables
-==================
+   gonk-api <api>
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Module Docs
+===========
 
-Core Modules
-============
+Core
+----
 
 .. toctree::
    :maxdepth: 2
 
-   gonk.core.interfaces <modules/interfaces>
-   gonk.core.events <modules/events>
-   gonk.core.integrity <modules/integrity>
-   gonk.core.validators <modules/validators>
-   gonk.core.exceptions <modules/exceptions>
+   gonk.core.interfaces <modules/core/interfaces>
+   gonk.core.events <modules/core/events>
+   gonk.core.integrity <modules/core/integrity>
+   gonk.core.validators <modules/core/validators>
+   gonk.core.exceptions <modules/core/exceptions>
+
+Implementations
+---------------
+
+.. toctree::
+   :maxdepth: 2
+
    gonk.impl.fs <modules/impl/fs>
    gonk.impl.sq3 <modules/impl/sq3>
+
+Index
+=====
+
+* :ref:`genindex`
+* :ref:`modindex`

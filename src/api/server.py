@@ -211,6 +211,7 @@ class Dataset:
 @app.post("/datasets/<dataset_name>")
 @authorize
 def datasets_create(dataset_name):
+    """Creates a dataset."""
     allowed = set(string.ascii_letters + string.digits + '-')
     if len(set(dataset_name).difference(allowed)) > 0:
         return flask.jsonify(
