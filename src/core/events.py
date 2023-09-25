@@ -12,27 +12,35 @@ def tsnow() -> str:
 class ActionT(enum.Enum):
     """Enum for object and annotation event actions."""
     CREATE = 1<<0
+    """Create event."""
     UPDATE = 1<<1
+    """Update event."""
     DELETE = 1<<2
+    """Delete event."""
 
 class DecisionT(enum.Enum):
     """Enum for review event decisions."""
     ACCEPT = 1<<0
+    """Event accepted."""
     REJECT = 1<<1
+    """Event rejected."""
 
 class OwnerActionT(enum.Enum):
     """Enum for owner event actions."""
     ADD = 1<<0
+    """Owner added."""
     REMOVE = 1<<1
+    """Owner removed."""
 
 class HashTypeT(enum.Enum):
     """Enum for object and annotation hash types."""
     SHA256 = 1<<0
+    """SHA256 hash is best hash."""
 
 ### Data Containers ###
 class Identifier:
     """Identifies objects and annotations with a UUID and version number."""
-    def __init__(self, uuid_: uuid.UUID, version: int) -> typing.Self:
+    def __init__(self, uuid_: uuid.UUID, version: int):
         self.uuid: uuid.UUID = uuid_
         """Object or annotation's UUID."""
         self.version: int = version
@@ -56,7 +64,7 @@ class Identifier:
     def deserialize(cls, data: dict) -> typing.Self:
         """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
-        return Identifier(uuid.UUID(data["uuid"]), data["version"])
+        return cls(uuid.UUID(data["uuid"]), data["version"])
 
     @staticmethod
     def schema(relative="") -> dict:
@@ -153,7 +161,7 @@ class Object:
     def deserialize(cls, data: dict) -> typing.Self:
         """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
-        return Object(
+        return cls(
             data["name"],
             data["format"],
             data["size"],
@@ -278,7 +286,7 @@ class Annotation:
     def deserialize(cls, data: dict) -> typing.Self:
         """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
-        return Annotation(
+        return cls(
             Identifier.deserialize(data["schema"]),
             data["size"],
             HashTypeT(data["hash_type"]),
@@ -396,7 +404,7 @@ class Event:
     def deserialize(cls, data: dict) -> typing.Self:
         """Deserialize dictionary to instance."""
         jsonschema.validate(instance=data, schema=cls.schema())
-        return Event(uuid.UUID(data["uuid"]),
+        return cls(uuid.UUID(data["uuid"]),
             data["timestamp"],
             bytes.fromhex(data["integrity"]),
             data["author"])
@@ -477,7 +485,7 @@ class ObjectEvent(Event):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ObjectEvent(ActionT(data["action"]),
+        return cls(ActionT(data["action"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
             bytes.fromhex(data["integrity"]),
@@ -537,7 +545,7 @@ class ObjectCreateEvent(ObjectEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ObjectCreateEvent(Object.deserialize(data["object"]),
+        return cls(Object.deserialize(data["object"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
             bytes.fromhex(data["integrity"]),
@@ -598,7 +606,7 @@ class ObjectUpdateEvent(ObjectEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ObjectUpdateEvent(Object.deserialize(data["object"]),
+        return cls(Object.deserialize(data["object"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
             bytes.fromhex(data["integrity"]),
@@ -659,7 +667,7 @@ class ObjectDeleteEvent(ObjectEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ObjectDeleteEvent(
+        return cls(
             Identifier.deserialize(data["object_identifier"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -722,7 +730,7 @@ class AnnotationEvent(Event):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return AnnotationEvent(ActionT(data["action"]),
+        return cls(ActionT(data["action"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
             bytes.fromhex(data["integrity"]),
@@ -788,7 +796,7 @@ class AnnotationCreateEvent(AnnotationEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return AnnotationCreateEvent(
+        return cls(
             [Identifier.deserialize(ea) for ea in data["object_identifiers"]],
             Annotation.deserialize(data["annotation"]),
             uuid.UUID(data["uuid"]),
@@ -861,7 +869,7 @@ class AnnotationUpdateEvent(AnnotationEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return AnnotationUpdateEvent(
+        return cls(
             Annotation.deserialize(data["annotation"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -924,7 +932,7 @@ class AnnotationDeleteEvent(AnnotationEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return AnnotationDeleteEvent(
+        return cls(
             Identifier.deserialize(data["annotation_identifier"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -988,7 +996,7 @@ class ReviewEvent(Event):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ReviewEvent(
+        return cls(
             DecisionT(data["decision"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -1049,7 +1057,7 @@ class ReviewAcceptEvent(ReviewEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ReviewAcceptEvent(
+        return cls(
             uuid.UUID(data["event_uuid"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -1111,7 +1119,7 @@ class ReviewRejectEvent(ReviewEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return ReviewRejectEvent(
+        return cls(
             uuid.UUID(data["event_uuid"]),
             uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -1179,7 +1187,7 @@ class OwnerEvent(Event):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return OwnerEvent(
+        return cls(
             data["owner"],
             OwnerActionT(data["owner_action"]),
             uuid.UUID(data["uuid"]),
@@ -1240,7 +1248,7 @@ class OwnerAddEvent(OwnerEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return OwnerAddEvent(
+        return cls(
             data["owner"],
             uuid.UUID(data["uuid"]),
             data["timestamp"],
@@ -1266,7 +1274,7 @@ class OwnerRemoveEvent(OwnerEvent):
     @classmethod
     def deserialize(cls, data: dict) -> typing.Self:
         jsonschema.validate(instance=data, schema=cls.schema())
-        return OwnerRemoveEvent(
+        return cls(
             data["owner"],
             uuid.UUID(data["uuid"]),
             data["timestamp"],

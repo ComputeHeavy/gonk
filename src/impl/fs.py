@@ -8,6 +8,12 @@ from gonk.core import exceptions
 from gonk.core import events
 
 class RecordKeeper(interfaces.RecordKeeper):
+    """File system backed RecordKeeper.
+
+    Treats the event log as a linked list. Utilizes ``head`` and ``tail`` 
+    files. Events are stored in depth=3 prefix-tree folder structure. For
+    example, UUID ``96f76903-7b92-44d1-8e53-fc47a520684c`` would be stored
+    in ``rk/events/9/6/f/``."""
     def __init__(self, parent_directory: pathlib.Path):
         super().__init__()
         if not parent_directory.exists():
@@ -124,11 +130,21 @@ class RecordKeeper(interfaces.RecordKeeper):
         return uuid.UUID(tail)
 
 class ObjectStateT(enum.Enum):
+    """Enum for Depot objects. """
     NONEXISTENT = 1<<0
+    """Object does not exist."""
     READABLE = 1<<1
+    """Object is readable."""
     WRITABLE = 1<<2
+    """Object is writable."""
 
 class Depot(interfaces.Depot):
+    """File system backed Depot.
+
+    Objects are stored in depth=3 prefix-tree folder structure. For
+    example, UUID ``62af3937-4c5b-405b-a170-6ef12a5e246a`` would be stored
+    in ``depot/6/2/a/``. When an object is still writable it will have the
+    ``.wr`` extension. Upon finalization this extension is removed."""
     def __init__(self, parent_directory: pathlib.Path):
         super().__init__()
         if not parent_directory.exists():

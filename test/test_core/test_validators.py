@@ -11,8 +11,8 @@ from gonk.core import integrity
 from gonk.core import validators
 from gonk.core import interfaces
 from gonk.core import events
-from gonk.core import sq3
-from gonk.core import fs
+from gonk.impl import sq3
+from gonk.impl import fs
 
 schema_buf = b'''{
   "$schema": "http://json-schema.org/draft-04/schema#",

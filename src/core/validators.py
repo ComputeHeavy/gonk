@@ -80,7 +80,9 @@ class FieldValidator(interfaces.Validator):
                 "hash should be a hex encoded SHA256")
 
 class SchemaValidator(interfaces.Validator, interfaces.Consumer):
-    """JSON Schema validator for schemas and annotations."""
+    """JSON Schema validator to ensure schemas are valid and 
+    that annotations conform to the schema they reference. Schema objects 
+    must be mimetype ``application/schema+json``."""
     def __init__(self, depot: interfaces.Depot):
         super().__init__()
         self.depot: interfaces.Depot = depot

@@ -11,6 +11,10 @@ from gonk.core import validators
 from gonk.core import events
 
 class RecordKeeper(interfaces.RecordKeeper):
+    """SQLite backed RecordKeeper.
+
+    Events are stored in a table, JSON serialized. ID primary key and
+    event UUID are indexed."""
     def __init__(self, parent_directory: pathlib.Path):
         super().__init__()
         if not parent_directory.exists():
@@ -20,11 +24,15 @@ class RecordKeeper(interfaces.RecordKeeper):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""CREATE TABLE IF NOT EXISTS events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT NOT NULL,
-            event JSON NOT NULL
-        )""")
+        cur.executescript("""
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uuid TEXT NOT NULL,
+                event JSON NOT NULL
+            );
+
+            CREATE INDEX idx_events_uuid ON events(uuid);
+        """)
         con.commit()
         con.close()
 
@@ -124,13 +132,22 @@ class RecordKeeper(interfaces.RecordKeeper):
         return uuid.UUID(tail)
 
 class StatusT(enum.Enum):
-    """Enum for tracking object and annotation status in state."""
+    """Enum for tracking object and annotation status in state.
+
+    No status implies create accapted."""
     CREATE_PENDING = 1<<0
+    """Create event pending."""
     CREATE_REJECTED = 1<<1
+    """Create event rejected."""
     DELETE_PENDING = 1<<2
+    """Delete event pending."""
     DELETE_ACCEPTED = 1<<3
+    """Delete event accepted."""
 
 class State(interfaces.State):
+    """SQLite backed State.
+
+    See parent :class:`gonk.core.interfaces.State` for more information."""
     def __init__(self,
         parent_directory: pathlib.Path,
         record_keeper: interfaces.RecordKeeper):

@@ -8,6 +8,7 @@ setup(
         'gonk': 'src',
         'gonk.core': 'src/core',
         'gonk.api': 'src/api',
+        'gonk.impl': 'src/impl',
     },
     entry_points={
         'console_scripts': [

@@ -74,7 +74,7 @@ class RecordKeeper(Consumer, Validator, abc.ABC):
 
     @abc.abstractmethod
     def add(self, event: events.EventT):
-        """Add an :class:`gonk.core.events.Event` to storage."""
+        """Add a :class:`gonk.core.events.Event` to storage."""
         raise NotImplementedError("unimplemented method")
 
     @abc.abstractmethod
@@ -84,7 +84,7 @@ class RecordKeeper(Consumer, Validator, abc.ABC):
 
     @abc.abstractmethod
     def read(self, uuid_: uuid.UUID) -> events.Event:
-        """Read an :class:`gonk.core.events.Event` from storage.
+        """Read a :class:`gonk.core.events.Event` from storage.
 
         Raises:
             ValueError: Event does not exist."""
@@ -246,6 +246,11 @@ class EventInfo:
         return f"EventInfo({self.uuid}, {self.type}, {self.review})"
 
 class State(Validator, Consumer, abc.ABC):
+    """The state interface tracks the current state of the dataset.
+
+    The information it stores in implementation dependent but must enable 
+    event validation as well as provide the API that the web service 
+    requires to run."""
     @abc.abstractmethod
     def events_by_object(self, 
         identifier: events.Identifier) -> list[EventInfo]:

@@ -9,8 +9,8 @@ from gonk.core import exceptions
 from gonk.core import interfaces
 from gonk.core import integrity
 from gonk.core import events
-from gonk.core import sq3
-from gonk.core import fs
+from gonk.impl import sq3
+from gonk.impl import fs
 
 class TestSigs(test_utils.GonkTest):
     def standard_object(self):

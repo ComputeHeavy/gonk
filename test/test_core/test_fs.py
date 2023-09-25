@@ -8,7 +8,7 @@ from nacl import signing
 from gonk.core import integrity
 from gonk.core import exceptions
 from gonk.core import events
-from gonk.core import fs
+from gonk.impl import fs
 
 class TestFileSystemRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
