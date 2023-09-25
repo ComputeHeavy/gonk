@@ -20,7 +20,7 @@ User Management
 
 ``gonk-api users rekey USERNAME`` - Regenerate a user's API key and print it out.
 
-``gonk-api users rekey USERNAME`` - List users.
+``gonk-api users list`` - List users.
 
 Execution
 ~~~~~~~~~
@@ -352,6 +352,7 @@ API Endpoints
                 print(resp.status_code, resp_data)
 
 ``/datasets/<dataset_name>/owners/<user>``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Arguments:
         **dataset_name:** Dataset name.
 
