@@ -3,8 +3,8 @@ Gonk API
 
 Gonk API is a Flask application that exposes a REST interface for dataset creation. It should be able to serve you as a generic backend for any data annotation task. This implementation should be suitable for running locally and self-hosting with small teams.
 
-Running
--------
+Commands
+--------
 
 There are three primary commands for the ``gonk-api`` application. 
 
@@ -22,8 +22,8 @@ User Management
 
 ``gonk-api users list`` - List users.
 
-Execution
-~~~~~~~~~
+Running
+~~~~~~~
 
 ``gonk-api run`` - This will run the Flask application in development mode.
 

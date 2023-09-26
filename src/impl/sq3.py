@@ -809,6 +809,150 @@ class State(interfaces.State):
         return [interfaces.SchemaInfo(name, uuid.UUID(uuid_), version) 
             for name, uuid_, version in res]
 
+    def schemas_by_status(self, status: str, after: None|uuid.UUID = None):
+        if status == "pending":
+            return self._schemas_accepted(after)
+        elif status == "accepted":
+            return self._schemas_pending(after)
+        elif status == "deleted":
+            return self._schemas_deprecated(after)
+        elif status == "rejected":
+            return self._schemas_rejected(after)
+        else:
+            raise ValueError(f"invalid status")
+
+    def _schemas_accepted(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT O.uuid, O.version
+            FROM objects O
+            INNER JOIN schemas S
+                ON O.uuid = S.uuid AND O.version = S.version
+            LEFT JOIN object_status OS
+                ON O.uuid = OS.uuid AND O.version = OS.version 
+                    AND OS.status IN (
+                        'CREATE_PENDING', 
+                        'CREATE_REJECTED', 
+                        'DELETE_ACCEPTED')
+            WHERE OS.status IS NULL
+                { where }
+            ORDER BY O.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
+    def _schemas_pending(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """WHERE O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT DISTINCT O.uuid, O.version
+            FROM objects O
+            INNER JOIN schemas S
+                ON O.uuid = S.uuid AND O.version = S.version
+            INNER JOIN object_status OS
+                ON O.uuid = OS.uuid AND O.version = OS.version 
+                    AND OS.status IN (
+                        'CREATE_PENDING', 
+                        'DELETE_PENDING')
+            { where }
+            ORDER BY O.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
+    def _schemas_deprecated(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT O.uuid, O.version
+            FROM objects O
+            INNER JOIN schemas S
+                ON O.uuid = S.uuid AND O.version = S.version
+            INNER JOIN object_status OS 
+                ON O.uuid = OS.uuid 
+                    AND O.version = OS.version
+            WHERE OS.status = 'DELETE_ACCEPTED'
+                { where }
+            ORDER BY O.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
+    def _schemas_rejected(self, after: None|uuid.UUID = None):
+        params: tuple = tuple()
+        where = ""
+        if after is not None:
+            where = """AND O.id > (
+                SELECT id 
+                FROM objects 
+                WHERE uuid = ?
+                ORDER BY id 
+                LIMIT 1)"""
+            params += (str(after),)
+
+        con = sqlite3.connect(self.database_path)
+        cur = con.cursor()
+        cur.execute(f"""SELECT O.uuid, O.version
+            FROM objects O
+            INNER JOIN schemas S
+                ON O.uuid = S.uuid AND O.version = S.version
+            INNER JOIN object_status OS 
+                ON O.uuid = OS.uuid 
+                    AND O.version = OS.version
+            WHERE OS.status = 'CREATE_REJECTED'
+                { where }
+            ORDER BY O.id
+            LIMIT 25""", params)
+
+        res = cur.fetchall()
+        con.close()
+
+        return [events.Identifier(uuid.UUID(uuid_), version) 
+            for uuid_, version, in res]
+
     def schema(self, name: str, version: int) -> None|events.Object:
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
@@ -1311,14 +1455,6 @@ class State(interfaces.State):
     def _validate_object_delete(self, event: events.ObjectDeleteEvent):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""SELECT COUNT(*) FROM schemas WHERE uuid = ?""",
-            (str(event.object_identifier.uuid),))
-
-        count, = cur.fetchone()
-        if count != 0:
-            con.close()
-            raise exceptions.ValidationError("schemas can not be deleted")
-
         cur.execute("""SELECT COUNT(*)
                 FROM objects
                 WHERE uuid = ?
@@ -1401,7 +1537,7 @@ class State(interfaces.State):
             count, = cur.fetchone()
             con.close()
             if count != 0:
-                raise exceptions.ValidationError("schemas can not be deleted")
+                raise exceptions.ValidationError("schemas can not be annotated")
 
     def _validate_annotation_update(self, event: events.AnnotationUpdateEvent):
         con = sqlite3.connect(self.database_path)

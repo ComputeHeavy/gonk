@@ -1,5 +1,5 @@
-Welcome to Gonk's documentation!
-================================
+Welcome to the Gonkumentation!
+==============================
 
 .. contents:: Table of Contents
     :local:
@@ -11,7 +11,7 @@ Gonk API Docs
 .. toctree::
    :maxdepth: 3
 
-   gonk~api <api>
+   gonk-api <api>
 
 Module Docs
 -----------

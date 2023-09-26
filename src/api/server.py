@@ -365,6 +365,27 @@ def schemas_info(dataset_name, schema_name):
         "schema_info": schema,
     })
 
+@app.get("/datasets/<dataset_name>/schemas/<schema_status>")
+@authorize
+def schemas_status(dataset_name, schema_status):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    if schema_status not in {'accepted', 'pending', 'deprecated', 'rejected'}:
+        return flask.jsonify({
+        "error": "Invalid status.",
+        "valid_statuses": ["accepted", "pending", "deprecated", "rejected"],
+    }), 400
+
+    dataset = Dataset(dataset_directory)
+    schemas = [schema.serialize() for schema in 
+        dataset.state.schemas_by_status(schema_status, after=after)]
+
+    return flask.jsonify({
+        "schema_identifiers": schemas,
+    })
+
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:schema_version>")
 @authorize
 def schemas_get(dataset_name, schema_name, schema_version):
@@ -380,9 +401,14 @@ def schemas_get(dataset_name, schema_name, schema_version):
 
     schema_buf = dataset.depot.read(schema.identifier(), 0, schema.size)
 
+    events_ = [event.serialize() for event in 
+        dataset.state.events_by_object(
+            events.Identifier(schema.uuid, schema.version))]
+
     return flask.jsonify({
         "schema": schema.serialize(),
         "bytes": base64.b64encode(schema_buf).decode(),
+        "events": events_,
     })
 
 @app.patch("/datasets/<dataset_name>/schemas/<schema_name>")
@@ -448,6 +474,30 @@ def schemas_update(dataset_name, schema_name):
 
     return flask.jsonify({
         "schema_info": schema_info.serialize(),
+    })
+
+@app.delete(
+    "/datasets/<dataset_name>/schemas/<schema_name>/<int:schema_version>")
+@authorize
+def schemas_deprecate(dataset_name, schema_name, schema_version):
+    dataset_directory = datasets_directory.joinpath(dataset_name)
+    if not dataset_directory.exists():
+        return flask.jsonify({"error": "Dataset not found."}), 404
+
+    dataset = Dataset(dataset_directory)
+    schema = dataset.state.schema(schema_name, schema_version)
+
+    if schema is None:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    with lock:
+        ode = events.ObjectDeleteEvent(schema.identifier())
+        ode = dataset.linker.link(ode, flask.g.username)
+        dataset.machine.process_event(ode)
+
+    return flask.jsonify({
+        "name": schema_name,
+        "version": schema_version,
     })
 
 @app.get("/datasets/<dataset_name>/owners")
@@ -754,6 +804,10 @@ def objects_delete(dataset_name, object_uuid, object_version):
     if object_ is None:
         return flask.jsonify({"error": "Object not found."}), 404
 
+    if validators.is_schema(object_.name):
+        return flask.jsonify(
+            {"error": "Schemas should not be deprecated here."}), 400
+
     with lock:
         ode = events.ObjectDeleteEvent(object_.identifier())
         ode = dataset.linker.link(ode, flask.g.username)
@@ -785,13 +839,11 @@ def events_list(dataset_name):
             return data
         return fn
 
-    events = list(map(rk_event_type_serializer(dataset), 
+    events_ = list(map(rk_event_type_serializer(dataset), 
         dataset.state.events_all(after=after)))
 
-    print(events)
-
     return flask.jsonify({
-        "events": events,
+        "events": events_,
     })
 
 @app.put("/datasets/<dataset_name>/events/<event_uuid>/accept")
