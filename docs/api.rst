@@ -87,6 +87,7 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -174,6 +175,7 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -204,6 +206,7 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -279,6 +282,45 @@ API Endpoints
                     json={
                         "schema": base64.b64encode(schema_buf).decode(),
                     })
+
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
+
+``/datasets/<dataset_name>/schemas/<schema_status>``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Arguments:
+        **dataset_name:** The dataset to list schemas in.
+
+        **schema_status:** The status of schemas to list.
+
+            Valid statuses are ``accepted``, ``pending``, ``deprecated``, ``rejected``.
+
+**GET** - Schemas List by Status
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Response
+        .. code-block:: json
+
+            [
+                {
+                    "uuid": "82512635-040d-415c-934d-c8af96f25545", 
+                    "version": 0
+                },
+                {
+                    "uuid": "82512635-040d-415c-934d-c8af96f25545", 
+                    "version": 1
+                }
+            ]
+
+    Code Example
+        .. code-block:: python
+
+            def schema_list_status(host, dataset_name, schema_status):
+                resp = requests.get(
+                    f"http://{host}/datasets/{dataset_name}/schemas/{schema_status}", 
+                    headers={
+                        "x-api-key": key,
+                    })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -293,7 +335,6 @@ API Endpoints
 
 **GET** - Schema Load
 ^^^^^^^^^^^^^^^^^^^^^
-
     Response
         .. code-block:: json
 
@@ -319,6 +360,30 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
+
+                resp_data = resp.json()
+                print(resp.status_code, resp_data)
+
+**DELETE** - Schema Deprecate
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Response
+        .. code-block:: json
+
+            {
+                "uuid": "82512635-040d-415c-934d-c8af96f25545",
+                "version": 0,
+            }
+
+    Code Example
+        .. code-block:: python
+
+            def schema_deprecate(host, dataset_name, schema_name, schema_version):
+                resp = requests.delete(
+                    f"http://{host}/datasets/{dataset_name}/schemas/{schema_name}/{schema_version}", 
+                    headers={
+                        "x-api-key": key,
+                    })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -345,6 +410,7 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -476,7 +542,7 @@ API Endpoints
                     })
 
                 resp_data = resp.json()
-                print(resp.status_code, resp_data)]
+                print(resp.status_code, resp_data)
 
 ``/datasets/<dataset_name>/objects/<object_uuid>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -595,7 +661,7 @@ API Endpoints
                     })
 
                 resp_data = resp.json()
-                print(resp.status_code, resp_data)]
+                print(resp.status_code, resp_data)
 
 ``/datasets/<dataset_name>/objects/<object_uuid>/<object_version>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -643,6 +709,7 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -665,6 +732,7 @@ API Endpoints
                     headers={
                         "x-api-key": key,
                     })
+
                 resp_data = resp.json()
                 print(resp.status_code, resp_data)
 
@@ -881,7 +949,7 @@ API Endpoints
                     })
 
                 resp_data = resp.json()
-                print(resp.status_code, resp_data)]
+                print(resp.status_code, resp_data)
 
 ``/datasets/<dataset_name>/annotations/<annotation_uuid>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1007,7 +1075,7 @@ API Endpoints
                     })
 
                 resp_data = resp.json()
-                print(resp.status_code, resp_data)]
+                print(resp.status_code, resp_data)
 
 ``/datasets/<dataset_name>/annotations/<annotation_uuid>/<annotation_version>``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

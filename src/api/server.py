@@ -348,7 +348,7 @@ def schemas_list(dataset_name):
 
     return flask.jsonify(schema_infos)
 
-@app.get("/datasets/<dataset_name>/schemas/<schema_name>")
+@app.get("/datasets/<dataset_name>/schemas/<re('schema-.*'):schema_name>")
 @authorize
 def schemas_info(dataset_name, schema_name):
     dataset_directory = datasets_directory.joinpath(dataset_name)
@@ -372,6 +372,10 @@ def schemas_status(dataset_name, schema_status):
     if not dataset_directory.exists():
         return flask.jsonify({"error": "Dataset not found."}), 404
 
+    after = None
+    if "after" in flask.request.args:
+        after = uuid.UUID(flask.request.args["after"])
+
     if schema_status not in {'accepted', 'pending', 'deprecated', 'rejected'}:
         return flask.jsonify({
         "error": "Invalid status.",
@@ -379,12 +383,10 @@ def schemas_status(dataset_name, schema_status):
     }), 400
 
     dataset = Dataset(dataset_directory)
-    schemas = [schema.serialize() for schema in 
+    schema_identifiers = [schema.serialize() for schema in 
         dataset.state.schemas_by_status(schema_status, after=after)]
 
-    return flask.jsonify({
-        "schema_identifiers": schemas,
-    })
+    return flask.jsonify(schema_identifiers)
 
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>/<int:schema_version>")
 @authorize
@@ -411,7 +413,7 @@ def schemas_get(dataset_name, schema_name, schema_version):
         "events": events_,
     })
 
-@app.patch("/datasets/<dataset_name>/schemas/<schema_name>")
+@app.patch("/datasets/<dataset_name>/schemas/<re('schema-.*'):schema_name>")
 @accept_json
 @authorize
 def schemas_update(dataset_name, schema_name):

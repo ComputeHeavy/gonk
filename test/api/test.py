@@ -1,3 +1,4 @@
+import sys
 import base64
 import secrets
 import inspect
@@ -34,7 +35,12 @@ schema_name = "schema-example"
 # for /f %i in ('dir /b root\datasets\') do rmdir /s /q root\datasets\%i
 # rm -rf root/datasets/*
 
+def FUNC(back = 0):
+    return sys._getframe(back+1).f_code.co_name
+
 class TestAPI(unittest.TestCase):
+    debug = True
+
     def test_create_dataset(self):
         resp = requests.post(
             f"http://{host}/datasets", 
@@ -46,7 +52,8 @@ class TestAPI(unittest.TestCase):
             })
 
         resp_data = resp.json()
-        print(resp.status_code, resp_data)
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
 
@@ -58,7 +65,8 @@ class TestAPI(unittest.TestCase):
             })
 
         resp_data = resp.json()
-        print(resp.status_code, resp_data)
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn("datasets", resp_data)
@@ -92,7 +100,8 @@ class TestAPI(unittest.TestCase):
             })
 
         resp_data = resp.json()
-        print(resp.status_code, resp_data)
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
 
@@ -113,7 +122,8 @@ class TestAPI(unittest.TestCase):
             })
 
         resp_data = resp.json()
-        print(resp.status_code, resp_data)
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp_data), 1)
@@ -136,7 +146,8 @@ class TestAPI(unittest.TestCase):
             })
 
         resp_data = resp.json()
-        print(resp.status_code, resp_data)
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
         
@@ -202,7 +213,8 @@ class TestAPI(unittest.TestCase):
             })
 
         resp_data = resp.json()
-        print(resp.status_code, resp_data)
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
         
@@ -224,7 +236,51 @@ class TestAPI(unittest.TestCase):
             })
 
         resp_data = resp.json()
-        print(resp.status_code, resp_data)
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
+
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertIn("schema", resp_data)
+        self.assertIn("events", resp_data)
+        self.assertIn("bytes", resp_data)
+
+    def test_schema_list_status(self):
+        resp = requests.get(
+            f"http://{host}/datasets/{dataset_name}/schemas/pending", 
+            headers={
+                "x-api-key": key,
+            })
+
+        resp_data = resp.json()
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
+
+        self.assertEqual(resp.status_code, 200)
+
+    def test_schema_deprecate(self):
+        resp = requests.delete(
+            f"http://{host}/datasets/{dataset_name}/schemas/{schema_name}/0", 
+            headers={
+                "x-api-key": key,
+            })
+
+        resp_data = resp.json()
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
+
+        self.assertEqual(resp.status_code, 200)
+
+    def test_owner_list(self):
+        resp = requests.get(
+            f"http://{host}/datasets/{dataset_name}/owners", 
+            headers={
+                "x-api-key": key,
+            })
+
+        resp_data = resp.json()
+        if self.debug:
+            print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
 
