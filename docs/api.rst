@@ -58,12 +58,12 @@ API Endpoints
 
             def create_dataset(host, dataset_name):
                 resp = requests.post(
-                    f"http://{host}/datasets/{dataset_name}", 
+                    f"http://{host}/datasets", 
                     headers={
                         "x-api-key": key,
                     },
                     json={
-                        "name": "dataset-name",
+                        "name": dataset_name,
                     })
 
                 resp_data = resp.json()
@@ -114,8 +114,9 @@ API Endpoints
         .. code-block:: json
 
             {
-                "name": "schema-name",
-                "version": 0,
+                "name": "schema-example", 
+                "uuid": "82512635-040d-415c-934d-c8af96f25545", 
+                "versions": 1
             }
 
     Code Example
@@ -131,7 +132,7 @@ API Endpoints
                     "properties": {
                         "label": {
                             "type": "string"
-                        },
+                        }
                     },
                     "required": [
                         "label"
@@ -156,13 +157,13 @@ API Endpoints
     Response
         .. code-block:: json
 
-            {
-                "schema_infos": [{
+            [
+                {
                     "name": "schema-example", 
                     "uuid": "82512635-040d-415c-934d-c8af96f25545", 
                     "versions": 1
-                }]
-            }
+                }
+            ]
 
     Code Example
         .. code-block:: python
@@ -189,11 +190,9 @@ API Endpoints
         .. code-block:: json
 
             {
-                "schema_info": {
-                    "name": "schema-example", 
-                    "uuid": "82512635-040d-415c-934d-c8af96f25545", 
-                    "versions": 1
-                }
+                "name": "schema-example", 
+                "uuid": "82512635-040d-415c-934d-c8af96f25545", 
+                "versions": 1
             }
 
     Code Example
@@ -221,11 +220,9 @@ API Endpoints
         .. code-block:: json
 
             {
-                "schema_info": {
-                    "name": "schema-example", 
-                    "uuid": "82512635-040d-415c-934d-c8af96f25545", 
-                    "versions": 2
-                }
+                "name": "schema-example", 
+                "uuid": "82512635-040d-415c-934d-c8af96f25545", 
+                "versions": 2
             }
 
     Code Example

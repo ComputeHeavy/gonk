@@ -240,6 +240,13 @@ class TestSqliteStateAPIInterface(test_utils.GonkTest):
         self.assertEqual(schemas[0].uuid, self.schema_object.uuid)
         self.assertEqual(schemas[0].versions, 1)
 
+    def test_schemas_by_status(self):
+        schemas = self.state.schemas_by_status("pending")
+        self.assertEqual(len(schemas), 1)
+        schema = schemas[0]
+        self.assertEqual(schema.uuid, self.schema_object.uuid)
+        self.assertEqual(schema.version, 0)
+
     def test_objects_all(self):
         objects = self.state.objects_all()
         self.assertEqual(len(objects), 1)

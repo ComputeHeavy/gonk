@@ -811,10 +811,10 @@ class State(interfaces.State):
 
     def schemas_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
-            return self._schemas_accepted(after)
-        elif status == "accepted":
             return self._schemas_pending(after)
-        elif status == "deleted":
+        elif status == "accepted":
+            return self._schemas_accepted(after)
+        elif status == "deprecated":
             return self._schemas_deprecated(after)
         elif status == "rejected":
             return self._schemas_rejected(after)

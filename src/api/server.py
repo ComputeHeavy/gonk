@@ -326,10 +326,14 @@ def schemas_create(dataset_name):
                 dataset.depot.purge(id_)
             raise e
 
-    return flask.jsonify({
-        "name": schema_name,
-        "version": 0,
-    })
+    schema_infos = dataset.state.schemas_all(name=schema_name)
+
+    if len(schema_infos) != 1:
+        return flask.jsonify({"error": "Schema not found."}), 404
+
+    schema_info, = schema_infos
+
+    return flask.jsonify(schema_info.serialize())
 
 @app.get("/datasets/<dataset_name>/schemas")
 @authorize
@@ -339,11 +343,10 @@ def schemas_list(dataset_name):
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    schemas = [schema.serialize() for schema in dataset.state.schemas_all()]
+    schema_infos = [schema_info.serialize() 
+        for schema_info in dataset.state.schemas_all()]
 
-    return flask.jsonify({
-        "schema_infos": schemas,
-    })
+    return flask.jsonify(schema_infos)
 
 @app.get("/datasets/<dataset_name>/schemas/<schema_name>")
 @authorize
@@ -353,17 +356,14 @@ def schemas_info(dataset_name, schema_name):
         return flask.jsonify({"error": "Dataset not found."}), 404
 
     dataset = Dataset(dataset_directory)
-    schemas = [schema.serialize() 
-        for schema in dataset.state.schemas_all(name=schema_name)]
+    schema_infos = dataset.state.schemas_all(name=schema_name)
 
-    if len(schemas) != 1:
+    if len(schema_infos) != 1:
         return flask.jsonify({"error": "Schema not found."}), 404
 
-    schema, = schemas
+    schema_info, = schema_infos
 
-    return flask.jsonify({
-        "schema_info": schema,
-    })
+    return flask.jsonify(schema_info.serialize())
 
 @app.get("/datasets/<dataset_name>/schemas/<schema_status>")
 @authorize
@@ -472,9 +472,7 @@ def schemas_update(dataset_name, schema_name):
 
         schema_info, = schema_info
 
-    return flask.jsonify({
-        "schema_info": schema_info.serialize(),
-    })
+    return flask.jsonify(schema_info.serialize())
 
 @app.delete(
     "/datasets/<dataset_name>/schemas/<schema_name>/<int:schema_version>")
