@@ -1398,8 +1398,9 @@ class State(interfaces.State):
 
         cur.execute("""SELECT uuid, version
                 FROM objects
-                WHERE object->>'$.hash' = ?""",
-            (event.object.hash,))
+                WHERE object->>'$.hash' = ?
+                    AND uuid != ?""",
+            (event.object.hash, str(event.object.uuid)))
 
         res = cur.fetchone()
         con.close()
@@ -1418,8 +1419,9 @@ class State(interfaces.State):
         cur = con.cursor()
         cur.execute("""SELECT uuid, version
                 FROM objects
-                WHERE object->>'$.hash' = ?""",
-            (event.object.hash,))
+                WHERE object->>'$.hash' = ?
+                    AND uuid != ?""",
+            (event.object.hash, str(event.object.uuid)))
 
         res = cur.fetchone()
 

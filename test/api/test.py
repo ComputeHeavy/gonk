@@ -20,14 +20,17 @@ def source_order(_, a, b):
     return (rank[a] > rank[b]) - (rank[a] < rank[b])
 
 unittest.TestLoader.sortTestMethodsUsing = source_order
+
 host = "127.0.0.1:5000"
-key = "gk_Zyrhdki6a4MJ9p3dlG1ziEM7gO4yXBXa"
+with open("gk.key") as f:
+    key = f.read().strip()
 
 dataset_name = f"testing-{secrets.token_hex(4)}"
 schema_name = "schema-example"
 
 user_1 = "TESTUSER1"
 user_2 = "TESTUSER2"
+
 # gonk-api init --username TESTUSER1
 # gonk-api users add TESTUSER2
 
