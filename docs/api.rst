@@ -643,13 +643,11 @@ API Endpoints
             [
                 {
                     "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
-                    "version": 0,
-                    "name": "birds.txt"
+                    "version": 0
                 },
                 {
                     "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
-                    "version": 1,
-                    "name": "birds.txt"
+                    "version": 1
                 }
             ]
 

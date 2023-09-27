@@ -333,13 +333,13 @@ class State(Validator, Consumer, abc.ABC):
     
     @abc.abstractmethod
     def objects_by_annotation(self, 
-        annotation_uuid: uuid.UUID) -> list[NamedIdentifier]:
+        annotation_uuid: uuid.UUID) -> list[events.Identifier]:
         """Get the objects for a given annotation."""
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
     def objects_by_status(self, status: str, 
-        after: None|uuid.UUID = None) -> list[NamedIdentifier]:
+        after: None|uuid.UUID = None) -> list[events.Identifier]:
         """Gets the objects for a given status.
 
         Args:

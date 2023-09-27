@@ -49,7 +49,7 @@ def rmtree(p):
     p.rmdir()
 
 class TestAPI(unittest.TestCase):
-    debug = True
+    debug = False
 
     @classmethod
     def tearDownClass(cls):
@@ -341,9 +341,6 @@ class TestAPI(unittest.TestCase):
             headers={
                 "x-api-key": key,
             })
-
-        resp_data = resp.json()
-        print(resp.status_code, resp_data)
 
         resp_data = resp.json()
         if self.debug:
