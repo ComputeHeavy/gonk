@@ -1,3 +1,6 @@
+# Copyright 2023 - Compute Heavy Industries Incorporated
+# This work is released, distributed, and licensed under AGPLv3.
+
 import nacl
 import typing
 import hashlib
