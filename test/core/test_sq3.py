@@ -16,14 +16,6 @@ from gonk.core import events
 from gonk.impl import sq3
 from gonk.impl import fs
 
-def rmtree(p):
-    for ea in p.iterdir():
-        if ea.is_dir():
-            rmtree(ea)
-        else:
-            ea.unlink()
-    p.rmdir()
-
 class TestSqliteRecordKeeper(test_utils.GonkTest):
     def test_record_keeper_init(self):
         record_keeper = sq3.RecordKeeper(

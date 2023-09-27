@@ -303,10 +303,12 @@ API Endpoints
             [
                 {
                     "uuid": "82512635-040d-415c-934d-c8af96f25545", 
+                    "name": "schema-example",
                     "version": 0
                 },
                 {
                     "uuid": "82512635-040d-415c-934d-c8af96f25545", 
+                    "name": "schema-example",
                     "version": 1
                 }
             ]
@@ -372,6 +374,7 @@ API Endpoints
             {
                 "uuid": "82512635-040d-415c-934d-c8af96f25545",
                 "version": 0,
+                "name": "schema-example"
             }
 
     Code Example
@@ -397,9 +400,9 @@ API Endpoints
     Response
         .. code-block:: json
 
-            {
-                "owners": ["user-one"],
-            }
+            [
+                "user-one"
+            ]
 
     Code Example
         .. code-block:: python
@@ -606,7 +609,7 @@ API Endpoints
                       /--m-m-----m-m-----m-m-------------m-m--/
                 """
 
-                resp = requests.post(
+                resp = requests.patch(
                     f"http://{host}/datasets/{dataset_name}/objects/{object_uuid}", 
                     headers={
                         "x-api-key": key,
@@ -637,18 +640,18 @@ API Endpoints
     Response
         .. code-block:: json
 
-            {
-                "identifiers": [
-                    {
-                        "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
-                        "version": 0
-                    },
-                    {
-                        "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
-                        "version": 1
-                    }
-                ]
-            }
+            [
+                {
+                    "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
+                    "version": 0,
+                    "name": "birds.txt"
+                },
+                {
+                    "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
+                    "version": 1,
+                    "name": "birds.txt"
+                }
+            ]
 
     Code Example
         .. code-block:: python
@@ -749,36 +752,34 @@ API Endpoints
     Response
         .. code-block:: json
 
-            {
-                "events": [
-                    {
-                        "author": "user-one",
-                        "integrity": "6d4e3364c396240fe6d4274fe0e9e2872872a30a0c061e727379e5e66e7c8044",
-                        "owner": "user-one",
-                        "owner_action": 1,
-                        "timestamp": "2001-09-11T03:44:37.229078Z",
-                        "type": "OwnerAddEvent",
-                        "uuid": "3fcfcfd4-09c7-4b57-92f0-6390a94152ee"
+            [
+                {
+                    "author": "user-one",
+                    "integrity": "6d4e3364c396240fe6d4274fe0e9e2872872a30a0c061e727379e5e66e7c8044",
+                    "owner": "user-one",
+                    "owner_action": 1,
+                    "timestamp": "2001-09-11T03:44:37.229078Z",
+                    "type": "OwnerAddEvent",
+                    "uuid": "3fcfcfd4-09c7-4b57-92f0-6390a94152ee"
+                },
+                {
+                    "action": 1,
+                    "author": "user-one",
+                    "integrity": "fa8703478a5b3fb29dd7c49b7442ac7046954a08a36d02d86d02e978e1fea7f4",
+                    "object": {
+                        "format": "application/schema+json",
+                        "hash": "3cc74a17c988639b288637004d86a2334cf1d50a6b0e7edc827449c7918bcf1c",
+                        "hash_type": 1,
+                        "name": "schema-bounding-box",
+                        "size": 47,
+                        "uuid": "82512635-040d-415c-934d-c8af96f25545",
+                        "version": 0
                     },
-                    {
-                        "action": 1,
-                        "author": "user-one",
-                        "integrity": "fa8703478a5b3fb29dd7c49b7442ac7046954a08a36d02d86d02e978e1fea7f4",
-                        "object": {
-                            "format": "application/schema+json",
-                            "hash": "3cc74a17c988639b288637004d86a2334cf1d50a6b0e7edc827449c7918bcf1c",
-                            "hash_type": 1,
-                            "name": "schema-bounding-box",
-                            "size": 47,
-                            "uuid": "82512635-040d-415c-934d-c8af96f25545",
-                            "version": 0
-                        },
-                        "timestamp": "2001-09-11T03:44:37.245083Z",
-                        "type": "ObjectCreateEvent",
-                        "uuid": "998cc56b-ce12-448b-afa4-9e72379e1958"
-                    }
-                ]
-            }
+                    "timestamp": "2001-09-11T03:44:37.245083Z",
+                    "type": "ObjectCreateEvent",
+                    "uuid": "998cc56b-ce12-448b-afa4-9e72379e1958"
+                }
+            ]
 
     Code Example
         .. code-block:: python
@@ -842,7 +843,7 @@ API Endpoints
     Code Example
         .. code-block:: python
 
-            def event_accept(host, dataset_name, event_uuid):
+            def event_reject(host, dataset_name, event_uuid):
                 resp = requests.put(
                     f"http://{host}/datasets/{dataset_name}/events/{event_uuid}/reject", 
                     headers={
@@ -929,14 +930,12 @@ API Endpoints
     Response
         .. code-block:: json
 
-            {
-                "annotation_infos": [
-                    {
-                        "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
-                        "versions": 1
-                    }
-                ]
-            }
+            [
+                {
+                    "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                    "versions": 1
+                }
+            ]
 
     Code Example
         .. code-block:: python
@@ -964,10 +963,8 @@ API Endpoints
         .. code-block:: json
 
             {
-                "annotation_info": {
-                    "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
-                    "versions": 1
-                }
+                "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                "versions": 1
             }
 
     Code Example
@@ -1051,18 +1048,16 @@ API Endpoints
     Response
         .. code-block:: json
 
-            {
-                "identifiers": [
-                    {
-                        "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
-                        "version": 0
-                    },
-                    {
-                        "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
-                        "version": 1
-                    }
-                ]
-            }
+            [
+                {
+                    "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                    "version": 0
+                },
+                {
+                    "uuid": "704e816c-30ae-4184-a4ed-eee9efe589be", 
+                    "version": 1
+                }
+            ]
 
     Code Example
         .. code-block:: python

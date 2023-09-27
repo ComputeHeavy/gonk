@@ -616,15 +616,20 @@ class State(interfaces.State):
     def objects_by_annotation(self, annotation_uuid: uuid.UUID):
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute("""SELECT object_uuid, object_version 
-                FROM object_annotation_link
+        cur.execute("""SELECT OAL.object_uuid, OAL.object_version, 
+                    O.object->>'$.name'
+                FROM object_annotation_link OAL
+                INNER JOIN objects O
+                    ON OAL.object_uuid = O.uuid
+                        AND OAL.object_version = O.version
                 WHERE annotation_uuid = ?""", 
             (str(annotation_uuid),))
 
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uu), ver) for uu, ver in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def objects_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
@@ -652,7 +657,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT O.uuid, O.version
+        cur.execute(f"""SELECT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             LEFT JOIN schemas S
                 ON O.uuid = S.uuid AND O.version = S.version
@@ -671,8 +676,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def _objects_pending(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
@@ -688,7 +693,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT DISTINCT O.uuid, O.version
+        cur.execute(f"""SELECT DISTINCT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             LEFT JOIN schemas S
                 ON O.uuid = S.uuid AND O.version = S.version
@@ -705,8 +710,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def _objects_deleted(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
@@ -722,7 +727,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT O.uuid, O.version
+        cur.execute(f"""SELECT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             JOIN object_status OS 
                 ON O.uuid = OS.uuid 
@@ -735,8 +740,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def _objects_rejected(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
@@ -752,7 +757,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT O.uuid, O.version
+        cur.execute(f"""SELECT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             JOIN object_status OS 
                 ON O.uuid = OS.uuid 
@@ -765,8 +770,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def object(self, identifier: events.Identifier):
         con = sqlite3.connect(self.database_path)
@@ -806,8 +811,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [interfaces.SchemaInfo(name, uuid.UUID(uuid_), version) 
-            for name, uuid_, version in res]
+        return [interfaces.SchemaInfo(name, uuid.UUID(uuid_), versions) 
+            for name, uuid_, versions in res]
 
     def schemas_by_status(self, status: str, after: None|uuid.UUID = None):
         if status == "pending":
@@ -835,7 +840,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT O.uuid, O.version
+        cur.execute(f"""SELECT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             INNER JOIN schemas S
                 ON O.uuid = S.uuid AND O.version = S.version
@@ -853,8 +858,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def _schemas_pending(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
@@ -870,7 +875,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT DISTINCT O.uuid, O.version
+        cur.execute(f"""SELECT DISTINCT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             INNER JOIN schemas S
                 ON O.uuid = S.uuid AND O.version = S.version
@@ -886,8 +891,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def _schemas_deprecated(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
@@ -903,7 +908,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT O.uuid, O.version
+        cur.execute(f"""SELECT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             INNER JOIN schemas S
                 ON O.uuid = S.uuid AND O.version = S.version
@@ -918,8 +923,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def _schemas_rejected(self, after: None|uuid.UUID = None):
         params: tuple = tuple()
@@ -935,7 +940,7 @@ class State(interfaces.State):
 
         con = sqlite3.connect(self.database_path)
         cur = con.cursor()
-        cur.execute(f"""SELECT O.uuid, O.version
+        cur.execute(f"""SELECT O.uuid, O.version, O.object->>'$.name'
             FROM objects O
             INNER JOIN schemas S
                 ON O.uuid = S.uuid AND O.version = S.version
@@ -950,8 +955,8 @@ class State(interfaces.State):
         res = cur.fetchall()
         con.close()
 
-        return [events.Identifier(uuid.UUID(uuid_), version) 
-            for uuid_, version, in res]
+        return [interfaces.NamedIdentifier(uuid.UUID(uuid_), version, name) 
+            for uuid_, version, name in res]
 
     def schema(self, name: str, version: int) -> None|events.Object:
         con = sqlite3.connect(self.database_path)

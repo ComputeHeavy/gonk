@@ -245,6 +245,20 @@ class EventInfo:
     def __repr__(self):
         return f"EventInfo({self.uuid}, {self.type}, {self.review})"
 
+class NamedIdentifier(events.Identifier):
+    """Return type for schemas and objects."""
+    def __init__(self, uuid_: uuid.UUID, version: int, name: str):
+        super().__init__(uuid_, version)
+        self.name = name
+
+    def serialize(self) -> dict:
+        """Serialize instance to dictionary."""
+        return {
+            "uuid": str(self.uuid),
+            "version": self.version,
+            "name": self.name,
+        }
+
 class State(Validator, Consumer, abc.ABC):
     """The state interface tracks the current state of the dataset.
 
@@ -319,13 +333,13 @@ class State(Validator, Consumer, abc.ABC):
     
     @abc.abstractmethod
     def objects_by_annotation(self, 
-        annotation_uuid: uuid.UUID) -> list[events.Identifier]:
+        annotation_uuid: uuid.UUID) -> list[NamedIdentifier]:
         """Get the objects for a given annotation."""
         raise NotImplementedError("unimplemented method")
     
     @abc.abstractmethod
     def objects_by_status(self, status: str, 
-        after: None|uuid.UUID = None) -> list[events.Identifier]:
+        after: None|uuid.UUID = None) -> list[NamedIdentifier]:
         """Gets the objects for a given status.
 
         Args:
@@ -347,6 +361,16 @@ class State(Validator, Consumer, abc.ABC):
                 about that schema will be returned."""
         raise NotImplementedError("unimplemented method")
     
+    @abc.abstractmethod
+    def schemas_by_status(self, 
+        status: str, after: None|uuid.UUID = None) -> list[NamedIdentifier]:
+        """Gets the schemas for a given status.
+
+        Args:
+            status: ``pending``, ``accepted``, ``rejected``, or ``deprecated``.
+            after: Schema UUID to page after or None for the first page."""
+        raise NotImplementedError("unimplemented method")
+
     @abc.abstractmethod
     def schema(self, name: str, version: int) -> events.Object | None:
         """Get a schema for a given name and version."""
