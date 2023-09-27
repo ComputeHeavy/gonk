@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gonk-ai"
+version = "0.1"
+authors = [
+  { name="TACIXAT", email="douglas@computeheavy.com" },
+]
+description = "Generic backend for dataset annotation."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Science/Research",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ComputeHeavy/gonk"
+"Bug Tracker" = "https://github.com/ComputeHeavy/gonk/issues"
