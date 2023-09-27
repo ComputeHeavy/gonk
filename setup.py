@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='gonk',
-    version='0.1.3',
+    version='0.1.4',
     packages=['gonk', 'gonk.core', 'gonk.api', 'gonk.impl'],
     package_dir={
         'gonk': 'src',
