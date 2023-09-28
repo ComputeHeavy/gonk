@@ -86,8 +86,7 @@ class TestAPI(unittest.TestCase):
             print(FUNC(), resp.status_code, resp_data)
 
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("datasets", resp_data)
-        self.assertIn(dataset_name, resp_data["datasets"])
+        self.assertIn(dataset_name, resp_data)
 
     def test_schema_create(self):
         schema_buf = b'''{
