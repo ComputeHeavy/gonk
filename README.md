@@ -21,14 +21,6 @@ Gonk is a backend for building and versioning deep learning datasets. Its goal i
 
 This will install the packages as well as an application `gonk-api`.
 
-#### Requirements
-
-These should be installed automatically but if you are having trouble, it requires `Flask`, `jsonschema`, `PyNaCl`, and `click`. The API tests require `requests`. All of these are listed in `setup.py`.
-
-We use a fancy feature from the `typing` library (`typing.Self`), so **Python 3.11 or higher** is required. 
-
-*This is developed and tested on Windows in Python 3.11.4. We tried running it under Ubuntu on the Python3.11 apt package (3.11.0). It did not have the modern SQLite JSON syntax (->>) available. Will take another look at this in the future.*
-
 #### PyPI
 
 ```bash
@@ -42,6 +34,14 @@ git clone https://github.com/ComputeHeavy/gonk.git
 cd gonk
 pip install .
 ```
+
+#### Requirements
+
+These should be installed automatically but if you are having trouble, it requires `Flask`, `jsonschema`, `PyNaCl`, and `click`. The API tests require `requests`. All of these are listed in `setup.py`.
+
+We use a fancy feature from the `typing` library (`typing.Self`), so **Python 3.11 or higher** is required. 
+
+*This is developed and tested on Windows in Python 3.11.4. We tried running it under Ubuntu on the Python3.11 apt package (3.11.0). It did not have the modern SQLite JSON syntax (->>) available. Will take another look at this in the future.*
 
 ### Running
 
