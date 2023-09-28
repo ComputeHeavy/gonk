@@ -1,6 +1,6 @@
 ## Gonk
 
-Gonk is a backend for building and versioning deep learning datasets. 
+Gonk is a backend for building and versioning deep learning datasets. Its goal is to do the heavy lifting for storage, validation, and approval workflows to make labeling high-quality datasets more efficient.
 
 ### Features
 
@@ -14,6 +14,8 @@ Gonk is a backend for building and versioning deep learning datasets.
 * Point-in-time release tagging
 * Reproducible dataset releases
 * Cloning the full dataset history
+* Common annotation schemas
+* Example clients
 
 ### Installation
 
@@ -69,9 +71,7 @@ This will spawn the Flask application on `localhost:5000`. This is running in Fl
 
 ## Documentation
 
-These cover the API as well as all modules.
-
-[gonk-ai.readthedocs.io](https://gonk-ai.readthedocs.io/en/latest/)
+These docs cover the API as well as all modules. [gonk-ai.readthedocs.io](https://gonk-ai.readthedocs.io/en/latest/)
 
 ## Design
 

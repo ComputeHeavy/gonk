@@ -1,2 +1,3 @@
 gonk-ai
 sphinx-rtd-theme
+myst-parser

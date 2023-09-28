@@ -255,9 +255,7 @@ def datasets_create():
 @app.get("/datasets")
 @authorize
 def datasets_list():
-    return flask.jsonify({
-        "datasets": [d.stem for d in datasets_directory.iterdir()]
-    })
+    return flask.jsonify([d.stem for d in datasets_directory.iterdir()])
 
 @app.errorhandler(Exception)
 def exception_handler(error):

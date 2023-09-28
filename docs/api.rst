@@ -39,6 +39,8 @@ API Endpoints
 
 **POST** - Dataset Create
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    Creates a dataset with the given name.
+
     Request Body
         .. code-block:: json
 
@@ -71,12 +73,14 @@ API Endpoints
 
 **GET** - Datasets List
 ^^^^^^^^^^^^^^^^^^^^^^^
+    List datasets.
+
     Response
         .. code-block:: json
 
-            {
-                "datasets": ["dataset-name"]
-            }
+            [
+                "dataset-name"
+            ]
 
     Code Example
         .. code-block:: python
@@ -98,6 +102,8 @@ API Endpoints
 
 **POST** - Schema Create
 ^^^^^^^^^^^^^^^^^^^^^^^^
+    Add a schema to the dataset. Schemas are defined using JSON Schema and should be base64 encoded. The creation event will need to be reviewed by an owner. 
+
     Request Body
         .. code-block:: json
 
@@ -155,6 +161,8 @@ API Endpoints
 
 **GET** - Schemas List
 ^^^^^^^^^^^^^^^^^^^^^^
+    List schemas.
+
     Response
         .. code-block:: json
 
@@ -188,6 +196,8 @@ API Endpoints
 
 **GET** - Schema Info
 ^^^^^^^^^^^^^^^^^^^^^
+    Gets a summary for a single schema UUID.
+
     Response
         .. code-block:: json
 
@@ -212,6 +222,8 @@ API Endpoints
 
 **PATCH** - Schema Update
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    Version a schema. The schema should be defined using JSON Schema and encoded as base64 in the request body. The update event will need to be reviewed by an owner. 
+
     Request Body
         .. code-block:: json
 
@@ -297,6 +309,8 @@ API Endpoints
 
 **GET** - Schemas List by Status
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    List schemas by status.
+
     Response
         .. code-block:: json
 
@@ -337,6 +351,8 @@ API Endpoints
 
 **GET** - Schema Load
 ^^^^^^^^^^^^^^^^^^^^^
+    Download a schema. This will provide the bytes of the schema (base64 encoded), the schema's metadata, and the related events.
+
     Response
         .. code-block:: json
 
@@ -350,7 +366,12 @@ API Endpoints
                     "uuid": "82512635-040d-415c-934d-c8af96f25545",
                     "version": 0
                 },
-                "bytes": "YmFzZTY0IGVuY29kZWQgSlNPTiBTY2hlbWEgZGVmaW5pdGlvbiBnb2VzIGhlcmU="
+                "bytes": "YmFzZTY0IGVuY29kZWQgSlNPTiBTY2hlbWEgZGVmaW5pdGlvbiBnb2VzIGhlcmU=",
+                "events": [{
+                    "review": "PENDING", 
+                    "type": "ObjectCreateEvent", 
+                    "uuid": "ecd89460-fa9d-47a7-b44e-f4ec6ee61965"
+                }]
             }
 
     Code Example
@@ -368,6 +389,8 @@ API Endpoints
 
 **DELETE** - Schema Deprecate
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Delete a schema. The deletion event will need to be reviewed by an owner. 
+
     Response
         .. code-block:: json
 
@@ -397,6 +420,8 @@ API Endpoints
 
 **GET** - Owners List
 ^^^^^^^^^^^^^^^^^^^^^
+    List dataset owners.
+
     Response
         .. code-block:: json
 
@@ -426,6 +451,8 @@ API Endpoints
 
 **PUT** - Owner Add
 ^^^^^^^^^^^^^^^^^^^
+    Add an owner to the dataset.
+
     Response
         .. code-block:: json
 
@@ -448,6 +475,8 @@ API Endpoints
 
 **DELETE** - Owner Remove
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    Remove an owner from the dataset. Lower ranking owners cannot remove owners of a higher rank. Rank is based on the order in which they were added.
+
     Response
         .. code-block:: json
 
@@ -475,6 +504,8 @@ API Endpoints
 
 **POST** - Object Create
 ^^^^^^^^^^^^^^^^^^^^^^^^
+    Add an object to the dataset. The object will be in the create pending state until reviewed by an owner.
+
     Request Body
         .. code-block:: json
 
@@ -519,20 +550,20 @@ API Endpoints
 
 **GET** - Objects List
 ^^^^^^^^^^^^^^^^^^^^^^
+    List objects in the dataset.
+
     Query String Parameters:
         **after:** Object UUID after which to list more objects (pagination).
 
     Response
         .. code-block:: json
 
-            {
-                "object_infos": [
-                    {
-                        "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
-                        "versions": 1
-                    }
-                ]
-            }
+            [
+                {
+                    "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
+                    "versions": 1
+                }
+            ]
 
     Code Example
         .. code-block:: python
@@ -556,14 +587,14 @@ API Endpoints
 
 **GET** - Object Info
 ^^^^^^^^^^^^^^^^^^^^^
+    Get a summary for a single object UUID. 
+
     Response
         .. code-block:: json
 
             {
-                "object_info": {
-                    "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
-                    "versions": 1
-                }
+                "uuid": "0d21d5a7-fe93-4618-a122-7ca9a2ee5116", 
+                "versions": 1
             }
 
     Code Example
@@ -581,6 +612,8 @@ API Endpoints
 
 **PATCH** - Object Update
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    Version an object in the dataset. The update will create a new version. Annotations will not be carried over. The new version will be create pending until reviewed by an owner.
+
     Request Body
         .. code-block:: json
 
@@ -634,6 +667,8 @@ API Endpoints
 
 **GET** - Objects List by Status
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    List objects by status.
+
     Query String Parameters:
         **after:** Object UUID after which to list more objects (pagination).
 
@@ -676,6 +711,8 @@ API Endpoints
 
 **GET** - Object Load
 ^^^^^^^^^^^^^^^^^^^^^
+    Download an object. The object metadata, object bytes (base64 encoded), corresponding events, and annotations are returned.
+
     Response
         .. code-block:: json
 
@@ -716,6 +753,8 @@ API Endpoints
 
 **DELETE** - Object Delete
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Deletes an object. The deletion event will be pending until reviewed by an owner.
+
     Response
         .. code-block:: json
 
@@ -744,6 +783,8 @@ API Endpoints
 
 **GET** - Events List
 ^^^^^^^^^^^^^^^^^^^^^
+    List events.
+
     Query String Parameters:
         **after:** Event UUID after which to list more events (pagination).
 
@@ -801,6 +842,7 @@ API Endpoints
 
 **PUT** - Event Accept
 ^^^^^^^^^^^^^^^^^^^^^^
+    Accept event. Owner only. 
 
     Response
         .. code-block:: json
@@ -831,6 +873,8 @@ API Endpoints
 
 **PUT** - Event Reject
 ^^^^^^^^^^^^^^^^^^^^^^
+    Reject event. Owner only.
+
     Response
         .. code-block:: json
 
@@ -858,6 +902,7 @@ API Endpoints
 
 **POST** - Annotation Create
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Create an annotation. The annotation create event will be pending until reviewed by an owner.
 
     Request Body
         .. code-block:: json
@@ -922,6 +967,8 @@ API Endpoints
 
 **GET** - Annotations List
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    List annotations. 
+
     Query String Parameters:
         **after:** Annotations UUID after which to list more annotations (pagination).
 
@@ -957,6 +1004,8 @@ API Endpoints
 
 **GET** - Annotation Info
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    Get a summary of a single annotation UUID.
+
     Response
         .. code-block:: json
 
@@ -980,6 +1029,8 @@ API Endpoints
 
 **PATCH** - Annotation Update
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Version an annotation. The new version will be pending until reviewed by an owner.
+
     Request Body
         .. code-block:: json
 
@@ -1040,6 +1091,8 @@ API Endpoints
 
 **GET** - Annotation List by Status
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    List annotations by status.
+
     Query String Parameters:
         **after:** Annotation UUID after which to list more annotations (pagination).
 
@@ -1081,6 +1134,8 @@ API Endpoints
 
 **GET** - Annotation Load
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    Download an annotation. This returns the annotation bytes (base64 encoded), metadata, related events, and objects.
+
     Response
         .. code-block:: json
 
@@ -1132,6 +1187,8 @@ API Endpoints
 
 **DELETE** - Annotation Delete
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Delete an annotation. The delete event will be pending until reviewed by an owner.
+
     Response
         .. code-block:: json
 
