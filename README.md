@@ -27,7 +27,7 @@ These should be installed automatically but if you are having trouble, it requir
 
 We use a fancy feature from the `typing` library (`typing.Self`), so **Python 3.11 or higher** is required. 
 
-*This is developed and tested on Windows. We tried running it under Ubuntu on the Python3.11 apt package (3.11.0). It did not have the modern SQLite JSON syntax (->>) available. Will take another look at this in the future.*
+*This is developed and tested on Windows in Python 3.11.4. We tried running it under Ubuntu on the Python3.11 apt package (3.11.0). It did not have the modern SQLite JSON syntax (->>) available. Will take another look at this in the future.*
 
 #### PyPI
 
